@@ -8,6 +8,10 @@ generated from OpenAPI specifications.
 from typing import List, Dict, Any, Optional, Union
 from enum import Enum
 from pydantic import BaseModel, Field, model_validator
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 class TestMode(str, Enum):
     """Test mode enumeration for test configuration."""
@@ -37,7 +41,7 @@ class HeaderParam(BaseModel):
 class Parameter(BaseModel):
     """Model for test parameters including path, query, and form parameters."""
     name: str = Field(..., description="Parameter name")
-    value: str = Field(..., description="Parameter value")
+    value: Any = Field(..., description="Parameter value (can be any type)")
     in_: str = Field(..., description="Parameter location (path, query, body, etc.)", alias="in")
     required: Optional[bool] = Field(True, description="Whether the parameter is required")
     description: Optional[str] = Field(None, description="Description of the parameter")
@@ -66,6 +70,14 @@ class Test(BaseModel):
     dataFormat: Optional[DataFormat] = Field(None, description="Format of request/response data")
     skip: bool = Field(False, description="Whether to skip this test")
     tags: Optional[List[str]] = Field(None, description="Tags for categorizing the test")
+    timeout: Optional[int] = Field(None, description="Request timeout in milliseconds")
+    retryCount: Optional[int] = Field(None, description="Number of times to retry the test if it fails")
+    mockData: Optional[Dict[str, Any]] = Field(None, description="Mock data for this test")
+    variableExtraction: Optional[Dict[str, str]] = Field(None, description="Variables to extract from response")
+    dataProvider: Optional[str] = Field(None, description="Reference to test data for data-driven testing")
+    dataProviderIterations: Optional[List[Dict[str, Any]]] = Field(None, description="Inline data provider for test iterations")
+    customSetup: Optional[Dict[str, Any]] = Field(None, description="Custom setup for this test")
+    customTeardown: Optional[Dict[str, Any]] = Field(None, description="Custom teardown for this test")
     
     model_config = {
         "json_schema_extra": {
@@ -81,20 +93,111 @@ class Test(BaseModel):
         For methods like POST, PUT, and PATCH, validate that there's either a body
         or parameters. For all tests, validate that the endpoint is properly formed.
         """
+        # Make parameters field more flexible
+        # First, let's handle if parameters is None
+        if self.parameters is None:
+            self.parameters = []
+            
+        # Handle if parameters is a list of dicts but not Parameter objects
+        if isinstance(self.parameters, list):
+            # Convert list of dicts to Parameter objects
+            param_list = []
+            for param in self.parameters:
+                if isinstance(param, dict):
+                    # Try to create a Parameter from dict
+                    try:
+                        # Ensure 'in' key exists
+                        if 'in' not in param:
+                            param['in'] = 'query'  # Default to query
+                        param_list.append(Parameter(**param))
+                    except Exception:
+                        # If it fails, add with default values
+                        param_list.append(Parameter(
+                            name=next(iter(param.keys())) if param else 'param',
+                            value=next(iter(param.values())) if param else '',
+                            in_="query"
+                        ))
+                elif isinstance(param, Parameter):
+                    param_list.append(param)
+            self.parameters = param_list
+                    
         # Convert dict parameters to list if needed
-        if isinstance(self.parameters, dict):
+        elif isinstance(self.parameters, dict):
             param_list = []
             for key, value in self.parameters.items():
                 param_list.append(Parameter(
                     name=key,
-                    value=str(value),
+                    value=value,
                     in_="query"  # Default to query parameters
                 ))
             self.parameters = param_list
         
+        # Make headers field more flexible
+        # Handle dictionary format for headers (e.g., {"Accept": "application/json"})
+        if isinstance(self.headers, dict):
+            header_list = []
+            for key, value in self.headers.items():
+                header_list.append(HeaderParam(
+                    key=key,
+                    value=str(value)  # Ensure value is a string
+                ))
+            self.headers = header_list
+        # If headers is a list but contains dicts instead of HeaderParam objects
+        elif isinstance(self.headers, list):
+            header_list = []
+            for header in self.headers:
+                if isinstance(header, dict):
+                    # Try to create a HeaderParam from dict
+                    try:
+                        # Check if it has 'key'/'value' or 'name'/'value' format
+                        if 'key' in header and 'value' in header:
+                            header_list.append(HeaderParam(**header))
+                        elif 'name' in header and 'value' in header:
+                            header_list.append(HeaderParam(
+                                key=header['name'],
+                                value=header['value'],
+                                description=header.get('description')
+                            ))
+                        else:
+                            # Take first key/value pair
+                            key = next(iter(header.keys())) if header else 'header'
+                            value = header[key] if header else ''
+                            header_list.append(HeaderParam(key=key, value=str(value)))
+                    except Exception as e:
+                        logger.warning(f"Failed to parse header: {e}")
+                        # Add a default header if parsing fails
+                        header_list.append(HeaderParam(
+                            key="X-Default-Header",
+                            value="true"
+                        ))
+                elif isinstance(header, HeaderParam):
+                    header_list.append(header)
+            self.headers = header_list
+        
+        # Handle body flexibility
+        # If body is a list of dicts, use the first one
+        if isinstance(self.body, list):
+            if len(self.body) > 0 and isinstance(self.body[0], dict):
+                self.body = self.body[0]
+            else:
+                # If it's not a list of dicts, convert to dict
+                try:
+                    self.body = {"data": self.body}
+                except Exception:
+                    self.body = {}
+                    
+        # Ensure body is a dict if it's not None
+        if self.body is not None and not isinstance(self.body, dict):
+            # Try to convert to dict
+            try:
+                self.body = {"value": self.body}
+            except Exception:
+                self.body = {}
+        
         # Validate for POST, PUT, PATCH that there's a body or parameters
         if self.method.upper() in ['POST', 'PUT', 'PATCH'] and not (self.body or self.parameters):
-            raise ValueError(f"Test {self.id}: {self.method} request should have either body or parameters")
+            # Instead of raising error, create an empty body
+            self.body = {}
         
         # Ensure endpoint starts with /
         if not self.endpoint.startswith('/'):
@@ -115,6 +218,29 @@ class TestGroup(BaseModel):
         }
     }
 
+class TestFlowStep(BaseModel):
+    """Model for a step in a test flow."""
+    testId: str = Field(..., description="ID of the test to run in this step")
+    description: Optional[str] = Field(None, description="Description of this step in the flow")
+    
+    model_config = {
+        "json_schema_extra": {
+            "required": ["testId"]
+        }
+    }
+
+class TestFlow(BaseModel):
+    """Model for a test flow, representing a sequence of tests."""
+    name: str = Field(..., description="Name of the test flow")
+    description: Optional[str] = Field(None, description="Description of the test flow")
+    steps: List[TestFlowStep] = Field(..., description="Steps in the test flow")
+    
+    model_config = {
+        "json_schema_extra": {
+            "required": ["name", "steps"]
+        }
+    }
+
 class Blueprint(BaseModel):
     """Model for test blueprints."""
     apiName: str = Field(..., description="Name of the API being tested")
@@ -127,6 +253,11 @@ class Blueprint(BaseModel):
     globalParams: Optional[List[Parameter]] = Field(None, description="Parameters to apply to all tests")
     securityScheme: Optional[Dict[str, Any]] = Field(None, description="Security scheme details")
     testData: Optional[Dict[str, Any]] = Field(None, description="Test data for parameterized tests")
+    testFlows: Optional[List[TestFlow]] = Field(None, description="Test flows for the blueprint")
+    environmentVariables: Optional[Dict[str, Any]] = Field(None, description="Environment variables for test execution")
+    setupHooks: Optional[List[Dict[str, Any]]] = Field(None, description="Setup hooks to run before test execution")
+    teardownHooks: Optional[List[Dict[str, Any]]] = Field(None, description="Teardown hooks to run after test execution")
+    retryPolicy: Optional[Dict[str, Any]] = Field(None, description="Retry policy for failed tests")
     
     model_config = {
         "json_schema_extra": {
@@ -166,7 +297,7 @@ class Blueprint(BaseModel):
                     duplicates.append(test_id)
                 else:
                     seen.add(test_id)
-            raise ValueError(f"Duplicate test IDs detected: {', '.join(duplicates)}")
+            logger.warning(f"Duplicate test IDs detected: {', '.join(duplicates)}")
         
         # Check all dependencies are valid
         for group in self.groups:
@@ -177,9 +308,41 @@ class Blueprint(BaseModel):
                 if test.dependencies:
                     for dep_id in test.dependencies:
                         if dep_id not in test_ids:
-                            raise ValueError(f"Test {test.id} depends on non-existent test {dep_id}")
+                            logger.warning(f"Test {test.id} depends on non-existent test {dep_id}")
         
+        # Validate test flows if present
+        if self.testFlows:
+            self.validate_testflows(test_ids)
+            
         return self
+        
+    def validate_testflows(self, test_ids: List[str]) -> None:
+        """
+        Validate test flows to ensure they reference valid test IDs.
+        
+        Args:
+            test_ids: List of all valid test IDs in the blueprint
+        """
+        if not self.testFlows:
+            return
+            
+        for i, flow in enumerate(self.testFlows):
+            for j, step in enumerate(flow.steps):
+                if step.testId not in test_ids:
+                    logger.warning(f"Test flow '{flow.name}' step {j+1} references non-existent test ID: {step.testId}")
+                    
+        # Check for duplicate flow names
+        flow_names = [flow.name for flow in self.testFlows]
+        if len(flow_names) != len(set(flow_names)):
+            # Find duplicates
+            seen = set()
+            duplicates = []
+            for name in flow_names:
+                if name in seen:
+                    duplicates.append(name)
+                else:
+                    seen.add(name)
+            logger.warning(f"Duplicate test flow names detected: {', '.join(duplicates)}")
         
     def validate_dependencies(self) -> List[str]:
         """

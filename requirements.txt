@@ -21,8 +21,8 @@ aiohttp>=3.8.5
 # OpenAI API
 openai>=1.0.0
 
-# Agents Package
-agents>=0.1.0
+# OpenAI Agents SDK
+openai-agents>=0.0.6
 
 # Utils
 tenacity>=8.2.3

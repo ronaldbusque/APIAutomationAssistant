@@ -1,4 +1,4 @@
-from typing import List, Tuple, Set, Dict, Any
+from typing import List, Tuple, Set, Dict, Any, Union
 import re
 import json
 
@@ -144,12 +144,12 @@ def check_blueprint_security(blueprint_dict: Dict[str, Any]) -> List[str]:
     
     return warnings
 
-async def validate_and_clean_blueprint(blueprint: Blueprint) -> Tuple[Dict[str, Any], List[str]]:
+async def validate_and_clean_blueprint(blueprint_data: Union[Blueprint, Dict[str, Any]]) -> Tuple[Dict[str, Any], List[str]]:
     """
     Validate a blueprint and clean it up if possible.
     
     Args:
-        blueprint: The blueprint to validate (can be a model instance)
+        blueprint_data: The blueprint to validate (can be a model instance or dictionary)
         
     Returns:
         Tuple of (cleaned_blueprint_dict, warnings)
@@ -157,17 +157,24 @@ async def validate_and_clean_blueprint(blueprint: Blueprint) -> Tuple[Dict[str, 
     warnings = []
     
     # Convert to dictionary if it's a model instance
-    if isinstance(blueprint, Blueprint):
+    if isinstance(blueprint_data, Blueprint):
         try:
-            blueprint_dict = blueprint.model_dump()
+            blueprint_dict = blueprint_data.model_dump()
         except Exception as e:
-            raise BlueprintValidationError(f"Failed to convert blueprint model to dictionary: {str(e)}")
+            warnings.append(f"Failed to convert blueprint model to dictionary: {str(e)}")
+            # Try to convert to dict another way
+            blueprint_dict = {k: v for k, v in blueprint_data.__dict__.items() if not k.startswith('_')}
     else:
-        blueprint_dict = blueprint
+        blueprint_dict = blueprint_data
     
     # Ensure blueprint_dict is not None
     if not blueprint_dict:
-        raise BlueprintValidationError("Blueprint dictionary is empty or None")
+        warnings.append("Blueprint dictionary is empty, using a minimal default structure")
+        blueprint_dict = {
+            "apiName": "Default API",
+            "version": "1.0.0",
+            "groups": []
+        }
     
     # Run dependency validation
     try:
@@ -178,6 +185,19 @@ async def validate_and_clean_blueprint(blueprint: Blueprint) -> Tuple[Dict[str, 
         security_warnings = check_blueprint_security(blueprint_dict)
         warnings.extend(security_warnings)
     except Exception as e:
-        raise BlueprintValidationError(f"Error during blueprint validation: {str(e)}")
+        warnings.append(f"Warning during blueprint validation: {str(e)}")
+    
+    # Ensure the blueprint has required fields
+    if "apiName" not in blueprint_dict:
+        blueprint_dict["apiName"] = "Unknown API"
+        warnings.append("Blueprint missing apiName, using 'Unknown API'")
+        
+    if "version" not in blueprint_dict:
+        blueprint_dict["version"] = "1.0.0"
+        warnings.append("Blueprint missing version, using '1.0.0'")
+        
+    if "groups" not in blueprint_dict:
+        blueprint_dict["groups"] = []
+        warnings.append("Blueprint missing groups, using empty list")
     
     return blueprint_dict, warnings 

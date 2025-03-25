@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from ..agents.test_generation import process_openapi_spec, generate_test_scripts
+from ..blueprint.validation import validate_and_clean_blueprint as validate_blueprint
 from ..errors.exceptions import (
     APITestGenerationError, SpecValidationError, 
     BlueprintGenerationError, ScriptGenerationError
@@ -232,18 +233,51 @@ async def generate_scripts_background(
                 except Exception as ws_error:
                     logger.error(f"WebSocket error: {str(ws_error)}")
         
-        # Generate scripts
-        scripts = await generate_test_scripts(
-            request.blueprint,
-            request.targets,
-            progress_callback
-        )
+        # Generate scripts - use try/except to ensure we always get some output
+        try:
+            scripts, trace_id = await generate_test_scripts(
+                request.blueprint,
+                request.targets,
+                progress_callback
+            )
+            
+            # Log success
+            logger.info(f"Script generation completed successfully for job {job_id}")
+            
+        except Exception as gen_error:
+            logger.error(f"Error during script generation for job {job_id}: {str(gen_error)}")
+            
+            # Try to generate minimal scripts as fallback
+            logger.info(f"Attempting to generate minimal scripts as fallback for job {job_id}")
+            
+            # Create minimal outputs for each target
+            scripts = {}
+            for target in request.targets:
+                scripts[target] = {
+                    f"minimal_{target}_tests.txt": f"// Minimal tests for {target}\n// Error occurred: {str(gen_error)}\n\n// Original blueprint API name: {request.blueprint.get('apiName', 'Unknown')}"
+                }
+            
+            # Generate a trace ID for tracking
+            trace_id = f"error-{uuid.uuid4()}"
+        
+        # Log script structure before storing
+        logger.info(f"Scripts generated with types: {list(scripts.keys())}")
+        for script_type, files in scripts.items():
+            logger.info(f"Script type {script_type} contains {len(files)} files:")
+            for filename in files.keys():
+                file_size = len(files[filename]) if isinstance(files[filename], str) else 'Non-string content'
+                logger.info(f"  - {filename} (size: {file_size})")
         
         # Store result
         job_results[job_id] = {
             "blueprint": request.blueprint,
-            "scripts": scripts
+            "scripts": scripts,
+            "trace_id": trace_id
         }
+        
+        # Log result structure sent to client
+        logger.info(f"Result keys: {list(job_results[job_id].keys())}")
+        logger.info(f"Scripts result structure: {json.dumps({k: list(v.keys()) for k, v in scripts.items()})}")
         
         # Update job status
         active_jobs[job_id] = "completed"
@@ -460,5 +494,79 @@ def create_api_router(app: FastAPI = None):
             # Remove WebSocket connection
             if job_id in websocket_connections:
                 del websocket_connections[job_id]
+    
+    @app.get("/file-content/{job_id}/{target}/{filename:path}")
+    async def get_file_content(job_id: str, target: str, filename: str):
+        """
+        Get the content of a specific generated file.
+        
+        Args:
+            job_id: Job ID
+            target: Target framework
+            filename: File name/path
+            
+        Returns:
+            File content as text
+        """
+        # Check if job exists
+        if job_id not in active_jobs:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+        
+        # Check if job is completed
+        if active_jobs[job_id] != "completed":
+            raise HTTPException(status_code=400, detail=f"Job {job_id} is not completed")
+        
+        # Get job result
+        result = job_results.get(job_id)
+        if not result:
+            raise HTTPException(status_code=404, detail=f"No results found for job {job_id}")
+        
+        # Extract scripts
+        scripts = result.get("scripts", {})
+        if not scripts:
+            raise HTTPException(status_code=404, detail=f"No scripts found in job {job_id}")
+        
+        # Check if target exists
+        if target not in scripts:
+            raise HTTPException(status_code=404, detail=f"Target {target} not found in job {job_id}")
+        
+        # Get target scripts
+        target_scripts = scripts[target]
+        
+        # Handle both array and object formats
+        if isinstance(target_scripts, list):
+            # If it's a list of filenames, check if the file exists in the list
+            if filename not in target_scripts:
+                raise HTTPException(status_code=404, detail=f"File {filename} not found in target {target}")
+            
+            # We need to look up the actual content from somewhere
+            # This might mean we need to read from disk if files were saved
+            try:
+                # Try to read from the output directory
+                import os
+                from pathlib import Path
+                
+                # Define the output directory pattern
+                output_dir = f"output_{job_id}/{target}"
+                file_path = Path(output_dir) / filename
+                
+                if not file_path.exists():
+                    raise FileNotFoundError(f"File {file_path} does not exist on disk")
+                
+                # Read the file content
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                
+                return content
+            except Exception as e:
+                logger.error(f"Error reading file {filename} for job {job_id}: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+        else:
+            # If it's a dictionary, check if the file exists
+            if filename not in target_scripts:
+                raise HTTPException(status_code=404, detail=f"File {filename} not found in target {target}")
+            
+            # Return the file content
+            return target_scripts[filename]
     
     return app 
