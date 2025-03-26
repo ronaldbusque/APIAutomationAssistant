@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { useGenerateScripts, useJobStatus } from '../hooks/useApi';
+import { useGenerateScripts, useJobStatus, useWebSocket } from '../hooks/useApi';
 
 interface Props {
   onBack: () => void;
@@ -29,6 +29,55 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   const jobStatus = useJobStatus(state.scriptJobId);
   
   const processedJobRef = useRef<string | null>(null);
+  const wsRef = useRef<any>(null);
+  
+  // Set up WebSocket for real-time updates
+  const { connect } = useWebSocket(state.scriptJobId, (data) => {
+    console.log('WebSocket update received in ScriptOutput:', data);
+    
+    // Handle different message types
+    if (data.type === 'progress' && data.progress) {
+      console.log('Progress update:', data.progress);
+      // Progress updates are automatically handled by job status refreshes
+      // This just ensures we get more frequent UI updates
+      jobStatus.refetch();
+    } else if (data.type === 'completed' && data.result) {
+      console.log('Completed message received:', data.result);
+      jobStatus.refetch();
+    } else if (data.type === 'error') {
+      console.error('Error message received:', data.error);
+      setError(data.error || 'An error occurred during script generation');
+      jobStatus.refetch();
+    }
+  });
+  
+  // Connect to WebSocket when job ID changes
+  useEffect(() => {
+    if (state.scriptJobId) {
+      console.log('Connecting to WebSocket for script generation updates...');
+      
+      // Disconnect previous connection if exists
+      if (wsRef.current) {
+        console.log('Disconnecting previous WebSocket connection');
+        wsRef.current.disconnect();
+      }
+      
+      // Create new connection
+      const connection = connect();
+      if (connection) {
+        wsRef.current = connection;
+      }
+    }
+    
+    // Cleanup function
+    return () => {
+      if (wsRef.current) {
+        console.log('Cleaning up WebSocket connection');
+        wsRef.current.disconnect();
+        wsRef.current = null;
+      }
+    };
+  }, [state.scriptJobId, connect]);
   
   // Set initial selected target
   useEffect(() => {
@@ -407,13 +456,26 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     }
     
     const progress = jobStatus.data?.progress || state.scriptProgress;
-    const percent = progress?.percent || 0;
     const status = jobStatus.data?.status || 'processing';
     const message = progress?.message || 'Processing...';
+    const stage = progress?.stage || 'initializing';
+    
+    // Get more descriptive stage name
+    const getStageName = (stage: string) => {
+      switch (stage) {
+        case 'planning': return 'Planning Test Structure';
+        case 'coding': return 'Generating Test Scripts';
+        case 'initializing': return 'Initializing';
+        case 'waiting_for_review': return 'Waiting for Review';
+        case 'completed': return 'Completed';
+        case 'failed': return 'Failed';
+        default: return stage.charAt(0).toUpperCase() + stage.slice(1);
+      }
+    };
     
     return (
       <div className="mb-6 border border-gray-300 dark:border-gray-600 rounded-md p-6 bg-gray-50 dark:bg-gray-800/50">
-        <div className="flex justify-between items-center mb-2">
+        <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-medium">Generation Progress</h3>
           <div className="flex space-x-2">
             <div className="text-xs px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full capitalize">
@@ -432,16 +494,30 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
           </div>
         </div>
         
-        <div className="mb-2">
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-1">
-            <div 
-              className="bg-blue-600 h-2.5 rounded-full" 
-              style={{ width: `${percent}%` }}
-            ></div>
+        <div className="mb-4">
+          <div className="flex items-center mb-3">
+            <div className="font-medium text-sm">
+              {getStageName(stage)}
+            </div>
           </div>
-          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>{message}</span>
-            <span>{percent}%</span>
+          
+          {/* Visual animated indicator instead of percentage */}
+          <div className="flex items-center">
+            <div className="relative w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              {status === 'processing' || status === 'queued' ? (
+                <div className="absolute h-full bg-blue-500 animate-progress-pulse"></div>
+              ) : status === 'completed' ? (
+                <div className="absolute h-full w-full bg-green-500"></div>
+              ) : status === 'failed' ? (
+                <div className="absolute h-full w-full bg-red-500"></div>
+              ) : (
+                <div className="absolute h-full w-1/4 bg-blue-500"></div>
+              )}
+            </div>
+          </div>
+          
+          <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 border-l-2 border-blue-500 pl-3">
+            {message}
           </div>
         </div>
         
@@ -456,7 +532,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
         </div>
         
         {showDebugInfo && jobStatus.data && (
-          <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-md text-xs font-mono overflow-auto max-h-32">
+          <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-md text-xs font-mono overflow-auto max-h-48">
             <div>
               <strong>Job ID:</strong> {jobStatus.data.job_id}
             </div>
@@ -467,7 +543,13 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
               <strong>Stage:</strong> {progress?.stage || 'N/A'}
             </div>
             <div>
+              <strong>Trace ID:</strong> {jobStatus.data.result?.trace_id || 'N/A'}
+            </div>
+            <div>
               <strong>Last Updated:</strong> {new Date().toLocaleTimeString()}
+            </div>
+            <div>
+              <strong>Message:</strong> {message}
             </div>
           </div>
         )}

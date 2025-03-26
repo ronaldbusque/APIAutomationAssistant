@@ -2,7 +2,15 @@ import os
 import logging
 from typing import Dict, Any, Optional
 
-from ..config.settings import settings
+# Add path adjustment for imports
+import sys
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+from src.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -30,27 +38,30 @@ class ModelSelectionStrategy:
             default_model: Fallback model if no specific model is configured
             env_prefix: Prefix for model settings (e.g., MODEL_PLANNING)
         """
+        # Import settings freshly to ensure we get the latest values
+        from src.config.settings import settings as fresh_settings
+        
         # Use settings from the centralized settings module
-        self.default_model = default_model or settings.get("MODEL_DEFAULT", "gpt-4o-mini")
+        self.default_model = default_model or fresh_settings.get("MODEL_DEFAULT", "gpt-4o-mini")
         self.env_prefix = env_prefix
         
         # Load model configuration from settings
         self.model_config = {
-            "planning": settings.get("MODEL_PLANNING", "gpt-4o"),
-            "coding": settings.get("MODEL_CODING", "gpt-4o"),
-            "triage": settings.get("MODEL_TRIAGE", "gpt-3.5-turbo"),
-            "default": settings.get("MODEL_DEFAULT", self.default_model)
+            "planning": fresh_settings.get("MODEL_PLANNING", "gpt-4o"),
+            "coding": fresh_settings.get("MODEL_CODING", "gpt-4o"),
+            "triage": fresh_settings.get("MODEL_TRIAGE", "gpt-3.5-turbo"),
+            "default": fresh_settings.get("MODEL_DEFAULT", self.default_model)
         }
         
         # Configure complexity thresholds from settings
         self.complexity_thresholds = {
             "planning": {
-                "high": float(settings.get("MODEL_PLANNING_HIGH_THRESHOLD", 0.7)),
-                "medium": float(settings.get("MODEL_PLANNING_MEDIUM_THRESHOLD", 0.4))
+                "high": float(fresh_settings.get("MODEL_PLANNING_HIGH_THRESHOLD", 0.7)),
+                "medium": float(fresh_settings.get("MODEL_PLANNING_MEDIUM_THRESHOLD", 0.4))
             },
             "coding": {
-                "high": float(settings.get("MODEL_CODING_HIGH_THRESHOLD", 0.8)),
-                "medium": float(settings.get("MODEL_CODING_MEDIUM_THRESHOLD", 0.5))
+                "high": float(fresh_settings.get("MODEL_CODING_HIGH_THRESHOLD", 0.8)),
+                "medium": float(fresh_settings.get("MODEL_CODING_MEDIUM_THRESHOLD", 0.5))
             }
         }
         
@@ -68,25 +79,43 @@ class ModelSelectionStrategy:
         Returns:
             Model name to use
         """
-        # Start with task-specific model from config
-        if task in self.model_config:
-            # Always respect the specified model for the task in settings
-            selected_model = self.model_config.get(task)
-            logger.info(f"Using configured model {selected_model} for {task} task with complexity {complexity:.2f}")
-            return selected_model
-        
-        # If no task-specific model is found, select based on complexity
         try:
+            logger.debug(f"Original task requested: {task} with complexity {complexity}")
+            
+            # Map task aliases to standard task types
+            task_mapping = {
+                "code_generation": "coding",
+                "planning": "planning",
+                "triage": "triage",
+                "coding": "coding"
+            }
+            
+            # Standardize the task name
+            standard_task = task_mapping.get(task)
+            if standard_task:
+                logger.debug(f"Mapped task {task} to standard task {standard_task}")
+                task = standard_task
+            else:
+                logger.warning(f"Unknown task type: {task}, will try to use as-is or fall back to default")
+            
+            # Always respect the task-specific model from config if it exists
+            if task in self.model_config and self.model_config.get(task):
+                selected_model = self.model_config.get(task)
+                logger.info(f"Using configured model {selected_model} for {task} task with complexity {complexity:.2f}")
+                return selected_model
+            
+            # If no task-specific model is configured, select based on complexity
+            logger.debug(f"No direct model config for task '{task}', selecting based on complexity")
             if task == "triage":
                 # Triage is a simple routing task, use lightweight model
-                selected_model = self.model_config.get("triage")
+                selected_model = self.model_config.get("triage", "gpt-3.5-turbo")
                 
             elif task == "planning":
                 thresholds = self.complexity_thresholds.get("planning", {"high": 0.7, "medium": 0.4})
                 
                 if complexity > thresholds["high"]:
                     # High complexity planning - use the most capable model
-                    selected_model = self.model_config.get("planning")
+                    selected_model = "gpt-4o"
                 elif complexity > thresholds["medium"]:
                     # Medium complexity - balance capability and cost
                     selected_model = "gpt-4o-mini"
@@ -99,7 +128,7 @@ class ModelSelectionStrategy:
                 
                 if complexity > thresholds["high"]:
                     # High complexity coding - use the most capable model
-                    selected_model = self.model_config.get("coding")
+                    selected_model = "gpt-4o"
                 elif complexity > thresholds["medium"]:
                     # Medium complexity - balance capability and cost
                     selected_model = "gpt-4o-mini"
@@ -107,15 +136,16 @@ class ModelSelectionStrategy:
                     # Low complexity - use cost-effective model
                     selected_model = "gpt-3.5-turbo"
             else:
-                logger.warning(f"Unknown task type: {task}, using default model")
+                logger.warning(f"Unrecognized task type: {task}, using default model")
                 selected_model = self.model_config.get("default", self.default_model)
                 
-            logger.info(f"Selected model {selected_model} for {task} task with complexity {complexity:.2f}")
+            logger.info(f"Selected model {selected_model} for {task} task with complexity {complexity:.2f} (based on complexity)")
             return selected_model
             
         except Exception as e:
             logger.error(f"Error in model selection: {str(e)}, using default model {self.default_model}")
-            return self.default_model
+            # Return the default model as a fallback
+            return self.model_config.get("default", self.default_model)
             
     def update_tool_choice(self, agent_config: Dict[str, Any], complexity: float) -> Dict[str, Any]:
         """

@@ -44,8 +44,9 @@ const Layout: React.FC<Props> = ({ children }) => {
           />
         );
       case 'blueprint':
-        // Skip blueprint review if we already have a valid blueprint
-        if (state.blueprintIsValid && state.blueprint) {
+        // Only skip blueprint review if we're using a saved blueprint (no job ID)
+        // Do NOT skip if we just generated a blueprint (has job ID)
+        if (state.blueprintIsValid && state.blueprint && !state.blueprintJobId) {
           setCurrentStep('scripts');
           return null;
         }

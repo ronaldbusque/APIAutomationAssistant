@@ -36,15 +36,18 @@ class RunConfig:
     def __init__(self,
                  timeout: int = 300,
                  complexity: float = 0.5,
-                 task: str = "general"):
+                 task: str = "general",
+                 input_data: Optional[Dict[str, Any]] = None):
         self.timeout = timeout
         self.complexity = complexity
         self.task = task
+        self.input_data = input_data
 
 async def run_agent_with_retry(
     agent: Agent, 
     input_data: Union[str, dict], 
     config: RetryConfig = None,
+    run_config: RunConfig = None,
     complexity: float = 0.5,
     task: str = "general",
     model_selection: ModelSelectionStrategy = None
@@ -56,6 +59,7 @@ async def run_agent_with_retry(
         agent: The agent to run
         input_data: The input data (string or dict)
         config: Retry configuration
+        run_config: Run configuration (takes precedence over complexity/task)
         complexity: Task complexity (0-1) to determine model
         task: Task type for model selection
         model_selection: Optional model selection strategy
@@ -65,6 +69,14 @@ async def run_agent_with_retry(
     """
     # Use default config if not provided
     config = config or RetryConfig()
+    
+    # Extract settings from run_config if provided
+    if run_config:
+        complexity = run_config.complexity
+        task = run_config.task
+        # Handle input_data from run_config if provided and not directly supplied
+        if run_config.input_data is not None and input_data is None:
+            input_data = run_config.input_data
     
     # Convert dict to JSON string if needed
     if isinstance(input_data, dict):
@@ -204,6 +216,10 @@ async def run_agent_with_streaming(
     """
     # Use default config if not provided
     config = config or RunConfig()
+    
+    # Handle input_data from config if provided and not directly supplied
+    if config.input_data is not None and input_data is None:
+        input_data = config.input_data
     
     # Convert dict to JSON string if needed
     if isinstance(input_data, dict):

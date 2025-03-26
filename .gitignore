@@ -69,3 +69,12 @@ ui/.vite/
 coverage/
 .coverage
 htmlcov/ 
+
+# Other files
+autonomous-agent-implementation-plan.md
+formatted_postman_collection.json
+src/code_gen_test.py
+src/download_files.py
+src/simple_task_test.py
+ui/src/components/ApiTest.tsx
+ui/ux_plan.md

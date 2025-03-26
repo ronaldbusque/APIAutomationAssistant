@@ -185,9 +185,29 @@ async def process_openapi_spec(
         if progress_callback:
             # Progress reporting handler
             async def report_progress(agent_name, item_type, content):
+                # Create more descriptive progress message based on agent and item type
+                message = content
+                if isinstance(content, str):
+                    # Limit message length to prevent UI issues, but try to keep meaningful content
+                    message = content[:150] + ("..." if len(content) > 150 else "")
+                elif isinstance(content, dict):
+                    message = content.get("message", "Processing...")
+                
+                # Add more context based on the agent and item type
+                if agent_name == "Test Planner" and item_type == "MessageContentItem":
+                    message = f"Planning tests: {message}"
+                elif agent_name == "Coder" and item_type == "MessageContentItem":
+                    message = f"Generating code: {message}"
+                
                 await progress_callback(
                     stage="planning",
-                    progress=content,
+                    progress={
+                        "percent": 50, # We keep percent for backward compatibility
+                        "message": message,
+                        "agent": agent_name,
+                        "item_type": item_type,
+                        "trace_id": trace_id
+                    },
                     agent=agent_name
                 )
             
@@ -598,9 +618,29 @@ The examples below show HOW to implement features, but you MUST use your own end
         if progress_callback:
             # Progress reporting handler
             async def report_progress(agent_name, item_type, content):
+                # Create more descriptive progress message based on agent and item type
+                message = content
+                if isinstance(content, str):
+                    # Limit message length to prevent UI issues, but try to keep meaningful content
+                    message = content[:150] + ("..." if len(content) > 150 else "")
+                elif isinstance(content, dict):
+                    message = content.get("message", "Processing...")
+                
+                # Add more context based on the agent and item type
+                if agent_name == "Test Planner" and item_type == "MessageContentItem":
+                    message = f"Planning tests: {message}"
+                elif agent_name == "Coder" and item_type == "MessageContentItem":
+                    message = f"Generating code: {message}"
+                
                 await progress_callback(
                     stage="coding",
-                    progress=content,
+                    progress={
+                        "percent": 50, # We keep percent for backward compatibility
+                        "message": message,
+                        "agent": agent_name,
+                        "item_type": item_type,
+                        "trace_id": trace_id
+                    },
                     agent=agent_name
                 )
             
@@ -856,7 +896,8 @@ The examples below show HOW to implement features, but you MUST use your own end
             # Add content as a file if it's a dictionary
             if output_item.content and isinstance(output_item.content, dict):
                 main_filename = f"{script_type}_collection.json"
-                target_scripts[script_type][main_filename] = json.dumps(output_item.content)
+                # Format JSON with proper indentation for readability
+                target_scripts[script_type][main_filename] = json.dumps(output_item.content, indent=2)
                 logger.info(f"Added main content file: {main_filename}")
             
             # Add all files

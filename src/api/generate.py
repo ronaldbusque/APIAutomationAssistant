@@ -105,15 +105,52 @@ async def generate_blueprint_background(
         job_progress[job_id] = {
             "stage": "initializing",
             "percent": 0,
-            "message": "Starting blueprint generation"
+            "message": "Analyzing OpenAPI specification and preparing test blueprint...",
+            "agent": "system"
         }
         
-        # Set up progress callback
+        # Send initial progress update via WebSocket if connected
+        if job_id in websocket_connections:
+            try:
+                await websocket_connections[job_id].send_json({
+                    "type": "progress",
+                    "job_id": job_id,
+                    "progress": job_progress[job_id]
+                })
+            except Exception as ws_error:
+                logger.error(f"WebSocket error: {str(ws_error)}")
+        
+        # Set up progress callback with more granular updates
         async def progress_callback(stage, progress, agent):
+            # Extract trace_id if available
+            trace_id = None
+            if isinstance(progress, dict) and "trace_id" in progress:
+                trace_id = progress.get("trace_id")
+            
+            # Create a more descriptive message
+            message = progress.get("message", "Processing") if isinstance(progress, dict) else str(progress)[:150]
+            
+            # Determine percentage based on stage and content
+            percent = 0
+            if stage == "initializing":
+                percent = 10
+                message = "Setting up blueprint generation environment..."
+            elif stage == "planning":
+                # Increment percent gradually during planning stage
+                old_percent = job_progress[job_id].get("percent", 10)
+                # Ensure we're always making forward progress but not jumping to 100%
+                percent = min(90, old_percent + 5)
+                
+                if not message.startswith("Planning"):
+                    message = f"Analyzing API endpoints: {message}"
+            
+            # Update progress
             job_progress[job_id] = {
                 "stage": stage,
-                "percent": progress.get("percent", 0) if isinstance(progress, dict) else 0,
-                "message": progress.get("message", "Processing") if isinstance(progress, dict) else str(progress)[:100]
+                "percent": percent,
+                "message": message,
+                "agent": agent,
+                "trace_id": trace_id
             }
             
             # Send progress to WebSocket if connected
@@ -124,6 +161,8 @@ async def generate_blueprint_background(
                         "job_id": job_id,
                         "progress": job_progress[job_id]
                     })
+                    # Add a small delay to prevent message flooding
+                    await asyncio.sleep(0.1)
                 except Exception as ws_error:
                     logger.error(f"WebSocket error: {str(ws_error)}")
         
@@ -148,7 +187,8 @@ async def generate_blueprint_background(
         job_progress[job_id] = {
             "stage": "completed",
             "percent": 100,
-            "message": "Blueprint generation completed"
+            "message": "Blueprint generation successfully completed. Ready for review!",
+            "agent": "system"
         }
         
         # Send completion to WebSocket if connected
@@ -211,15 +251,60 @@ async def generate_scripts_background(
         job_progress[job_id] = {
             "stage": "initializing",
             "percent": 0,
-            "message": "Starting script generation"
+            "message": "Starting script generation for your API endpoints...",
+            "agent": "system"
         }
         
-        # Set up progress callback
+        # Send initial progress update via WebSocket if connected
+        if job_id in websocket_connections:
+            try:
+                await websocket_connections[job_id].send_json({
+                    "type": "progress",
+                    "job_id": job_id,
+                    "progress": job_progress[job_id]
+                })
+            except Exception as ws_error:
+                logger.error(f"WebSocket error: {str(ws_error)}")
+        
+        # Set up progress callback with more granular updates
         async def progress_callback(stage, progress, agent):
+            # Extract trace_id if available
+            trace_id = None
+            if isinstance(progress, dict) and "trace_id" in progress:
+                trace_id = progress.get("trace_id")
+            
+            # Create a more descriptive message
+            message = progress.get("message", "Processing") if isinstance(progress, dict) else str(progress)[:150]
+            
+            # Determine percentage based on stage and content
+            percent = 0
+            if stage == "initializing":
+                percent = 10
+                message = "Setting up test generation environment..."
+            elif stage == "planning":
+                # During planning stage (40% of progress)
+                old_percent = job_progress[job_id].get("percent", 10)
+                # Ensure we're making forward progress but not jumping too far
+                percent = min(40, old_percent + 5)
+                
+                if not message.startswith("Planning"):
+                    message = f"Planning test structure: {message}"
+            elif stage == "coding":
+                # During coding stage (41-90% of progress)
+                old_percent = job_progress[job_id].get("percent", 40)
+                # Ensure we're making forward progress
+                percent = min(90, max(41, old_percent + 5))
+                
+                if not message.startswith("Generating"):
+                    message = f"Generating test code: {message}"
+            
+            # Update progress
             job_progress[job_id] = {
                 "stage": stage,
-                "percent": progress.get("percent", 0) if isinstance(progress, dict) else 0,
-                "message": progress.get("message", "Processing") if isinstance(progress, dict) else str(progress)[:100]
+                "percent": percent,
+                "message": message,
+                "agent": agent,
+                "trace_id": trace_id
             }
             
             # Send progress to WebSocket if connected
@@ -230,6 +315,8 @@ async def generate_scripts_background(
                         "job_id": job_id,
                         "progress": job_progress[job_id]
                     })
+                    # Add a small delay to prevent message flooding
+                    await asyncio.sleep(0.1)
                 except Exception as ws_error:
                     logger.error(f"WebSocket error: {str(ws_error)}")
         
@@ -284,7 +371,9 @@ async def generate_scripts_background(
         job_progress[job_id] = {
             "stage": "completed",
             "percent": 100,
-            "message": "Script generation completed"
+            "message": "Script generation successfully completed. Your test scripts are ready!",
+            "agent": "system",
+            "trace_id": trace_id
         }
         
         # Send completion to WebSocket if connected

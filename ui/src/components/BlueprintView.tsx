@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { useJobStatus } from '../hooks/useApi';
+import { useJobStatus, useWebSocket } from '../hooks/useApi';
 
 interface Props {
   onBack: () => void;
@@ -18,9 +18,31 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
   const [editedBlueprint, setEditedBlueprint] = useState('');
   const [error, setError] = useState<string | null>(null);
   const processedJobRef = useRef<string | null>(null);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const wsRef = useRef<any>(null);
   
   // Poll job status
   const jobStatus = useJobStatus(state.blueprintJobId);
+  
+  // Set up WebSocket for real-time updates
+  const { connect } = useWebSocket(state.blueprintJobId, (data) => {
+    console.log('WebSocket update received:', data);
+    
+    // Handle different message types
+    if (data.type === 'progress' && data.progress) {
+      console.log('Progress update:', data.progress);
+      // Progress updates are automatically handled by job status refreshes
+      // This just ensures we get more frequent UI updates
+      jobStatus.refetch();
+    } else if (data.type === 'completed' && data.result) {
+      console.log('Completed message received:', data.result);
+      jobStatus.refetch();
+    } else if (data.type === 'error') {
+      console.error('Error message received:', data.error);
+      setError(data.error || 'An error occurred during blueprint generation');
+      jobStatus.refetch();
+    }
+  });
   
   // Update blueprint when job completes
   useEffect(() => {
@@ -67,6 +89,34 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
     }
   }, [jobStatus.data, jobStatus.isLoading, setBlueprint, setBlueprintIsValid]);
   
+  // Connect to WebSocket when job ID changes
+  useEffect(() => {
+    if (state.blueprintJobId) {
+      console.log('Connecting to WebSocket for blueprint updates...');
+      
+      // Disconnect previous connection if exists
+      if (wsRef.current) {
+        console.log('Disconnecting previous WebSocket connection');
+        wsRef.current.disconnect();
+      }
+      
+      // Create new connection
+      const connection = connect();
+      if (connection) {
+        wsRef.current = connection;
+      }
+    }
+    
+    // Cleanup function
+    return () => {
+      if (wsRef.current) {
+        console.log('Cleaning up WebSocket connection');
+        wsRef.current.disconnect();
+        wsRef.current = null;
+      }
+    };
+  }, [state.blueprintJobId, connect]);
+  
   // Handle editing the blueprint
   const handleEdit = () => {
     setEditedBlueprint(JSON.stringify(state.blueprint, null, 2));
@@ -107,19 +157,99 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
     }
     
     if (jobStatus.data?.status === 'processing' && progress) {
+      // Get more descriptive stage name
+      const getStageName = (stage: string) => {
+        switch (stage) {
+          case 'planning': return 'Planning Blueprint Structure';
+          case 'initializing': return 'Initializing';
+          case 'completed': return 'Completed';
+          case 'failed': return 'Failed';
+          default: return stage.charAt(0).toUpperCase() + stage.slice(1);
+        }
+      };
+
       return (
         <div className="p-8">
-          <div className="mb-2 flex justify-between">
-            <div className="text-sm font-medium">{progress.stage}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">{progress.percent}%</div>
+          <div className="mb-4 border border-gray-300 dark:border-gray-600 rounded-md p-6 bg-gray-50 dark:bg-gray-800/50">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Blueprint Generation</h3>
+              <div className="flex space-x-2">
+                <div className="text-xs px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full capitalize">
+                  {jobStatus.data.status}
+                </div>
+                <button 
+                  onClick={() => jobStatus.refetch()}
+                  className="text-xs px-2 py-1 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-full flex items-center"
+                  title="Manually refresh status"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <div className="flex items-center mb-3">
+                <div className="font-medium text-sm">
+                  {getStageName(progress.stage)}
+                </div>
+              </div>
+              
+              {/* Visual animated indicator instead of percentage bar */}
+              <div className="flex items-center">
+                <div className="relative w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  {jobStatus.data.status === 'processing' || jobStatus.data.status === 'queued' ? (
+                    <div className="absolute h-full bg-blue-500 animate-progress-pulse"></div>
+                  ) : jobStatus.data.status === 'completed' ? (
+                    <div className="absolute h-full w-full bg-green-500"></div>
+                  ) : jobStatus.data.status === 'failed' ? (
+                    <div className="absolute h-full w-full bg-red-500"></div>
+                  ) : (
+                    <div className="absolute h-full w-1/4 bg-blue-500"></div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 border-l-2 border-blue-500 pl-3">
+                {progress.message}
+              </div>
+            </div>
+            
+            {/* Show job details for debugging */}
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setShowDebugInfo(!showDebugInfo)}
+                className="text-xs px-2 py-1 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-full flex items-center"
+              >
+                {showDebugInfo ? 'Hide Details' : 'Show Details'}
+              </button>
+            </div>
+            
+            {showDebugInfo && jobStatus.data && (
+              <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-md text-xs font-mono overflow-auto max-h-48">
+                <div>
+                  <strong>Job ID:</strong> {jobStatus.data.job_id}
+                </div>
+                <div>
+                  <strong>Status:</strong> {jobStatus.data.status}
+                </div>
+                <div>
+                  <strong>Stage:</strong> {progress.stage || 'N/A'}
+                </div>
+                <div>
+                  <strong>Trace ID:</strong> {jobStatus.data.result?.trace_id || 'N/A'}
+                </div>
+                <div>
+                  <strong>Last Updated:</strong> {new Date().toLocaleTimeString()}
+                </div>
+                <div>
+                  <strong>Message:</strong> {progress.message}
+                </div>
+              </div>
+            )}
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-            <div 
-              className="bg-primary-600 h-2.5 rounded-full transition-all duration-300" 
-              style={{ width: `${progress.percent}%` }}
-            ></div>
-          </div>
-          <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">{progress.message}</div>
         </div>
       );
     }

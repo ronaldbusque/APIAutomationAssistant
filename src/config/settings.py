@@ -88,5 +88,26 @@ def load_settings() -> Dict[str, Any]:
     
     return settings
 
+def update_settings():
+    """
+    Update the global settings by reloading from environment variables.
+    
+    This function is useful for tests or runtime updates where
+    environment variables may change after module initialization.
+    """
+    global settings
+    
+    # First clear all existing settings to ensure we start fresh
+    settings.clear()
+    
+    # Then load fresh settings
+    new_settings = load_settings()
+    
+    # Update the global settings dict with new values
+    settings.update(new_settings)
+    
+    logger.info("Settings have been updated from environment variables")
+    return settings
+
 # Load settings once at module import
 settings = load_settings() 
