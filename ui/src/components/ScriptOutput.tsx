@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { useGenerateScripts, useJobStatus, useWebSocket } from '../hooks/useApi';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface Props {
   onBack: () => void;
@@ -30,6 +32,9 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   
   const processedJobRef = useRef<string | null>(null);
   const wsRef = useRef<any>(null);
+  
+  // After the useState declarations at the top of the component, add a new state for tracking expanded directories
+  const [expandedDirs, setExpandedDirs] = useState<Record<string, boolean>>({});
   
   // Set up WebSocket for real-time updates
   const { connect } = useWebSocket(state.scriptJobId, (data) => {
@@ -452,7 +457,12 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   // Render progress
   const renderProgress = () => {
     if (jobStatus.isLoading) {
-      return <div className="text-center p-8">Loading job status...</div>;
+      return (
+        <div className="text-center p-8">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] text-primary-500 motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+          <div className="mt-2 text-gray-600 dark:text-gray-400">Loading job status...</div>
+        </div>
+      );
     }
     
     const progress = jobStatus.data?.progress || state.scriptProgress;
@@ -474,16 +484,16 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     };
     
     return (
-      <div className="mb-6 border border-gray-300 dark:border-gray-600 rounded-md p-6 bg-gray-50 dark:bg-gray-800/50">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium">Generation Progress</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Script Generation</h3>
           <div className="flex space-x-2">
-            <div className="text-xs px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full capitalize">
+            <div className="text-xs px-3 py-1 bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-300 rounded-full capitalize font-medium">
               {status}
             </div>
             <button 
               onClick={() => jobStatus.refetch()}
-              className="text-xs px-2 py-1 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-full flex items-center"
+              className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center transition-colors"
               title="Manually refresh status"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -494,30 +504,35 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
           </div>
         </div>
         
-        <div className="mb-4">
-          <div className="flex items-center mb-3">
-            <div className="font-medium text-sm">
+        <div className="mb-6">
+          <div className="flex items-center mb-4">
+            <div className="font-medium text-gray-800 dark:text-gray-200">
               {getStageName(stage)}
             </div>
           </div>
           
-          {/* Visual animated indicator instead of percentage */}
-          <div className="flex items-center">
-            <div className="relative w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              {status === 'processing' || status === 'queued' ? (
-                <div className="absolute h-full bg-blue-500 animate-progress-pulse"></div>
-              ) : status === 'completed' ? (
-                <div className="absolute h-full w-full bg-green-500"></div>
-              ) : status === 'failed' ? (
-                <div className="absolute h-full w-full bg-red-500"></div>
-              ) : (
-                <div className="absolute h-full w-1/4 bg-blue-500"></div>
-              )}
-            </div>
+          {/* Visual animated indicator */}
+          <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            {status === 'processing' || status === 'queued' ? (
+              <div className="animate-progress-indeterminate absolute top-0 h-full w-full bg-primary-500 dark:bg-primary-400"></div>
+            ) : status === 'completed' ? (
+              <div className="absolute h-full w-full bg-green-500 dark:bg-green-400"></div>
+            ) : status === 'failed' ? (
+              <div className="absolute h-full w-full bg-red-500 dark:bg-red-400"></div>
+            ) : (
+              <div className="absolute h-full w-1/4 bg-primary-500 dark:bg-primary-400"></div>
+            )}
           </div>
           
-          <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 border-l-2 border-blue-500 pl-3">
-            {message}
+          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-md">
+            <div className="flex">
+              <div className="flex-shrink-0 mr-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div className="text-sm text-gray-700 dark:text-gray-300">{message}</div>
+            </div>
           </div>
         </div>
         
@@ -525,31 +540,42 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
         <div className="mt-4 flex justify-end">
           <button
             onClick={() => setShowDebugInfo(!showDebugInfo)}
-            className="text-xs px-2 py-1 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-full flex items-center"
+            className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center transition-colors"
           >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             {showDebugInfo ? 'Hide Details' : 'Show Details'}
           </button>
         </div>
         
         {showDebugInfo && jobStatus.data && (
-          <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-md text-xs font-mono overflow-auto max-h-48">
-            <div>
-              <strong>Job ID:</strong> {jobStatus.data.job_id}
-            </div>
-            <div>
-              <strong>Status:</strong> {jobStatus.data.status}
-            </div>
-            <div>
-              <strong>Stage:</strong> {progress?.stage || 'N/A'}
-            </div>
-            <div>
-              <strong>Trace ID:</strong> {jobStatus.data.result?.trace_id || 'N/A'}
-            </div>
-            <div>
-              <strong>Last Updated:</strong> {new Date().toLocaleTimeString()}
-            </div>
-            <div>
-              <strong>Message:</strong> {message}
+          <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-mono overflow-auto max-h-48">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div>
+                <span className="font-semibold text-gray-700 dark:text-gray-300">Job ID:</span>{' '}
+                <span className="text-gray-600 dark:text-gray-400">{jobStatus.data.job_id}</span>
+              </div>
+              <div>
+                <span className="font-semibold text-gray-700 dark:text-gray-300">Status:</span>{' '}
+                <span className="text-gray-600 dark:text-gray-400">{jobStatus.data.status}</span>
+              </div>
+              <div>
+                <span className="font-semibold text-gray-700 dark:text-gray-300">Stage:</span>{' '}
+                <span className="text-gray-600 dark:text-gray-400">{progress?.stage || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="font-semibold text-gray-700 dark:text-gray-300">Trace ID:</span>{' '}
+                <span className="text-gray-600 dark:text-gray-400">{jobStatus.data.result?.trace_id || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="font-semibold text-gray-700 dark:text-gray-300">Last Updated:</span>{' '}
+                <span className="text-gray-600 dark:text-gray-400">{new Date().toLocaleTimeString()}</span>
+              </div>
+              <div>
+                <span className="font-semibold text-gray-700 dark:text-gray-300">Message:</span>{' '}
+                <span className="text-gray-600 dark:text-gray-400">{message}</span>
+              </div>
             </div>
           </div>
         )}
@@ -562,27 +588,33 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     if (!error) return null;
     
     return (
-      <div className="p-4 mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-300">
-        <div className="flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="p-4 mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-300">
+        <div className="flex items-start">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span>{error}</span>
+          <div>
+            <div className="font-medium">Error</div>
+            <div className="text-sm mt-1">{error}</div>
+          </div>
         </div>
         
         {/* Debug button to show job result data */}
         {jobStatus.data && (
-          <div className="mt-2">
+          <div className="mt-4 border-t border-red-200 dark:border-red-800 pt-3">
             <button
               onClick={() => setShowDebugInfo(!showDebugInfo)}
-              className="text-xs px-2 py-1 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-full flex items-center"
+              className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center transition-colors"
             >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
               {showDebugInfo ? 'Hide Debug Info' : 'Show Debug Info'}
             </button>
             
             {showDebugInfo && (
-              <div className="mt-2 overflow-auto max-h-64 p-2 bg-gray-100 dark:bg-gray-800 rounded-md text-xs font-mono">
-                <pre>
+              <div className="mt-3 overflow-auto max-h-64 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-mono">
+                <pre className="text-gray-700 dark:text-gray-300">
                   {JSON.stringify(jobStatus.data, null, 2)}
                 </pre>
               </div>
@@ -625,13 +657,13 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     
     if (!hasScripts) {
       return (
-        <div className="p-8">
+        <div className="space-y-6">
           {!showBlueprintInput && (
-            <div className="mb-6 border border-gray-300 dark:border-gray-600 rounded-md p-6 bg-gray-50 dark:bg-gray-800/50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">Use Saved Blueprint</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Use Blueprint</h3>
                 <div className="flex space-x-2">
-                  <label className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md flex items-center text-sm cursor-pointer">
+                  <label className="px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md flex items-center text-sm cursor-pointer transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
@@ -645,7 +677,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
                   </label>
                   <button
                     onClick={() => setShowBlueprintInput(true)}
-                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center text-sm"
+                    className="px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md flex items-center text-sm transition-colors"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -661,15 +693,15 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
           )}
 
           {showBlueprintInput && (
-            <div className="mb-6 border border-gray-300 dark:border-gray-600 rounded-md p-6 bg-gray-50 dark:bg-gray-800/50">
-              <h3 className="text-lg font-medium mb-2">Paste Your Blueprint</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Paste Your Blueprint</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 Paste a valid JSON test blueprint to generate scripts:
               </p>
               <textarea
                 value={blueprintInput}
                 onChange={(e) => setBlueprintInput(e.target.value)}
-                className="w-full h-64 p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 rounded-md font-mono text-sm"
+                className="w-full h-64 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md font-mono text-sm resize-y text-gray-800 dark:text-gray-200 focus:ring-primary-500 focus:border-primary-500"
                 placeholder='{
   "apiName": "Example API",
   "version": "1.0.0",
@@ -688,17 +720,18 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     }
   ]
 }'
+                spellCheck="false"
               ></textarea>
               <div className="flex mt-4 space-x-2 justify-end">
                 <button
                   onClick={() => setShowBlueprintInput(false)}
-                  className="px-3 py-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleBlueprintSubmit}
-                  className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md"
+                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors"
                 >
                   Use Blueprint
                 </button>
@@ -708,18 +741,18 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
 
           {/* Show blueprint status - whether loaded or not */}
           {!showBlueprintInput && (
-            <div className="mb-6 border border-gray-300 dark:border-gray-600 rounded-md p-6 bg-gray-50 dark:bg-gray-800/50">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-medium">Blueprint Status</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Blueprint Status</h3>
                 {state.blueprint ? (
                   <div className="flex space-x-2 items-center">
-                    <div className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">Ready for Script Generation</div>
+                    <div className="text-xs px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full font-medium">Ready for Script Generation</div>
                     <button 
                       onClick={() => {
                         setBlueprint(null);
                         setBlueprintIsValid(false);
                       }}
-                      className="text-xs px-2 py-1 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-full flex items-center"
+                      className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center transition-colors"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -728,17 +761,24 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
                     </button>
                   </div>
                 ) : (
-                  <div className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">No Blueprint Loaded</div>
+                  <div className="text-xs px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded-full font-medium">No Blueprint Loaded</div>
                 )}
               </div>
               {state.blueprint ? (
                 <>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Blueprint for <strong>{state.blueprint.apiName || 'Unknown API'}</strong> has been loaded successfully.
-                  </p>
-                  <div className="mt-2 text-xs text-gray-500">
-                    <span className="font-medium">Contains:</span> {state.blueprint.groups?.length || 0} test groups with {' '}
-                    {state.blueprint.groups?.reduce((total: number, group: any) => total + (group.tests?.length || 0), 0) || 0} tests
+                  <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-md">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      Blueprint for <span className="font-medium">{state.blueprint.apiName || 'Unknown API'}</span> has been loaded successfully.
+                    </p>
+                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      <span>
+                        Contains: <span className="font-medium">{state.blueprint.groups?.length || 0}</span> test groups with{' '}
+                        <span className="font-medium">{state.blueprint.groups?.reduce((total: number, group: any) => total + (group.tests?.length || 0), 0) || 0}</span> tests
+                      </span>
+                    </div>
                   </div>
                 </>
               ) : (
@@ -749,8 +789,8 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
             </div>
           )}
 
-          <div className="mb-6 border border-gray-300 dark:border-gray-600 rounded-md p-6 bg-gray-50 dark:bg-gray-800/50">
-            <h3 className="text-lg font-medium mb-4">Target Frameworks</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Target Frameworks</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Select the frameworks you want to generate test scripts for:
             </p>
@@ -761,9 +801,9 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
                   key={target}
                   className={`flex items-center p-3 rounded-md border ${
                     state.targets.includes(target)
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                      : 'border-gray-300 dark:border-gray-600'
-                  }`}
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-400'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                  } transition-colors cursor-pointer`}
                 >
                   <input
                     type="checkbox"
@@ -782,28 +822,40 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
                     }}
                     className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
-                  <span className="ml-2 capitalize">{target}</span>
+                  <span className="ml-2 capitalize text-gray-800 dark:text-gray-200">{target}</span>
                 </label>
               ))}
             </div>
           </div>
           
-          <div className="text-center">
+          <div className="text-center pt-4">
             <button 
               onClick={handleGenerateScripts}
               disabled={generating || state.targets.length === 0 || !state.blueprint}
-              className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center mx-auto shadow-md"
+              className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center mx-auto shadow-sm transition-colors"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-              <span className="font-medium text-lg">{generating ? 'Generating Scripts...' : 'Generate Scripts'}</span>
+              {generating ? (
+                <span className="flex items-center font-medium">
+                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generating Scripts...
+                </span>
+              ) : (
+                <span className="flex items-center font-medium">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  Generate Scripts
+                </span>
+              )}
             </button>
             {state.targets.length === 0 && (
-              <p className="mt-2 text-sm text-orange-500">Please select at least one target framework</p>
+              <p className="mt-2 text-sm text-amber-500 dark:text-amber-400">Please select at least one target framework</p>
             )}
             {!state.blueprint && (
-              <p className="mt-2 text-sm text-orange-500">Please upload/paste a blueprint or navigate back to create one</p>
+              <p className="mt-2 text-sm text-amber-500 dark:text-amber-400">Please upload/paste a blueprint or navigate back to create one</p>
             )}
           </div>
         </div>
@@ -811,253 +863,436 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     }
     
     return (
-      <div className="flex flex-col md:flex-row gap-4">
-        {/* Target and file selector */}
-        <div className="w-full md:w-64 space-y-4">
-          <div>
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target</h3>
-            <select
-              value={selectedTarget || ''}
-              onChange={(e) => handleTargetChange(e.target.value)}
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 rounded-md"
-            >
-              {Object.keys(state.scripts).map((target) => (
-                <option key={target} value={target}>
-                  {target}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          {selectedTarget && (
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Files</h3>
-                <button
-                  onClick={handleDownloadAllFiles}
-                  className="text-xs px-2 py-1 text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md border border-primary-300 dark:border-primary-700 flex items-center"
-                >
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-3 w-3 mr-1"
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-                    />
-                  </svg>
-                  Download All as ZIP
-                </button>
-              </div>
-              <div className="border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden max-h-96 overflow-y-auto">
-                {(() => {
-                  // Group files by directory
-                  const filesByDir: Record<string, string[]> = {};
-                  const rootFiles: string[] = [];
-                  
-                  // Organize files into directories
-                  Object.keys(state.scripts[selectedTarget] || {}).forEach(file => {
-                    if (file.includes('/')) {
-                      // Split path and extract directory
-                      const parts = file.split('/');
-                      const dirPath = parts.slice(0, -1).join('/');
-                      
-                      if (!filesByDir[dirPath]) {
-                        filesByDir[dirPath] = [];
-                      }
-                      filesByDir[dirPath].push(file);
-                    } else {
-                      rootFiles.push(file);
-                    }
-                  });
-                  
-                  // Render directory structure
-                  const renderDir = (dirPath: string, level: number) => {
-                    const dirName = dirPath.split('/').pop();
-                    const indent = level * 12;
-                    
-                    return (
-                      <div key={dirPath}>
-                        <div 
-                          className="block w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-medium"
-                          style={{ paddingLeft: `${indent + 12}px` }}
-                        >
-                          <span className="flex items-center">
-                            <svg 
-                              xmlns="http://www.w3.org/2000/svg" 
-                              className="h-4 w-4 mr-1 text-gray-500"
-                              fill="none" 
-                              viewBox="0 0 24 24" 
-                              stroke="currentColor"
-                            >
-                              <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                strokeWidth={2} 
-                                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" 
-                              />
-                            </svg>
-                            {dirName}
-                          </span>
-                        </div>
-                        
-                        {filesByDir[dirPath].map(file => {
-                          const fileName = file.split('/').pop();
-                          return (
-                            <button
-                              key={file}
-                              onClick={() => handleFileSelect(file)}
-                              className={`block w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
-                                selectedFile === file
-                                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                                  : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-                              }`}
-                              style={{ paddingLeft: `${indent + 24}px` }}
-                            >
-                              <span className="flex items-center">
-                                <svg 
-                                  xmlns="http://www.w3.org/2000/svg" 
-                                  className="h-4 w-4 mr-1 text-gray-500"
-                                  fill="none" 
-                                  viewBox="0 0 24 24" 
-                                  stroke="currentColor"
-                                >
-                                  <path 
-                                    strokeLinecap="round" 
-                                    strokeLinejoin="round" 
-                                    strokeWidth={2} 
-                                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" 
-                                  />
-                                </svg>
-                                {fileName}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    );
-                  };
-                  
-                  // Get all unique top-level directories
-                  const topDirs = Object.keys(filesByDir).filter(dir => !dir.includes('/'));
-                  
-                  // Process subdirectories
-                  const processedDirs = new Set<string>();
-                  const allDirs = Object.keys(filesByDir).sort();
-                  
-                  // Build full directory structure
-                  return (
-                    <>
-                      {/* Root files first */}
-                      {rootFiles.map(file => (
-                        <button
-                          key={file}
-                          onClick={() => handleFileSelect(file)}
-                          className={`block w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
-                            selectedFile === file
-                              ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                              : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-                          }`}
-                          style={{ paddingLeft: '12px' }}
-                        >
-                          <span className="flex items-center">
-                            <svg 
-                              xmlns="http://www.w3.org/2000/svg" 
-                              className="h-4 w-4 mr-1 text-gray-500"
-                              fill="none" 
-                              viewBox="0 0 24 24" 
-                              stroke="currentColor"
-                            >
-                              <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                strokeWidth={2} 
-                                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" 
-                              />
-                            </svg>
-                            {file}
-                          </span>
-                        </button>
-                      ))}
-                      
-                      {/* Process all directories by level */}
-                      {allDirs.map(dir => {
-                        // Skip if already processed
-                        if (processedDirs.has(dir)) return null;
-                        processedDirs.add(dir);
-                        
-                        // Calculate directory level
-                        const level = dir.split('/').length;
-                        
-                        return renderDir(dir, level - 1);
-                      })}
-                    </>
-                  );
-                })()}
-              </div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="flex flex-col md:flex-row">
+          {/* Target and file selector */}
+          <div className="w-full md:w-72 border-r border-gray-200 dark:border-gray-700">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Framework</h3>
+              <select
+                value={selectedTarget || ''}
+                onChange={(e) => handleTargetChange(e.target.value)}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 rounded-md text-gray-800 dark:text-gray-200 focus:ring-primary-500 focus:border-primary-500"
+              >
+                {Object.keys(state.scripts).map((target) => (
+                  <option key={target} value={target}>
+                    {target.charAt(0).toUpperCase() + target.slice(1)}
+                  </option>
+                ))}
+              </select>
             </div>
-          )}
-        </div>
-        
-        {/* Script content */}
-        <div className="flex-grow">
-          {selectedTarget && selectedFile ? (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="font-medium">{selectedFile}</h3>
-                <div className="flex space-x-2">
+            
+            {selectedTarget && (
+              <div className="p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Files</h3>
                   <button
-                    onClick={handleCopy}
-                    className="px-3 py-1 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-600 text-sm"
+                    onClick={handleDownloadAllFiles}
+                    className="text-xs px-2 py-1 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md border border-primary-300 dark:border-primary-700 flex items-center transition-colors"
+                    title="Download all files as ZIP"
                   >
-                    Copy
-                  </button>
-                  <button
-                    onClick={handleDownload}
-                    className="px-3 py-1 text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md border border-primary-300 dark:border-primary-700 text-sm"
-                  >
-                    Download
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="h-3 w-3 mr-1"
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                      />
+                    </svg>
+                    Download All
                   </button>
                 </div>
+                <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden max-h-[calc(100vh-300px)] overflow-y-auto">
+                  {(() => {
+                    // Group files by directory
+                    const filesByDir: Record<string, string[]> = {};
+                    const rootFiles: string[] = [];
+                    const rootDirs: Set<string> = new Set();
+                    
+                    // Organize files into directories with proper hierarchy
+                    Object.keys(state.scripts[selectedTarget] || {}).forEach(file => {
+                      if (file.includes('/')) {
+                        // Split path and extract directory hierarchy
+                        const parts = file.split('/');
+                        const fileName = parts.pop();
+                        
+                        // Create path for each level of the hierarchy
+                        let currentPath = '';
+                        parts.forEach((part, index) => {
+                          const parentPath = currentPath;
+                          currentPath = currentPath ? `${currentPath}/${part}` : part;
+                          
+                          // Add to filesByDir if not already present
+                          if (!filesByDir[currentPath]) {
+                            filesByDir[currentPath] = [];
+                            
+                            // Add as root dir if this is a top-level directory
+                            if (index === 0) {
+                              rootDirs.add(currentPath);
+                            }
+                            
+                            // Add this directory to its parent
+                            if (parentPath && !filesByDir[parentPath].includes(`${currentPath}/`)) {
+                              filesByDir[parentPath].push(`${currentPath}/`);
+                            }
+                          }
+                        });
+                        
+                        // Add the file to its immediate directory
+                        filesByDir[currentPath].push(file);
+                      } else {
+                        rootFiles.push(file);
+                      }
+                    });
+                    
+                    // Function to render a directory and its contents
+                    const renderDir = (dirPath: string, level: number) => {
+                      const dirName = dirPath.split('/').pop();
+                      const indent = level * 12;
+                      const isExpanded = expandedDirs[dirPath] !== false; // Default to expanded if not specified
+                      
+                      return (
+                        <div key={dirPath}>
+                          <button 
+                            onClick={() => {
+                              setExpandedDirs(prev => ({
+                                ...prev,
+                                [dirPath]: !isExpanded
+                              }));
+                            }}
+                            className="flex w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
+                            style={{ paddingLeft: `${indent + 12}px` }}
+                          >
+                            <span className="flex items-center">
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                className={`h-4 w-4 mr-1.5 transition-transform ${isExpanded ? '' : '-rotate-90'}`}
+                                fill="none" 
+                                viewBox="0 0 24 24" 
+                                stroke="currentColor"
+                              >
+                                <path 
+                                  strokeLinecap="round" 
+                                  strokeLinejoin="round" 
+                                  strokeWidth={2} 
+                                  d="M19 9l-7 7-7-7" 
+                                />
+                              </svg>
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                className="h-4 w-4 mr-1.5 text-blue-500 dark:text-blue-400 flex-shrink-0"
+                                fill="none" 
+                                viewBox="0 0 24 24" 
+                                stroke="currentColor"
+                              >
+                                <path 
+                                  strokeLinecap="round" 
+                                  strokeLinejoin="round" 
+                                  strokeWidth={2} 
+                                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" 
+                                />
+                              </svg>
+                              {dirName}
+                            </span>
+                          </button>
+                          
+                          {isExpanded && (
+                            <div className="directory-contents">
+                              {filesByDir[dirPath]?.map(item => {
+                                // Check if this item is a directory (ends with /)
+                                if (item.endsWith('/')) {
+                                  // It's a directory
+                                  const subDirPath = item.slice(0, -1); // Remove trailing slash
+                                  return renderDir(subDirPath, level + 1);
+                                } else {
+                                  // It's a file
+                                  const fileName = item.split('/').pop();
+                                  return (
+                                    <button
+                                      key={item}
+                                      onClick={() => handleFileSelect(item)}
+                                      className={`block w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
+                                        selectedFile === item
+                                          ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-medium'
+                                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-300'
+                                      } transition-colors`}
+                                      style={{ paddingLeft: `${indent + 32}px` }}
+                                    >
+                                      <span className="flex items-center">
+                                        {getFileIcon(fileName || '')}
+                                        <span className="truncate">{fileName}</span>
+                                      </span>
+                                    </button>
+                                  );
+                                }
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    };
+                    
+                    // Build full directory structure
+                    return (
+                      <>
+                        {/* Root directories */}
+                        {Array.from(rootDirs).map(dir => renderDir(dir, 0))}
+                        
+                        {/* Root files */}
+                        {rootFiles.map(file => (
+                          <button
+                            key={file}
+                            onClick={() => handleFileSelect(file)}
+                            className={`block w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
+                              selectedFile === file
+                                ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-medium'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-300'
+                            } transition-colors`}
+                            style={{ paddingLeft: '12px' }}
+                          >
+                            <span className="flex items-center">
+                              {getFileIcon(file)}
+                              <span className="truncate">{file}</span>
+                            </span>
+                          </button>
+                        ))}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
-              
-              <pre className="w-full h-96 p-4 bg-gray-100 dark:bg-gray-800 rounded-md overflow-auto font-mono text-sm border border-gray-300 dark:border-gray-600">
-                {state.scripts[selectedTarget][selectedFile]}
-              </pre>
-            </div>
-          ) : (
-            <div className="h-96 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-800">
-              <div className="text-gray-500 dark:text-gray-400">
-                {selectedTarget ? 'Select a file to view' : 'Select a target first'}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
+          
+          {/* Script content */}
+          <div className="flex-grow p-4">
+            {renderFileContent()}
+          </div>
         </div>
       </div>
     );
   };
   
+  const renderFileContent = () => {
+    if (!selectedTarget || !selectedFile || !state.scripts[selectedTarget]?.[selectedFile]) {
+      return (
+        <div className="h-[calc(100vh-320px)] flex items-center justify-center border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900">
+          <div className="text-center p-8">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <div className="text-gray-500 dark:text-gray-400 mb-2 font-medium">
+              {selectedTarget ? 'Select a file to view' : 'Select a target first'}
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-500">
+              {selectedTarget 
+                ? 'Choose a file from the left panel to view its content'
+                : 'Choose a target framework from the dropdown menu above'
+              }
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Get the language for syntax highlighting based on file extension
+    const getLanguage = () => {
+      if (selectedFile?.endsWith('.ts')) return 'typescript';
+      if (selectedFile?.endsWith('.js')) return 'javascript';
+      if (selectedFile?.endsWith('.py')) return 'python';
+      if (selectedFile?.endsWith('.json')) return 'json';
+      if (selectedFile?.endsWith('.java')) return 'java';
+      if (selectedFile?.endsWith('.md')) return 'markdown';
+      if (selectedFile?.endsWith('.html')) return 'html';
+      if (selectedFile?.endsWith('.css')) return 'css';
+      if (selectedFile?.endsWith('.yml') || selectedFile?.endsWith('.yaml')) return 'yaml';
+      return 'text';
+    };
+
+    const content = state.scripts[selectedTarget][selectedFile];
+    const language = getLanguage();
+    const isDarkMode = document.documentElement.classList.contains('dark');
+
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="font-medium text-gray-800 dark:text-gray-200 flex items-center">
+            <span className="mr-2">{selectedFile}</span>
+            {selectedFile.endsWith('.ts') && (
+              <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full">TypeScript</span>
+            )}
+            {selectedFile.endsWith('.js') && (
+              <span className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded-full">JavaScript</span>
+            )}
+            {selectedFile.endsWith('.py') && (
+              <span className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full">Python</span>
+            )}
+            {selectedFile.endsWith('.json') && (
+              <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-full">JSON</span>
+            )}
+          </h3>
+          
+          <div className="flex space-x-2">
+            <button
+              onClick={handleCopy}
+              className="px-3 py-1 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md border border-gray-300 dark:border-gray-600 text-sm flex items-center transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Copy
+            </button>
+            <button
+              onClick={handleDownload}
+              className="px-3 py-1 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md border border-primary-300 dark:border-primary-700 text-sm flex items-center transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download
+            </button>
+          </div>
+        </div>
+        
+        <div className="w-full h-[calc(100vh-320px)] border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden syntax-highlighter-container">
+          <SyntaxHighlighter
+            language={language}
+            style={isDarkMode ? oneDark : oneLight}
+            customStyle={{
+              margin: 0,
+              padding: '1rem',
+              height: '100%',
+              width: '100%',
+              fontSize: '0.875rem',
+              lineHeight: '1.5',
+              borderRadius: 0,
+              backgroundColor: isDarkMode ? '#171717' : '#f9fafb',
+              overflowX: 'auto',
+              whiteSpace: 'pre'
+            }}
+            wrapLongLines={false}
+            showLineNumbers={true}
+            className="overflow-scrollbar"
+            lineNumberStyle={{ 
+              minWidth: '2.5em', 
+              paddingRight: '1em', 
+              color: isDarkMode ? '#6b7280' : '#9ca3af',
+              borderRight: isDarkMode ? '1px solid #374151' : '1px solid #e5e7eb',
+              marginRight: '1em'
+            }}
+          >
+            {content}
+          </SyntaxHighlighter>
+        </div>
+      </div>
+    );
+  };
+  
+  // Add a function to get file icon based on extension
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    
+    // Return different SVG paths based on file type
+    switch (extension) {
+      case 'ts':
+      case 'tsx':
+        return (
+          <svg className="h-4 w-4 mr-1.5 text-blue-500 dark:text-blue-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 3H21V21H3V3Z" fill="currentColor" fillOpacity="0.2" />
+            <path d="M13 6.5V8H17V18H19V6.5H13Z" fill="currentColor" />
+            <path d="M11 18V16.5H7V13H11V11.5H5V18H11Z" fill="currentColor" />
+          </svg>
+        );
+      case 'js':
+      case 'jsx':
+        return (
+          <svg className="h-4 w-4 mr-1.5 text-yellow-500 dark:text-yellow-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 3H21V21H3V3Z" fill="currentColor" fillOpacity="0.2" />
+            <path d="M16 12.5C16.2761 12.5 16.5 12.7239 16.5 13V15.5C16.5 16.6046 17.3954 17.5 18.5 17.5V16C18.5 15.4477 18.0523 15 17.5 15V13C17.5 12.1716 16.8284 11.5 16 11.5C15.1716 11.5 14.5 12.1716 14.5 13V15.5C14.5 16.6046 15.3954 17.5 16.5 17.5V16C16.5 15.4477 16.0523 15 15.5 15V13C15.5 12.7239 15.7239 12.5 16 12.5Z" fill="currentColor" />
+            <path d="M8 11.5C7.17157 11.5 6.5 12.1716 6.5 13V16C6.5 17.1046 7.39543 18 8.5 18V16.5C7.40228 16.5 7 16 7 16V13.5V13C7 12.7239 7.22386 12.5 7.5 12.5H8.5C8.77614 12.5 9 12.7239 9 13V13.5H10V13C10 12.1716 9.32843 11.5 8.5 11.5H7.5Z" fill="currentColor" />
+          </svg>
+        );
+      case 'py':
+        return (
+          <svg className="h-4 w-4 mr-1.5 text-green-500 dark:text-green-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8.11426 2C7.40934 2 6.83008 2.57926 6.83008 3.28418V5.71582H12.542C13.2469 5.71582 13.8262 6.29508 13.8262 7V9.78418H16.542C17.2469 9.78418 17.8262 10.3634 17.8262 11.0684V18.7158C17.8262 19.4208 17.2469 20 16.542 20H11.1143C10.4093 20 9.83008 19.4208 9.83008 18.7158V16.2842H4.11426C3.40934 16.2842 2.83008 15.7049 2.83008 15V7.28418C2.83008 6.57926 3.40934 6 4.11426 6H5.83008V3.28418C5.83008 2.01253 6.84261 1 8.11426 1H13.542C14.8137 1 15.8262 2.01253 15.8262 3.28418V5H14.1143V3.28418C14.1143 2.94039 13.8858 2.71582 13.542 2.71582H8.11426C7.77047 2.71582 7.54492 2.94137 7.54492 3.28418V4.28516H8.11426C8.80317 4.28516 9.36523 4.82136 9.36523 5.47656V6H13.8262V7.71582H9.36523V8.24023C9.36523 8.89544 8.80416 9.43164 8.11523 9.43164H7.54492V14.5684H8.11426C8.80317 14.5684 9.36523 15.1046 9.36523 15.7598V16.2842H13.8262V18H9.36523V18.5244C9.36523 19.1796 8.80317 19.7158 8.11426 19.7158H7.54492V16.2842H4.11426C3.77047 16.2842 3.54492 16.0586 3.54492 15.7158V7.28418C3.54492 6.94039 3.77047 6.71582 4.11426 6.71582H5.83008V5.71582H4.11426C3.77047 5.71582 3.54492 5.94137 3.54492 6.28418V14.5684H6.83008V12.8506V11.1348V7.28418C6.83008 6.57926 7.40934 6 8.11426 6H13.1143V7.71582H8.11426C7.77047 7.71582 7.54492 7.94137 7.54492 8.28418V11.1348V12.8506V14.7158C7.54492 15.0586 7.77047 15.2842 8.11426 15.2842H11.1143C11.4581 15.2842 11.6836 15.0586 11.6836 14.7158V11.0684C11.6836 10.7246 11.9092 10.5 12.2529 10.5H16.542C16.8858 10.5 17.1113 10.7246 17.1113 11.0684V18.7158C17.1113 19.0596 16.8858 19.2842 16.542 19.2842H11.1143C10.7705 19.2842 10.5449 19.0596 10.5449 18.7158V17.7148H11.1143C11.8032 17.7148 12.3652 17.1786 12.3652 16.5234V16H16.8262V14.2842H12.3652V13.7598C12.3652 13.1046 11.8042 12.5684 11.1152 12.5684H10.5449V7.43164H11.1143C11.8032 7.43164 12.3652 6.89544 12.3652 6.24023V5.71582H16.8262V4H12.3652V3.47559C12.3652 2.82039 11.8042 2.28418 11.1152 2.28418H10.5449V5.71582H8.11426C7.77047 5.71582 7.54492 5.94137 7.54492 6.28418V9H8.11426C8.45804 9 8.68359 8.77446 8.68359 8.43164V6.71582H11.1143C11.4581 6.71582 11.6836 6.49024 11.6836 6.14746V3.28418C11.6836 2.94141 11.4581 2.71582 11.1143 2.71582H8.11426V2Z" fill="currentColor" />
+          </svg>
+        );
+      case 'json':
+        return (
+          <svg className="h-4 w-4 mr-1.5 text-purple-500 dark:text-purple-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 2H20V22H4V2Z" fill="currentColor" fillOpacity="0.2" />
+            <path d="M15 12.5C15.2761 12.5 15.5 12.7239 15.5 13V15.5C15.5 16.0523 15.0523 16.5 14.5 16.5V18C15.6046 18 16.5 17.1046 16.5 16V13C16.5 12.1716 15.8284 11.5 15 11.5C14.1716 11.5 13.5 12.1716 13.5 13V15.5C13.5 16.6046 14.3954 17.5 15.5 17.5V16C15.5 15.4477 15.0523 15 14.5 15V13C14.5 12.7239 14.7239 12.5 15 12.5Z" fill="currentColor" />
+            <path d="M7.5 11.5C6.67157 11.5 6 12.1716 6 13V16C6 17.1046 6.89543 18 8 18V16.5C7.40228 16.5 7 16 7 16V13.5V13C7 12.7239 7.22386 12.5 7.5 12.5H8.5C8.77614 12.5 9 12.7239 9 13V13.5H10V13C10 12.1716 9.32843 11.5 8.5 11.5H7.5Z" fill="currentColor" />
+          </svg>
+        );
+      case 'md':
+        return (
+          <svg className="h-4 w-4 mr-1.5 text-gray-500 dark:text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 2H20V22H4V2Z" fill="currentColor" fillOpacity="0.2" />
+            <path d="M7 18.5V7.5H9L11 10.5L13 7.5H15V18.5H13V11.5L11 14.5L9 11.5V18.5H7Z" fill="currentColor" />
+          </svg>
+        );
+      case 'env':
+      case 'example':
+        return (
+          <svg className="h-4 w-4 mr-1.5 text-gray-500 dark:text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 2H20V22H4V2Z" fill="currentColor" fillOpacity="0.2" />
+            <path d="M6 6H16V8H6V6Z" fill="currentColor" />
+            <path d="M6 9H17V11H6V9Z" fill="currentColor" />
+            <path d="M6 12H18V14H6V12Z" fill="currentColor" />
+          </svg>
+        );
+      case 'cfg':
+      case 'config':
+        return (
+          <svg className="h-4 w-4 mr-1.5 text-gray-500 dark:text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 2H20V22H4V2Z" fill="currentColor" fillOpacity="0.2" />
+            <path d="M12 15.5C13.933 15.5 15.5 13.933 15.5 12C15.5 10.067 13.933 8.5 12 8.5C10.067 8.5 8.5 10.067 8.5 12C8.5 13.933 10.067 15.5 12 15.5Z" fill="currentColor" />
+          </svg>
+        );
+      default:
+        return (
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-4 w-4 mr-1.5 text-gray-500 flex-shrink-0"
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" 
+            />
+          </svg>
+        );
+    }
+  };
+  
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
         {state.scripts && Object.keys(state.scripts).length > 0 
-          ? "Generated Scripts" 
+          ? "Generated Test Scripts" 
           : "Generate Scripts For Target Frameworks"}
       </h2>
       
       {/* Debug Tools for Development (hidden in production) */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="mb-4 p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-800/50">
+        <div className="mb-4 p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-sm">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Development Debug Tools</h3>
+            <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">Development Debug Tools</h3>
             <button
               onClick={() => setShowDebugInfo(!showDebugInfo)}
-              className="text-xs px-2 py-1 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-full"
+              className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors"
             >
               {showDebugInfo ? 'Hide Debug' : 'Show Debug'}
             </button>
@@ -1065,8 +1300,8 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
           
           {showDebugInfo && (
             <div className="mt-2">
-              <h4 className="text-xs font-medium mb-1">Scripts Data Structure:</h4>
-              <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded-md overflow-auto max-h-48">
+              <h4 className="text-xs font-medium mb-1 text-gray-700 dark:text-gray-300">Scripts Data Structure:</h4>
+              <pre className="text-xs bg-gray-50 dark:bg-gray-900 p-3 rounded-md overflow-auto max-h-48 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
                 {JSON.stringify(state.scripts, null, 2)}
               </pre>
               <div className="mt-2 flex gap-2">
@@ -1087,7 +1322,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
                         .catch(err => console.error('Error refreshing scripts:', err));
                     }
                   }}
-                  className="text-xs px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded"
+                  className="text-xs px-2 py-1 bg-primary-100 text-primary-700 hover:bg-primary-200 rounded transition-colors"
                 >
                   Refresh Scripts
                 </button>
@@ -1097,7 +1332,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
                     setSelectedTarget(null);
                     setSelectedFile(null);
                   }}
-                  className="text-xs px-2 py-1 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded"
+                  className="text-xs px-2 py-1 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded transition-colors"
                 >
                   Reset Selection
                 </button>
@@ -1122,10 +1357,40 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
               onBack();
             }
           }}
-          className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"
+          className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
         >
-          {state.blueprintIsValid && !state.blueprintJobId ? 'Back to Input' : 'Back to Blueprint'}
+          <span className="flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            {state.blueprintIsValid && !state.blueprintJobId ? 'Back to Specification Input' : 'Back to Blueprint'}
+          </span>
         </button>
+        
+        {state.scripts && Object.keys(state.scripts).length > 0 && (
+          <div className="flex space-x-3">
+            <button
+              onClick={() => window.location.href = '/'}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+            >
+              Start New Project
+            </button>
+            <button 
+              onClick={() => {
+                // TODO: Implement sharing or exporting of the entire project
+                alert('This feature is coming soon!');
+              }}
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors"
+            >
+              <span className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Share Project
+              </span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,12 +1,14 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
   html {
-    @apply antialiased;
+    @apply antialiased scroll-smooth;
   }
   
   body {
-    @apply bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200;
+    @apply bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
   }
   
   :root {
@@ -30,11 +32,15 @@
   }
   
   .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600;
+    @apply bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600;
   }
   
-  .btn-outline {
-    @apply border border-gray-300 dark:border-gray-700 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800;
+  .btn-secondary {
+    @apply border border-gray-300 dark:border-gray-700 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300;
+  }
+  
+  .btn-destructive {
+    @apply bg-red-600 text-white hover:bg-red-700;
   }
   
   .btn-disabled {
@@ -42,15 +48,15 @@
   }
   
   .input {
-    @apply block w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm;
+    @apply block w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:text-gray-100;
   }
   
   .input-error {
-    @apply border-red-300 dark:border-red-600;
+    @apply border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500;
   }
   
   .card {
-    @apply p-6 bg-gray-800 rounded-lg shadow-md border border-gray-700 w-full;
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6;
   }
   
   .card-title {
@@ -62,23 +68,96 @@
   }
   
   .stepper-line {
-    @apply absolute left-4 w-0.5 bg-gray-600;
-    margin-left: 3.5px;
+    @apply absolute left-4 w-0.5 bg-gray-300 dark:bg-gray-600;
+    margin-left: -1px;
+    top: 1.5rem;
+    bottom: 1.5rem;
   }
   
   .stepper-line-active {
-    @apply absolute left-4 w-0.5 bg-blue-500;
-    margin-left: 3.5px;
+    @apply absolute left-4 w-0.5 bg-primary-500;
+    margin-left: -1px;
+  }
+
+  /* Custom scrollbars */
+  .overflow-scrollbar {
+    @apply overflow-auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+  }
+
+  /* Ensure code blocks have horizontal scrolling */
+  pre, code {
+    @apply overflow-x-auto whitespace-pre;
+    scrollbar-width: thin;
+  }
+
+  /* For WebKit browsers */
+  pre::-webkit-scrollbar,
+  code::-webkit-scrollbar,
+  .overflow-scrollbar::-webkit-scrollbar {
+    @apply h-2 w-2;
+  }
+
+  pre::-webkit-scrollbar-track,
+  code::-webkit-scrollbar-track,
+  .overflow-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  pre::-webkit-scrollbar-thumb,
+  code::-webkit-scrollbar-thumb,
+  .overflow-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-700 rounded;
+  }
+
+  pre::-webkit-scrollbar-thumb:hover,
+  code::-webkit-scrollbar-thumb:hover,
+  .overflow-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-600;
   }
 }
 
-/* Monaco Editor Overrides */
-.monaco-editor .margin {
-  @apply dark:bg-gray-900;
+/* Fix for table scrolling */
+.table-responsive {
+  @apply overflow-auto;
 }
 
+/* Add styles for file tree indicators */
+.file-tree-item {
+  @apply relative pl-6;
+}
+
+.file-tree-item::before {
+  @apply absolute left-0 h-full w-px bg-gray-300 dark:bg-gray-700 content-[''];
+}
+
+.file-tree-item:last-child::before {
+  @apply h-1/2;
+}
+
+.file-tree-item::after {
+  @apply absolute left-0 top-1/2 w-3 h-px bg-gray-300 dark:bg-gray-700 content-[''];
+}
+
+/* Override Syntax Highlighter overflow behavior to ensure scrolling works properly */
+.syntax-highlighter-container {
+  @apply relative w-full h-full overflow-hidden;
+}
+
+.syntax-highlighter-container > * {
+  @apply w-full h-full overflow-auto;
+}
+
+/* Monaco Editor Overrides */
+.monaco-editor .margin,
 .monaco-editor .monaco-editor-background {
-  @apply dark:bg-gray-900;
+  @apply dark:!bg-gray-900;
+}
+
+.monaco-editor .current-line {
+  @apply !border-none;
+  @apply bg-gray-200 dark:bg-gray-700/50;
 }
 
 /* Custom Scrollbar */
@@ -87,15 +166,15 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-transparent;
+  @apply bg-gray-100 dark:bg-gray-800;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+  @apply bg-gray-300 dark:bg-gray-600 rounded;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400 dark:bg-gray-600;
+  @apply bg-gray-400 dark:bg-gray-500;
 }
 
 @keyframes progress-pulse {
@@ -114,4 +193,15 @@
 
 .animate-progress-pulse {
   animation: progress-pulse 2s ease-in-out infinite;
+}
+
+@keyframes progress-indeterminate {
+  0% { transform: translateX(-100%) scaleX(0.5); }
+  50% { transform: translateX(0%) scaleX(0.2); }
+  100% { transform: translateX(100%) scaleX(0.5); }
+}
+
+.animate-progress-indeterminate {
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+  transform-origin: left;
 } 

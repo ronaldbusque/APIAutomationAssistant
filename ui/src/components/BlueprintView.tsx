@@ -143,15 +143,29 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
   // Render progress indicator
   const renderProgress = () => {
     if (jobStatus.isLoading) {
-      return <div className="text-center p-8">Loading job status...</div>;
+      return (
+        <div className="text-center p-8">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] text-primary-500 motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+          <div className="mt-2 text-gray-600 dark:text-gray-400">Loading job status...</div>
+        </div>
+      );
     }
     
     const progress = jobStatus.data?.progress;
     
     if (jobStatus.data?.status === 'queued') {
       return (
-        <div className="text-center p-8">
-          <div className="animate-pulse text-primary-600 dark:text-primary-400">Job queued...</div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
+          <div className="inline-block h-12 w-12 text-primary-500 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Job Queued</h3>
+          <p className="text-gray-600 dark:text-gray-400">Your request is in the queue and will be processed shortly.</p>
+          <div className="mt-4 h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div className="animate-pulse-indeterminate h-full bg-primary-500"></div>
+          </div>
         </div>
       );
     }
@@ -169,87 +183,101 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
       };
 
       return (
-        <div className="p-8">
-          <div className="mb-4 border border-gray-300 dark:border-gray-600 rounded-md p-6 bg-gray-50 dark:bg-gray-800/50">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Blueprint Generation</h3>
-              <div className="flex space-x-2">
-                <div className="text-xs px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full capitalize">
-                  {jobStatus.data.status}
-                </div>
-                <button 
-                  onClick={() => jobStatus.refetch()}
-                  className="text-xs px-2 py-1 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-full flex items-center"
-                  title="Manually refresh status"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Refresh
-                </button>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Blueprint Generation</h3>
+            <div className="flex space-x-2">
+              <div className="text-xs px-3 py-1 bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-300 rounded-full capitalize font-medium">
+                {jobStatus.data.status}
               </div>
-            </div>
-            
-            <div className="mb-4">
-              <div className="flex items-center mb-3">
-                <div className="font-medium text-sm">
-                  {getStageName(progress.stage)}
-                </div>
-              </div>
-              
-              {/* Visual animated indicator instead of percentage bar */}
-              <div className="flex items-center">
-                <div className="relative w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  {jobStatus.data.status === 'processing' || jobStatus.data.status === 'queued' ? (
-                    <div className="absolute h-full bg-blue-500 animate-progress-pulse"></div>
-                  ) : jobStatus.data.status === 'completed' ? (
-                    <div className="absolute h-full w-full bg-green-500"></div>
-                  ) : jobStatus.data.status === 'failed' ? (
-                    <div className="absolute h-full w-full bg-red-500"></div>
-                  ) : (
-                    <div className="absolute h-full w-1/4 bg-blue-500"></div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 border-l-2 border-blue-500 pl-3">
-                {progress.message}
-              </div>
-            </div>
-            
-            {/* Show job details for debugging */}
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={() => setShowDebugInfo(!showDebugInfo)}
-                className="text-xs px-2 py-1 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-full flex items-center"
+              <button 
+                onClick={() => jobStatus.refetch()}
+                className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center transition-colors"
+                title="Manually refresh status"
               >
-                {showDebugInfo ? 'Hide Details' : 'Show Details'}
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
               </button>
             </div>
+          </div>
+          
+          <div className="mb-6">
+            <div className="flex items-center mb-4">
+              <div className="font-medium text-gray-800 dark:text-gray-200">
+                {getStageName(progress.stage)}
+              </div>
+            </div>
             
-            {showDebugInfo && jobStatus.data && (
-              <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-md text-xs font-mono overflow-auto max-h-48">
+            {/* Visual animated indicator */}
+            <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              {jobStatus.data.status === 'processing' || jobStatus.data.status === 'queued' ? (
+                <div className="animate-progress-indeterminate absolute top-0 h-full w-full bg-primary-500 dark:bg-primary-400"></div>
+              ) : jobStatus.data.status === 'completed' ? (
+                <div className="absolute h-full w-full bg-green-500 dark:bg-green-400"></div>
+              ) : jobStatus.data.status === 'failed' ? (
+                <div className="absolute h-full w-full bg-red-500 dark:bg-red-400"></div>
+              ) : (
+                <div className="absolute h-full w-1/4 bg-primary-500 dark:bg-primary-400"></div>
+              )}
+            </div>
+            
+            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-md">
+              <div className="flex">
+                <div className="flex-shrink-0 mr-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <div className="text-sm text-gray-700 dark:text-gray-300">{progress.message}</div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Show job details for debugging */}
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={() => setShowDebugInfo(!showDebugInfo)}
+              className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {showDebugInfo ? 'Hide Details' : 'Show Details'}
+            </button>
+          </div>
+          
+          {showDebugInfo && jobStatus.data && (
+            <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-mono overflow-auto max-h-48">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <strong>Job ID:</strong> {jobStatus.data.job_id}
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">Job ID:</span>{' '}
+                  <span className="text-gray-600 dark:text-gray-400">{jobStatus.data.job_id}</span>
                 </div>
                 <div>
-                  <strong>Status:</strong> {jobStatus.data.status}
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">Status:</span>{' '}
+                  <span className="text-gray-600 dark:text-gray-400">{jobStatus.data.status}</span>
                 </div>
                 <div>
-                  <strong>Stage:</strong> {progress.stage || 'N/A'}
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">Stage:</span>{' '}
+                  <span className="text-gray-600 dark:text-gray-400">{progress.stage || 'N/A'}</span>
                 </div>
                 <div>
-                  <strong>Trace ID:</strong> {jobStatus.data.result?.trace_id || 'N/A'}
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">Trace ID:</span>{' '}
+                  <span className="text-gray-600 dark:text-gray-400">{jobStatus.data.result?.trace_id || 'N/A'}</span>
                 </div>
                 <div>
-                  <strong>Last Updated:</strong> {new Date().toLocaleTimeString()}
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">Last Updated:</span>{' '}
+                  <span className="text-gray-600 dark:text-gray-400">{new Date().toLocaleTimeString()}</span>
                 </div>
                 <div>
-                  <strong>Message:</strong> {progress.message}
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">Message:</span>{' '}
+                  <span className="text-gray-600 dark:text-gray-400">{progress.message}</span>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -261,9 +289,16 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
   const renderError = () => {
     if (error || jobStatus.error) {
       return (
-        <div className="p-4 mb-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
-          <div className="font-medium">Error</div>
-          <div>{error || (jobStatus.error instanceof Error ? jobStatus.error.message : 'An error occurred')}</div>
+        <div className="p-4 mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-300">
+          <div className="flex items-start">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <div className="font-medium">Error</div>
+              <div className="text-sm mt-1">{error || (jobStatus.error instanceof Error ? jobStatus.error.message : 'An error occurred')}</div>
+            </div>
+          </div>
         </div>
       );
     }
@@ -275,24 +310,26 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
   const renderBlueprint = () => {
     if (isEditing) {
       return (
-        <div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Edit Blueprint</h3>
           <textarea
             value={editedBlueprint}
             onChange={(e) => setEditedBlueprint(e.target.value)}
-            className="w-full h-96 p-2 font-mono text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-800 rounded-md resize-y"
+            className="w-full h-96 p-4 font-mono text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md resize-y text-gray-800 dark:text-gray-200 focus:ring-primary-500 focus:border-primary-500"
+            spellCheck="false"
           />
-          <div className="flex mt-4 space-x-2">
-            <button
-              onClick={handleSave}
-              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md"
-            >
-              Save Changes
-            </button>
+          <div className="flex mt-4 space-x-2 justify-end">
             <button
               onClick={handleCancel}
-              className="px-3 py-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
             >
               Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors"
+            >
+              Save Changes
             </button>
           </div>
         </div>
@@ -301,21 +338,30 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
     
     if (state.blueprint) {
       return (
-        <div>
-          <div className="flex justify-end mb-2">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Generated Blueprint</h3>
             <button
               onClick={handleEdit}
-              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center"
+              className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md flex items-center transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
-              Edit Blueprint
+              Edit
             </button>
           </div>
-          <pre className="w-full h-96 p-4 bg-gray-100 dark:bg-gray-800 rounded-md overflow-auto font-mono text-sm">
+          <pre className="w-full h-96 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md overflow-auto font-mono text-sm text-gray-800 dark:text-gray-200">
             {JSON.stringify(state.blueprint, null, 2)}
           </pre>
+          <div className="mt-4 p-3 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-md">
+            <div className="flex items-center text-primary-700 dark:text-primary-300 text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>This blueprint will be used to generate test scripts in the next step. You can edit it if needed.</span>
+            </div>
+          </div>
         </div>
       );
     }
@@ -325,7 +371,7 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
   
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Review Test Blueprint</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Review Test Blueprint</h2>
       
       {renderProgress()}
       {renderError()}
@@ -335,7 +381,7 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
       <div className="flex justify-between">
         <button
           onClick={onBack}
-          className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"
+          className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
         >
           Back
         </button>
@@ -343,7 +389,7 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
         <button
           onClick={onNext}
           disabled={!state.blueprintIsValid || jobStatus.data?.status !== 'completed'}
-          className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-colors"
         >
           <span>Continue to Script Generation</span>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

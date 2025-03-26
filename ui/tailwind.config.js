@@ -1,5 +1,7 @@
+const defaultTheme = require('tailwindcss/defaultTheme');
+
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -58,39 +60,22 @@ export default {
           900: '#111827',
           950: '#030712',
         },
-        success: '#10B981',
-        warning: '#F59E0B',
-        error: '#EF4444',
+        success: '#10b981',
+        warning: '#f59e0b',
+        error: '#ef4444',
       },
       fontFamily: {
-        sans: [
-          'Inter', 
-          'ui-sans-serif', 
-          'system-ui', 
-          '-apple-system', 
-          'BlinkMacSystemFont', 
-          'Segoe UI', 
-          'Roboto', 
-          'Helvetica Neue', 
-          'Arial', 
-          'sans-serif'
-        ],
-        mono: [
-          'JetBrains Mono', 
-          'ui-monospace', 
-          'SFMono-Regular', 
-          'Menlo', 
-          'Monaco', 
-          'Consolas', 
-          'Liberation Mono', 
-          'Courier New', 
-          'monospace'
-        ],
+        sans: ['Inter', ...defaultTheme.fontFamily.sans],
+        mono: ['JetBrains Mono', ...defaultTheme.fontFamily.mono],
       },
       animation: {
         'spin-slow': 'spin 3s linear infinite',
+        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       }
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/forms'),
+    require('@tailwindcss/typography'),
+  ],
 } 
