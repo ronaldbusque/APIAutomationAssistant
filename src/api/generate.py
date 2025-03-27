@@ -35,7 +35,7 @@ class GenerateBlueprintRequest(BaseModel):
     test_flow: Optional[str] = Field(None, description="Test flow (for advanced mode)")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "spec": "openapi: 3.0.0\ninfo:\n  title: Example API\n  version: 1.0.0\npaths:\n  /users:\n    get:\n      summary: Get users\n      responses:\n        '200':\n          description: Successful response",
                 "mode": "basic"
@@ -48,7 +48,7 @@ class GenerateScriptsRequest(BaseModel):
     targets: List[str] = Field(..., description="Target frameworks (e.g., ['postman', 'playwright'])")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "blueprint": {
                     "apiName": "Example API",

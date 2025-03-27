@@ -7,7 +7,7 @@ generated from OpenAPI specifications.
 
 from typing import List, Dict, Any, Optional, Union
 from enum import Enum
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, AliasChoices
 import logging
 
 # Set up logger
@@ -28,7 +28,7 @@ class DataFormat(str, Enum):
 
 class HeaderParam(BaseModel):
     """Model for HTTP header parameters."""
-    key: str = Field(..., description="Header name")
+    key: str = Field(..., description="Header name", validation_alias=AliasChoices('key', 'name'))
     value: str = Field(..., description="Header value")
     description: Optional[str] = Field(None, description="Description of the header")
     
