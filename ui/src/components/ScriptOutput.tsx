@@ -3,6 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { useGenerateScripts, useJobStatus, useWebSocket } from '../hooks/useApi';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { Switch } from '@headlessui/react';
 
 interface Props {
   onBack: () => void;
@@ -16,7 +17,8 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     setTargets, 
     setBlueprint, 
     setBlueprintIsValid,
-    setCurrentStep 
+    setCurrentStep,
+    setIsAutonomousMode
   } = useAppContext();
   
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
@@ -329,6 +331,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
       const request = {
         blueprint: state.blueprint,
         targets: state.targets,
+        use_autonomous: state.isAutonomousMode // Add the autonomous mode flag
       };
       
       const result = await generateScriptsMutation.mutateAsync(request);
@@ -471,14 +474,29 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     const stage = progress?.stage || 'initializing';
     
     // Get more descriptive stage name
-    const getStageName = (stage: string) => {
+    const getStageName = (stage: string, autonomousStage?: string) => {
+      // Check if we have an autonomous-specific stage to display
+      if (autonomousStage) {
+        switch (autonomousStage) {
+          case "spec_analysis": return "Analyzing Specification";
+          case "blueprint_authoring": return "Creating Blueprint";
+          case "blueprint_reviewing": return "Reviewing Blueprint";
+          case "script_target_start": return "Initializing Script Generation";
+          case "script_coding": return "Coding Tests";
+          case "script_reviewing": return "Reviewing Tests";
+          case "script_target_complete": return "Target Complete";
+          default: return autonomousStage.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        }
+      }
+      
+      // Standard stage names
       switch (stage) {
-        case 'planning': return 'Planning Test Structure';
-        case 'coding': return 'Generating Test Scripts';
-        case 'initializing': return 'Initializing';
-        case 'waiting_for_review': return 'Waiting for Review';
-        case 'completed': return 'Completed';
-        case 'failed': return 'Failed';
+        case "planning": return 'Planning Test Structure';
+        case "coding": return 'Generating Test Scripts';
+        case "initializing": return 'Initializing';
+        case "waiting_for_review": return 'Waiting for Review';
+        case "completed": return 'Completed';
+        case "failed": return 'Failed';
         default: return stage.charAt(0).toUpperCase() + stage.slice(1);
       }
     };
@@ -507,8 +525,13 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
         <div className="mb-6">
           <div className="flex items-center mb-4">
             <div className="font-medium text-gray-800 dark:text-gray-200">
-              {getStageName(stage)}
+              {getStageName(stage, progress?.autonomous_stage)}
             </div>
+            {state.isAutonomousMode && (
+              <div className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs rounded-full">
+                Autonomous Mode
+              </div>
+            )}
           </div>
           
           {/* Visual animated indicator */}
@@ -828,6 +851,30 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
             </div>
           </div>
           
+          {/* Autonomous Mode Toggle */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-medium text-gray-900 dark:text-white">Enable Autonomous Mode</span>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Let AI agents iteratively refine the scripts.</p>
+              </div>
+              <Switch
+                checked={state.isAutonomousMode}
+                onChange={setIsAutonomousMode}
+                className={`${
+                  state.isAutonomousMode ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-600'
+                } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800`}
+              >
+                <span className="sr-only">Enable Autonomous Mode</span>
+                <span
+                  className={`${
+                    state.isAutonomousMode ? 'translate-x-6' : 'translate-x-1'
+                  } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                />
+              </Switch>
+            </div>
+          </div>
+          
           <div className="text-center pt-4">
             <button 
               onClick={handleGenerateScripts}
@@ -847,7 +894,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                  Generate Scripts
+                  {state.isAutonomousMode ? 'Generate Scripts (Autonomous)' : 'Generate Scripts'}
                 </span>
               )}
             </button>

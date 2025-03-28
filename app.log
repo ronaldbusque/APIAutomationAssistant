@@ -1,0 +1,1301 @@
+2025-03-29 10:21:09,976 - root - INFO - Logging configured with level INFO
+2025-03-29 10:21:10,185 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 10:21:10,186 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 10:21:10,187 - root - INFO - Model selection strategy initialized
+2025-03-29 10:21:10,187 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 10:21:10,188 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 10:21:10,188 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 10:21:10,188 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 10:21:10,190 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 10:21:10,191 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 10:21:10,196 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 10:21:10,197 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 10:21:10,197 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 10:21:10,198 - root - INFO - Agents initialized successfully
+2025-03-29 10:21:10,204 - root - INFO - Application starting up
+2025-03-29 10:21:10,204 - root - INFO - Application startup complete
+2025-03-29 10:22:14,838 - src.api.generate - INFO - Starting blueprint generation job 11d7ca3e-7e0e-4639-af8f-52cc4124b0b2 with context: {'request_id': 'trace_d07cc0b675d94e88a0bcdd17b1e2a879', 'timestamp': '2025-03-29T10:22:14.838685', 'source': 'api', 'user_id': 'anonymous', 'metadata': {}}
+2025-03-29 10:22:14,839 - src.agents.test_generation - INFO - Calculated complexity score: 0.00 (size: 1465, endpoints: 3)
+2025-03-29 10:22:14,839 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 10:22:14,839 - src.utils.model_selection - INFO - Using configured model o3-mini for planning task with complexity 0.00
+2025-03-29 10:22:14,840 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 10:22:14,840 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 10:22:14,840 - src.utils.model_selection - INFO - Using configured model o3-mini for planning task with complexity 0.00
+2025-03-29 10:22:14,840 - src.utils.execution - INFO - Running streaming agent Test Planner with model o3-mini, timeout 300s
+2025-03-29 10:22:15,174 - src.api.generate - INFO - WebSocket disconnected for job 11d7ca3e-7e0e-4639-af8f-52cc4124b0b2
+2025-03-29 10:22:15,196 - src.api.generate - INFO - WebSocket disconnected for job 11d7ca3e-7e0e-4639-af8f-52cc4124b0b2
+2025-03-29 10:22:16,139 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 10:22:20,592 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 10:22:51,970 - src.utils.execution - INFO - Agent Test Planner streaming completed
+2025-03-29 10:22:51,971 - src.agents.test_generation - INFO - Blueprint generation completed with trace_id: streaming
+2025-03-29 10:22:51,971 - src.agents.test_generation - INFO - Blueprint validation produced 1 warnings
+2025-03-29 10:22:51,972 - src.agents.test_generation - WARNING - Blueprint warning: Test 'test-create-pet-invalid' assertion #1 contains quotes, which might indicate string injection risks
+2025-03-29 10:22:51,980 - src.api.generate - INFO - WebSocket disconnected for job 11d7ca3e-7e0e-4639-af8f-52cc4124b0b2
+2025-03-29 10:22:52,289 - src.api.generate - INFO - WebSocket disconnected for job 11d7ca3e-7e0e-4639-af8f-52cc4124b0b2
+2025-03-29 10:22:55,998 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 10:23:17,722 - src.api.generate - INFO - WebSocket disconnected for job 11d7ca3e-7e0e-4639-af8f-52cc4124b0b2
+2025-03-29 10:23:20,995 - src.api.generate - INFO - Starting script generation job e84813d6-11ab-4558-813c-e734391551bf with context: {'request_id': 'trace_bd61c55b2e2542028fb9f78f40d1d9bf', 'timestamp': '2025-03-29T10:23:20.995702', 'source': 'api', 'user_id': 'anonymous', 'metadata': {}}
+2025-03-29 10:23:20,997 - src.agents.test_generation - INFO - Blueprint validation produced 1 warnings
+2025-03-29 10:23:20,997 - src.agents.test_generation - WARNING - Blueprint warning: Test 'test-create-pet-invalid' assertion #1 contains quotes, which might indicate string injection risks
+2025-03-29 10:23:20,997 - src.agents.test_generation - INFO - Calculated blueprint complexity: 0.02 (tests: 5, dependencies: 0)
+2025-03-29 10:23:20,998 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 10:23:20,998 - src.utils.model_selection - INFO - Using configured model o3-mini for coding task with complexity 0.02
+2025-03-29 10:23:20,998 - src.agents.test_generation - INFO - Selected model o3-mini for script generation with complexity 0.020000000000000004
+2025-03-29 10:23:20,998 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 10:23:20,998 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 10:23:20,999 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 10:23:21,002 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 10:23:21,002 - src.agents.test_generation - INFO - Blueprint for Pet Store API has 2 groups
+2025-03-29 10:23:21,002 - src.agents.test_generation - INFO -   Group 'Pets Endpoint Tests' has 3 tests
+2025-03-29 10:23:21,120 - src.agents.test_generation - INFO -   Group 'Get Pet By ID Tests' has 2 tests
+2025-03-29 10:23:21,131 - src.agents.test_generation - INFO - === FULL INPUT DATA BEING SENT TO CODER AGENT ===
+2025-03-29 10:23:21,132 - src.agents.test_generation - INFO - Input data keys: ['blueprint', 'original_blueprint', 'targets', 'context']
+2025-03-29 10:23:21,132 - src.agents.test_generation - INFO - === BLUEPRINT CONTENT ===
+2025-03-29 10:23:21,132 - src.agents.test_generation - INFO - Blueprint API Name: Pet Store API
+2025-03-29 10:23:21,133 - src.agents.test_generation - INFO - Blueprint Version: 1.0.0
+2025-03-29 10:23:21,133 - src.agents.test_generation - INFO - Blueprint Description: A simple API for managing pets
+2025-03-29 10:23:21,133 - src.agents.test_generation - INFO - Blueprint Base URL: http://api.petstore.com
+2025-03-29 10:23:21,134 - src.agents.test_generation - INFO - Group: Pets Endpoint Tests
+2025-03-29 10:23:21,134 - src.agents.test_generation - INFO -   Test: test-list-pets
+2025-03-29 10:23:21,134 - src.agents.test_generation - INFO -     Endpoint: GET /pets
+2025-03-29 10:23:21,134 - src.agents.test_generation - INFO -     Expected Status: 200
+2025-03-29 10:23:21,135 - src.agents.test_generation - INFO -   Test: test-create-pet-valid
+2025-03-29 10:23:21,135 - src.agents.test_generation - INFO -     Endpoint: POST /pets
+2025-03-29 10:23:21,135 - src.agents.test_generation - INFO -     Expected Status: 201
+2025-03-29 10:23:21,135 - src.agents.test_generation - INFO -     Body: {'name': 'Buddy', 'species': 'dog'}
+2025-03-29 10:23:21,135 - src.agents.test_generation - INFO -   Test: test-create-pet-invalid
+2025-03-29 10:23:21,135 - src.agents.test_generation - INFO -     Endpoint: POST /pets
+2025-03-29 10:23:21,136 - src.agents.test_generation - INFO -     Expected Status: 400
+2025-03-29 10:23:21,136 - src.agents.test_generation - INFO -     Body: {'species': 'cat'}
+2025-03-29 10:23:21,136 - src.agents.test_generation - INFO - Group: Get Pet By ID Tests
+2025-03-29 10:23:21,136 - src.agents.test_generation - INFO -   Test: test-get-pet-by-id-valid
+2025-03-29 10:23:21,136 - src.agents.test_generation - INFO -     Endpoint: GET /pets/{{test-create-pet-valid.response.body.id}}
+2025-03-29 10:23:21,136 - src.agents.test_generation - INFO -     Expected Status: 200
+2025-03-29 10:23:21,137 - src.agents.test_generation - INFO -     Parameters: [{'name': 'petId', 'value': '{{test-create-pet-valid.response.body.id}}', 'in_': 'path', 'required': True, 'description': None}]
+2025-03-29 10:23:21,137 - src.agents.test_generation - INFO -   Test: test-get-pet-by-id-not-found
+2025-03-29 10:23:21,137 - src.agents.test_generation - INFO -     Endpoint: GET /pets/invalid-pet-id
+2025-03-29 10:23:21,137 - src.agents.test_generation - INFO -     Expected Status: 404
+2025-03-29 10:23:21,137 - src.agents.test_generation - INFO -     Parameters: [{'name': 'petId', 'value': 'invalid-pet-id', 'in_': 'path', 'required': True, 'description': None}]
+2025-03-29 10:23:21,137 - src.agents.test_generation - INFO - === END BLUEPRINT CONTENT ===
+2025-03-29 10:23:21,138 - src.agents.test_generation - INFO - Targets: ['playwright']
+2025-03-29 10:23:21,138 - src.agents.test_generation - INFO - Context keys: ['instructions', 'templates_directory', 'features']
+2025-03-29 10:23:21,138 - src.agents.test_generation - INFO - Features keys: ['variable_extraction', 'test_flow', 'retry_policy', 'environment_variables', 'mock_data', 'setup_teardown']
+2025-03-29 10:23:21,138 - src.agents.test_generation - INFO - === END INPUT DATA ===
+2025-03-29 10:23:21,138 - src.agents.test_generation - INFO - === FULL MESSAGE BEING SENT TO CODER AGENT ===
+2025-03-29 10:23:21,139 - src.agents.test_generation - INFO - Generate API test scripts based EXCLUSIVELY on the provided blueprint. Target frameworks: playwright.
+
+CRITICAL: You MUST generate tests that match the EXACT endpoints, methods, and test cases from the blueprint. The examples below are ONLY for reference on how to implement features - they should NOT be copied or used as templates.
+
+Here is the actual blueprint content you MUST use:
+
+API Name: Pet Store API
+Version: 1.0.0
+Base URL: http://api.petstore.com
+
+Test Groups:
+
+Group: Pets Endpoint Tests
+Tests:
+  - test-list-pets
+    Endpoint: GET /pets
+    Expected Status: 200
+    
+    
+    
+  - test-create-pet-valid
+    Endpoint: POST /pets
+    Expected Status: 201
+    
+    
+    Body: {'name': 'Buddy', 'species': 'dog'}
+  - test-create-pet-invalid
+    Endpoint: POST /pets
+    Expected Status: 400
+    
+    
+    Body: {'species': 'cat'}
+
+Group: Get Pet By ID Tests
+Tests:
+  - test-get-pet-by-id-valid
+    Endpoint: GET /pets/{{test-create-pet-valid.response.body.id}}
+    Expected Status: 200
+    
+    Parameters: [{'name': 'petId', 'value': '{{test-create-pet-valid.response.body.id}}', 'in_': 'path', 'required': True, 'description': None}]
+    
+  - test-get-pet-by-id-not-found
+    Endpoint: GET /pets/invalid-pet-id
+    Expected Status: 404
+    
+    Parameters: [{'name': 'petId', 'value': 'invalid-pet-id', 'in_': 'path', 'required': True, 'description': None}]
+    
+
+Your generated tests MUST:
+1. Use the EXACT endpoints from the blueprint above
+2. Use the EXACT HTTP methods from the blueprint above
+3. Expect the EXACT status codes from the blueprint above
+4. Follow the EXACT test groups from the blueprint above
+5. Include the EXACT test names from the blueprint above
+
+DO NOT use the example endpoints or methods. Use ONLY the endpoints and methods from the blueprint above.
+
+The examples below show HOW to implement features, but you MUST use your own endpoints and methods from the blueprint above.
+2025-03-29 10:23:21,140 - src.agents.test_generation - INFO - === END MESSAGE ===
+2025-03-29 10:23:21,140 - src.utils.model_selection - INFO - Using configured model o3-mini for coding task with complexity 0.02
+2025-03-29 10:23:21,140 - src.utils.execution - INFO - Running streaming agent Test Coder with model o3-mini, timeout 312s
+2025-03-29 10:23:21,308 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:23:21,646 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 10:23:26,762 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 10:23:47,503 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 10:24:18,094 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 10:24:18,773 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 10:24:23,622 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 10:24:33,486 - src.utils.execution - INFO - Agent Test Coder streaming completed
+2025-03-29 10:24:33,487 - src.agents.test_generation - INFO - Creating ScriptOutput from result type <class 'dict'>
+2025-03-29 10:24:33,487 - src.agents.test_generation - INFO - Output object: apiName='API Tests' version='1.0.0' outputs=[TargetOutput(name='Playwright Scripts', type=<ScriptType.PLAYWRIGHT: 'playwright'>, content={'content': "/*\n  Pet Store API - Playwright Test Suite\n  API Name: Pet Store API\n  Version: 1.0.0\n  Base URL: http://api.petstore.com\n\n  This test suite implements the following test groups and cases:\n\n  Group: Pets Endpoint Tests\n    - test-list-pets: GET /pets, Expected Status: 200\n    - test-create-pet-valid: POST /pets with valid body, Expected Status: 201\n         Body: { 'name': 'Buddy', 'species': 'dog' }\n         -> Extract pet id from response and save for dependent tests\n    - test-create-pet-invalid: POST /pets with invalid body, Expected Status: 400\n         Body: { 'species': 'cat' }\n\n  Group: Get Pet By ID Tests\n    - test-get-pet-by-id-valid: GET /pets/{{test-create-pet-valid.response.body.id}}, Expected Status: 200\n         Uses pet id from test-create-pet-valid\n    - test-get-pet-by-id-not-found: GET /pets/invalid-pet-id, Expected Status: 404\n\n  Note: This suite uses a shared variable store for managing data between tests and proper sequential test flows to ensure prerequisites are met before dependent tests execute.\n*/"}, files=[FileContent(filename='tests/api/petstore.spec.ts', content="import { test, expect } from '@playwright/test';\nimport { VariableStore } from '../utils/variable-store';\n\n// Global base URL resolved from environment variables\nconst baseURL = process.env.BASE_URL || 'http://api.petstore.com';\n\n// Group: Pets Endpoint Tests\n// Using test.describe.serial to handle sequential flow dependency\n\ntest.describe.serial('Pets Endpoint Tests', () => {\n  test('test-list-pets', async ({ request }) => {\n    const response = await request.get(`${baseURL}/pets`);\n    expect(response.status(), 'Expected status 200 for listing pets').toBe(200);\n  });\n\n  test('test-create-pet-valid', async ({ request }) => {\n    const requestBody = { name: 'Buddy', species: 'dog' };\n    const response = await request.post(`${baseURL}/pets`, { data: requestBody });\n    expect(response.status(), 'Expected status 201 for valid pet creation').toBe(201);\n\n    const responseBody = await response.json();\n    const petId = responseBody.id;\n    expect(petId, 'A valid pet id must be extracted from the response').toBeTruthy();\n\n    // Save the pet id for subsequent tests\n    VariableStore.setVariable('petId', petId);\n  });\n\n  test('test-create-pet-invalid', async ({ request }) => {\n    const requestBody = { species: 'cat' };\n    const response = await request.post(`${baseURL}/pets`, { data: requestBody });\n    expect(response.status(), 'Expected status 400 for invalid pet creation').toBe(400);\n  });\n});\n\n// Group: Get Pet By ID Tests\n// Ensuring that the pet id has been set by previous tests\n\ntest.describe.serial('Get Pet By ID Tests', () => {\n  test.beforeEach(() => {\n    const petId = VariableStore.getVariable('petId');\n    if (!petId) {\n      test.skip('Skipping test as pet id is not available. Ensure that test-create-pet-valid ran successfully.');\n    }\n  });\n\n  test('test-get-pet-by-id-valid', async ({ request }) => {\n    const petId = VariableStore.getVariable('petId');\n    const response = await request.get(`${baseURL}/pets/${petId}`);\n    expect(response.status(), 'Expected status 200 when retrieving pet by valid id').toBe(200);\n  });\n\n  test('test-get-pet-by-id-not-found', async ({ request }) => {\n    const response = await request.get(`${baseURL}/pets/invalid-pet-id`);\n    expect(response.status(), 'Expected status 404 for non-existent pet retrieval').toBe(404);\n  });\n});\n", path=None, format=None), FileContent(filename='tests/utils/variable-store.ts', content='// VariableStore: A utility class to store and retrieve variables between tests\n\nexport class VariableStore {\n  private static store: Record<string, any> = {};\n\n  /**\n   * Set a variable\n   * @param key - key to use\n   * @param value - variable value\n   */\n  public static setVariable(key: string, value: any) {\n    this.store[key] = value;\n  }\n\n  /**\n   * Get a variable by key\n   * @param key - key of the variable\n   * @returns the value associated with the key\n   */\n  public static getVariable(key: string): any {\n    return this.store[key];\n  }\n\n  /**\n   * Clear all stored variables\n   */\n  public static clear() {\n    this.store = {};\n  }\n}\n\nexport { VariableStore };\n', path=None, format=None), FileContent(filename='playwright.config.ts', content="import { PlaywrightTestConfig } from '@playwright/test';\n\nconst config: PlaywrightTestConfig = {\n  testDir: './tests',\n  timeout: 30000,\n  retries: 2,  // Global retry configuration\n  use: {\n    baseURL: process.env.BASE_URL || 'http://api.petstore.com',\n    trace: 'on-first-retry',\n    // Additional settings like headless mode and viewport can be configured here\n  },\n  // Exponential backoff can be implemented via custom hooks if needed\n};\n\nexport default config;\n", path=None, format=None), FileContent(filename='.env.example', content='# Environment variables for Pet Store API Testing\n\n# Base URL for the API\nBASE_URL=http://api.petstore.com\n\n# Optional: Authentication token if required\nAUTH_TOKEN=your-auth-token\n', path=None, format=None), FileContent(filename='README.md', content="# Pet Store API Playwright Test Suite\n\nThis Playwright test suite covers the following tests based on the Pet Store API blueprint:\n\n## Test Groups\n\n### Pets Endpoint Tests\n- test-list-pets: GET /pets, expects 200\n- test-create-pet-valid: POST /pets with body { name: 'Buddy', species: 'dog' }, expects 201, extracts and saves pet id\n- test-create-pet-invalid: POST /pets with body { species: 'cat' }, expects 400\n\n### Get Pet By ID Tests\n- test-get-pet-by-id-valid: GET /pets/{{petId}} (from test-create-pet-valid), expects 200\n- test-get-pet-by-id-not-found: GET /pets/invalid-pet-id, expects 404\n\n## How to Use\n\n1. Install dependencies:\n   npm install\n\n2. Set up environment variables using the .env.example file.\n\n3. Run tests:\n   npx playwright test\n\n## Additional Information\n\n- The variable store utility is used to share data (pet id) between tests.\n- Serial execution is used for tests with dependencies to ensure correct ordering.\n- Global configuration is provided via playwright.config.ts, including retry policies.\n", path=None, format=None)])]
+2025-03-29 10:24:33,488 - src.agents.test_generation - INFO - Number of outputs: 1
+2025-03-29 10:24:33,488 - src.agents.test_generation - INFO - Processing output item: type=playwright, name=Playwright Scripts
+2025-03-29 10:24:33,488 - src.agents.test_generation - INFO - Added main content file: playwright_collection.json
+2025-03-29 10:24:33,488 - src.agents.test_generation - INFO - Number of files in output item: 5
+2025-03-29 10:24:33,489 - src.agents.test_generation - INFO - Added file: tests/api/petstore.spec.ts
+2025-03-29 10:24:33,489 - src.agents.test_generation - INFO - Added file: tests/utils/variable-store.ts
+2025-03-29 10:24:33,489 - src.agents.test_generation - INFO - Added file: playwright.config.ts
+2025-03-29 10:24:33,489 - src.agents.test_generation - INFO - Added file: .env.example
+2025-03-29 10:24:33,490 - src.agents.test_generation - INFO - Added file: README.md
+2025-03-29 10:24:33,490 - src.agents.test_generation - INFO - Final target_scripts structure: {"playwright": ["playwright_collection.json", "tests/api/petstore.spec.ts", "tests/utils/variable-store.ts", "playwright.config.ts", ".env.example", "README.md"]}
+2025-03-29 10:24:33,490 - src.api.generate - INFO - Script generation completed successfully for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:33,490 - src.api.generate - INFO - Scripts generated with types: ['playwright']
+2025-03-29 10:24:33,490 - src.api.generate - INFO - Script type playwright contains 6 files:
+2025-03-29 10:24:33,491 - src.api.generate - INFO -   - playwright_collection.json (size: 1081)
+2025-03-29 10:24:33,491 - src.api.generate - INFO -   - tests/api/petstore.spec.ts (size: 2313)
+2025-03-29 10:24:33,491 - src.api.generate - INFO -   - tests/utils/variable-store.ts (size: 676)
+2025-03-29 10:24:33,491 - src.api.generate - INFO -   - playwright.config.ts (size: 469)
+2025-03-29 10:24:33,491 - src.api.generate - INFO -   - .env.example (size: 180)
+2025-03-29 10:24:33,491 - src.api.generate - INFO -   - README.md (size: 1027)
+2025-03-29 10:24:33,491 - src.api.generate - INFO - Result keys: ['blueprint', 'scripts', 'trace_id']
+2025-03-29 10:24:33,492 - src.api.generate - INFO - Scripts result structure: {"playwright": ["playwright_collection.json", "tests/api/petstore.spec.ts", "tests/utils/variable-store.ts", "playwright.config.ts", ".env.example", "README.md"]}
+2025-03-29 10:24:33,497 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:33,804 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:34,441 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 10:24:37,311 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:39,933 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:41,302 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:43,443 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:48,368 - src.api.generate - INFO - WebSocket disconnected for job 11d7ca3e-7e0e-4639-af8f-52cc4124b0b2
+2025-03-29 10:24:48,369 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:48,369 - src.api.generate - INFO - WebSocket disconnected for job 11d7ca3e-7e0e-4639-af8f-52cc4124b0b2
+2025-03-29 10:24:48,370 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:48,370 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:48,371 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:48,371 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:48,372 - src.api.generate - INFO - WebSocket disconnected for job 11d7ca3e-7e0e-4639-af8f-52cc4124b0b2
+2025-03-29 10:24:48,372 - src.api.generate - INFO - WebSocket disconnected for job 11d7ca3e-7e0e-4639-af8f-52cc4124b0b2
+2025-03-29 10:24:48,373 - src.api.generate - INFO - WebSocket disconnected for job 11d7ca3e-7e0e-4639-af8f-52cc4124b0b2
+2025-03-29 10:24:48,373 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:48,374 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:48,374 - src.api.generate - INFO - WebSocket disconnected for job e84813d6-11ab-4558-813c-e734391551bf
+2025-03-29 10:24:48,476 - root - INFO - Application shutting down
+2025-03-29 10:24:48,476 - root - INFO - Application shutdown complete
+2025-03-29 11:22:46,266 - root - INFO - Logging configured with level INFO
+2025-03-29 11:22:46,502 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 11:22:46,503 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:22:46,503 - root - INFO - Model selection strategy initialized
+2025-03-29 11:22:46,503 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:22:46,503 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 11:22:46,504 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 11:22:46,504 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 11:22:46,504 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 11:22:46,504 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 11:22:46,508 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 11:22:46,508 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 11:22:46,509 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 11:22:46,509 - root - INFO - Agents initialized successfully
+2025-03-29 11:22:46,515 - root - INFO - Application starting up
+2025-03-29 11:22:46,515 - root - INFO - Application startup complete
+2025-03-29 11:22:53,778 - root - INFO - Application shutting down
+2025-03-29 11:22:53,778 - root - INFO - Application shutdown complete
+2025-03-29 11:22:58,969 - root - INFO - Logging configured with level INFO
+2025-03-29 11:22:59,215 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 11:22:59,216 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:22:59,216 - root - INFO - Model selection strategy initialized
+2025-03-29 11:22:59,216 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:22:59,217 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 11:22:59,217 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 11:22:59,217 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 11:22:59,217 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 11:22:59,217 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 11:22:59,221 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 11:22:59,221 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 11:22:59,221 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 11:22:59,222 - root - INFO - Agents initialized successfully
+2025-03-29 11:22:59,228 - root - INFO - Application starting up
+2025-03-29 11:22:59,229 - root - INFO - Application startup complete
+2025-03-29 11:23:05,433 - root - INFO - Application shutting down
+2025-03-29 11:23:05,433 - root - INFO - Application shutdown complete
+2025-03-29 11:23:09,268 - root - INFO - Logging configured with level INFO
+2025-03-29 11:23:09,509 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 11:23:09,510 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:23:09,510 - root - INFO - Model selection strategy initialized
+2025-03-29 11:23:09,511 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:23:09,511 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 11:23:09,511 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 11:23:09,511 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 11:23:09,511 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 11:23:09,511 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 11:23:09,515 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 11:23:09,516 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 11:23:09,516 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 11:23:09,516 - root - INFO - Agents initialized successfully
+2025-03-29 11:23:09,523 - root - INFO - Application starting up
+2025-03-29 11:23:09,523 - root - INFO - Application startup complete
+2025-03-29 11:28:07,080 - root - INFO - Application shutting down
+2025-03-29 11:28:07,081 - root - INFO - Application shutdown complete
+2025-03-29 11:28:09,072 - root - INFO - Logging configured with level INFO
+2025-03-29 11:28:09,311 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 11:28:09,312 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:28:09,313 - root - INFO - Model selection strategy initialized
+2025-03-29 11:28:09,313 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:28:09,313 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 11:28:09,314 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 11:28:09,314 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 11:28:09,314 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 11:28:09,314 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 11:28:09,318 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 11:28:09,319 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 11:28:09,319 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 11:28:09,319 - root - INFO - Agents initialized successfully
+2025-03-29 11:28:09,324 - root - INFO - Application starting up
+2025-03-29 11:28:09,324 - root - INFO - Application startup complete
+2025-03-29 11:28:09,444 - root - INFO - Application shutting down
+2025-03-29 11:28:09,444 - root - INFO - Application shutdown complete
+2025-03-29 11:28:11,428 - root - INFO - Logging configured with level INFO
+2025-03-29 11:28:11,648 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 11:28:11,649 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:28:11,650 - root - INFO - Model selection strategy initialized
+2025-03-29 11:28:11,650 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:28:11,650 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 11:28:11,651 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 11:28:11,651 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 11:28:11,651 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 11:28:11,651 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 11:28:11,655 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 11:28:11,655 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 11:28:11,655 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 11:28:11,656 - root - INFO - Agents initialized successfully
+2025-03-29 11:28:11,661 - root - INFO - Application starting up
+2025-03-29 11:28:11,661 - root - INFO - Application startup complete
+2025-03-29 11:28:11,777 - root - INFO - Application shutting down
+2025-03-29 11:28:11,777 - root - INFO - Application shutdown complete
+2025-03-29 11:35:32,671 - root - INFO - Logging configured with level INFO
+2025-03-29 11:35:32,929 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 11:35:32,930 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:35:32,931 - root - INFO - Model selection strategy initialized
+2025-03-29 11:35:32,931 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:35:32,932 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 11:35:32,932 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 11:35:32,932 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 11:35:32,933 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 11:35:32,933 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 11:35:32,937 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 11:35:32,937 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 11:35:32,938 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 11:35:32,938 - root - INFO - Agents initialized successfully
+2025-03-29 11:35:32,945 - root - INFO - Application starting up
+2025-03-29 11:35:32,946 - root - INFO - Application startup complete
+2025-03-29 11:35:40,728 - src.api.generate - INFO - Starting autonomous generation job 70a27746-03a8-467c-8b70-b35a9ce7140f with context: {'request_id': 'trace_a07dcb4ab5ba4726bc4a73c6cc981ac4', 'timestamp': '2025-03-29T11:35:40.728337', 'source': 'api', 'user_id': 'anonymous', 'metadata': {}}
+2025-03-29 11:35:40,729 - src.agents.autonomous.pipeline - INFO - Analyzing initial OpenAPI spec...
+2025-03-29 11:35:40,729 - src.agents.autonomous.pipeline - INFO - Spec analysis complete. Found 2 endpoints, 2 schemas.
+2025-03-29 11:35:40,729 - src.api.generate - INFO - Spec analysis complete for job 70a27746-03a8-467c-8b70-b35a9ce7140f. Found 2 endpoints.
+2025-03-29 11:35:40,729 - src.agents.autonomous.pipeline - INFO - Starting autonomous blueprint pipeline with max 3 iterations
+2025-03-29 11:35:40,729 - src.utils.model_selection - INFO - Using configured model o3-mini for blueprint_authoring task with complexity 0.60
+2025-03-29 11:35:40,730 - src.agents.autonomous.agents - INFO - Setting up Blueprint Author Agent with model: o3-mini
+2025-03-29 11:35:40,730 - src.utils.model_selection - INFO - Using configured model o3-mini for blueprint_reviewing task with complexity 0.50
+2025-03-29 11:35:40,730 - src.agents.autonomous.agents - INFO - Setting up Blueprint Reviewer Agent with model: o3-mini
+2025-03-29 11:35:40,730 - src.agents.autonomous.pipeline - INFO - Starting blueprint iteration 1/3
+2025-03-29 11:35:40,730 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:35:40,731 - src.utils.model_selection - INFO - Using configured model o3-mini for blueprint_authoring task with complexity 0.60
+2025-03-29 11:35:40,731 - src.utils.execution - INFO - Running BlueprintAuthorAgent with model o3-mini, timeout 660s, complexity 0.60
+2025-03-29 11:35:40,731 - src.utils.execution - INFO - Attempt 1/3 for BlueprintAuthorAgent
+2025-03-29 11:35:43,406 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 11:35:59,313 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 11:35:59,329 - src.utils.execution - INFO - Agent BlueprintAuthorAgent completed successfully
+2025-03-29 11:35:59,329 - src.agents.autonomous.pipeline - INFO - Blueprint author completed successfully (iteration 1)
+2025-03-29 11:35:59,330 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:35:59,330 - src.utils.model_selection - INFO - Using configured model o3-mini for blueprint_reviewing task with complexity 0.50
+2025-03-29 11:35:59,331 - src.utils.execution - INFO - Running BlueprintReviewerAgent with model o3-mini, timeout 600s, complexity 0.50
+2025-03-29 11:35:59,331 - src.utils.execution - INFO - Attempt 1/3 for BlueprintReviewerAgent
+2025-03-29 11:36:04,751 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 11:36:08,625 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 11:36:08,627 - src.utils.execution - INFO - Agent BlueprintReviewerAgent completed successfully
+2025-03-29 11:36:08,627 - src.agents.autonomous.pipeline - INFO - Blueprint approved by reviewer on iteration 1
+2025-03-29 11:36:08,628 - src.api.generate - INFO - Blueprint generation complete for job 70a27746-03a8-467c-8b70-b35a9ce7140f
+2025-03-29 11:36:08,628 - src.api.generate - INFO - Starting script generation for postman in job 70a27746-03a8-467c-8b70-b35a9ce7140f
+2025-03-29 11:36:08,629 - src.agents.autonomous.pipeline - INFO - Starting autonomous script pipeline for postman with max 3 iterations
+2025-03-29 11:36:08,629 - src.utils.model_selection - INFO - Using configured model o3-mini for script_coding task with complexity 0.70
+2025-03-29 11:36:08,629 - src.agents.autonomous.agents - INFO - Setting up Script Coder Agent for postman with model: o3-mini
+2025-03-29 11:36:08,629 - src.utils.model_selection - INFO - Using configured model o3-mini for script_reviewing task with complexity 0.60
+2025-03-29 11:36:08,630 - src.agents.autonomous.agents - INFO - Setting up Script Reviewer Agent for postman with model: o3-mini
+2025-03-29 11:36:08,630 - src.agents.autonomous.pipeline - INFO - Starting script generation iteration 1/3
+2025-03-29 11:36:08,630 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:36:08,630 - src.utils.model_selection - INFO - Using configured model o3-mini for script_coding task with complexity 0.70
+2025-03-29 11:36:08,631 - src.utils.execution - INFO - Running ScriptCoderAgent_postman with model o3-mini, timeout 720s, complexity 0.70
+2025-03-29 11:36:08,631 - src.utils.execution - INFO - Attempt 1/3 for ScriptCoderAgent_postman
+2025-03-29 11:36:10,480 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 11:36:54,900 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 11:36:55,114 - src.utils.execution - INFO - Agent ScriptCoderAgent_postman completed successfully
+2025-03-29 11:36:55,114 - src.agents.autonomous.pipeline - INFO - Script coder completed successfully with 1 files (iteration 1)
+2025-03-29 11:36:55,115 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:36:55,115 - src.utils.model_selection - INFO - Using configured model o3-mini for script_reviewing task with complexity 0.60
+2025-03-29 11:36:55,115 - src.utils.execution - INFO - Running ScriptReviewerAgent_postman with model o3-mini, timeout 660s, complexity 0.60
+2025-03-29 11:36:55,115 - src.utils.execution - INFO - Attempt 1/3 for ScriptReviewerAgent_postman
+2025-03-29 11:36:56,296 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 11:37:03,920 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 11:37:03,921 - src.utils.execution - INFO - Agent ScriptReviewerAgent_postman completed successfully
+2025-03-29 11:37:03,922 - src.agents.autonomous.pipeline - INFO - Scripts approved by reviewer on iteration 1
+2025-03-29 11:37:03,922 - src.api.generate - INFO - Script generation for postman complete in job 70a27746-03a8-467c-8b70-b35a9ce7140f: 1 files
+2025-03-29 11:37:03,922 - src.api.generate - INFO - Starting script generation for playwright in job 70a27746-03a8-467c-8b70-b35a9ce7140f
+2025-03-29 11:37:03,923 - src.agents.autonomous.pipeline - INFO - Starting autonomous script pipeline for playwright with max 3 iterations
+2025-03-29 11:37:03,923 - src.utils.model_selection - INFO - Using configured model o3-mini for script_coding task with complexity 0.70
+2025-03-29 11:37:03,923 - src.agents.autonomous.agents - INFO - Setting up Script Coder Agent for playwright with model: o3-mini
+2025-03-29 11:37:03,923 - src.utils.model_selection - INFO - Using configured model o3-mini for script_reviewing task with complexity 0.60
+2025-03-29 11:37:03,924 - src.agents.autonomous.agents - INFO - Setting up Script Reviewer Agent for playwright with model: o3-mini
+2025-03-29 11:37:03,924 - src.agents.autonomous.pipeline - INFO - Starting script generation iteration 1/3
+2025-03-29 11:37:03,925 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:37:03,925 - src.utils.model_selection - INFO - Using configured model o3-mini for script_coding task with complexity 0.70
+2025-03-29 11:37:03,926 - src.utils.execution - INFO - Running ScriptCoderAgent_playwright with model o3-mini, timeout 720s, complexity 0.70
+2025-03-29 11:37:03,926 - src.utils.execution - INFO - Attempt 1/3 for ScriptCoderAgent_playwright
+2025-03-29 11:37:06,612 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 11:37:34,549 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 11:37:34,550 - src.utils.execution - INFO - Agent ScriptCoderAgent_playwright completed successfully
+2025-03-29 11:37:34,551 - src.agents.autonomous.pipeline - INFO - Script coder completed successfully with 2 files (iteration 1)
+2025-03-29 11:37:34,551 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 11:37:34,552 - src.utils.model_selection - INFO - Using configured model o3-mini for script_reviewing task with complexity 0.60
+2025-03-29 11:37:34,552 - src.utils.execution - INFO - Running ScriptReviewerAgent_playwright with model o3-mini, timeout 660s, complexity 0.60
+2025-03-29 11:37:34,552 - src.utils.execution - INFO - Attempt 1/3 for ScriptReviewerAgent_playwright
+2025-03-29 11:37:37,449 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 11:37:43,379 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 11:37:43,381 - src.utils.execution - INFO - Agent ScriptReviewerAgent_playwright completed successfully
+2025-03-29 11:37:43,381 - src.agents.autonomous.pipeline - INFO - Scripts approved by reviewer on iteration 1
+2025-03-29 11:37:43,381 - src.api.generate - INFO - Script generation for playwright complete in job 70a27746-03a8-467c-8b70-b35a9ce7140f: 2 files
+2025-03-29 11:37:48,200 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 11:42:45,709 - root - INFO - Application shutting down
+2025-03-29 11:42:45,709 - root - INFO - Application shutdown complete
+2025-03-29 12:00:04,523 - root - INFO - Logging configured with level INFO
+2025-03-29 12:00:04,815 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 12:00:04,816 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:00:04,816 - root - INFO - Model selection strategy initialized
+2025-03-29 12:00:04,817 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:00:04,817 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 12:00:04,817 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 12:00:04,818 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 12:00:04,818 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 12:00:04,818 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 12:00:04,825 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 12:00:04,825 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 12:00:04,825 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 12:00:04,826 - root - INFO - Agents initialized successfully
+2025-03-29 12:00:04,835 - root - INFO - Application starting up
+2025-03-29 12:00:04,835 - root - INFO - Application startup complete
+2025-03-29 12:00:55,612 - src.api.generate - INFO - Starting blueprint generation job 170157f3-a496-436d-b468-36931963df0d with context: {'request_id': 'trace_2fa6c92097914e26b3ddfd56e2600a5c', 'timestamp': '2025-03-29T12:00:55.612489', 'source': 'api', 'user_id': 'anonymous', 'metadata': {}}
+2025-03-29 12:00:55,613 - src.agents.test_generation - INFO - Calculated complexity score: 0.00 (size: 1465, endpoints: 3)
+2025-03-29 12:00:55,614 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:00:55,614 - src.utils.model_selection - INFO - Using configured model o3-mini for planning task with complexity 0.00
+2025-03-29 12:00:55,614 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 12:00:55,615 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 12:00:55,615 - src.utils.model_selection - INFO - Using configured model o3-mini for planning task with complexity 0.00
+2025-03-29 12:00:55,615 - src.utils.execution - INFO - Running streaming agent Test Planner with model o3-mini, timeout 300s
+2025-03-29 12:00:55,998 - src.api.generate - INFO - WebSocket disconnected for job 170157f3-a496-436d-b468-36931963df0d
+2025-03-29 12:00:56,014 - src.api.generate - INFO - WebSocket disconnected for job 170157f3-a496-436d-b468-36931963df0d
+2025-03-29 12:00:57,017 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:01:00,358 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:01:11,598 - src.utils.execution - INFO - Agent Test Planner streaming completed
+2025-03-29 12:01:11,599 - src.agents.test_generation - INFO - Blueprint generation completed with trace_id: streaming
+2025-03-29 12:01:11,604 - src.api.generate - INFO - WebSocket disconnected for job 170157f3-a496-436d-b468-36931963df0d
+2025-03-29 12:01:11,921 - src.api.generate - INFO - WebSocket disconnected for job 170157f3-a496-436d-b468-36931963df0d
+2025-03-29 12:01:16,157 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:01:52,694 - src.api.generate - INFO - Starting script generation job 0de6d497-62fc-4bc8-a087-813b73c9f04f with context: {'request_id': 'trace_2212e51546814322990cf559af906040', 'timestamp': '2025-03-29T12:01:52.694923', 'source': 'api', 'user_id': 'anonymous', 'metadata': {}}
+2025-03-29 12:01:52,695 - src.agents.test_generation - INFO - Calculated blueprint complexity: 0.02 (tests: 5, dependencies: 0)
+2025-03-29 12:01:52,695 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:01:52,696 - src.utils.model_selection - INFO - Using configured model o3-mini for coding task with complexity 0.02
+2025-03-29 12:01:52,696 - src.agents.test_generation - INFO - Selected model o3-mini for script generation with complexity 0.020000000000000004
+2025-03-29 12:01:52,697 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 12:01:52,697 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 12:01:52,697 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 12:01:52,699 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 12:01:52,700 - src.agents.test_generation - INFO - Blueprint for Pet Store API has 1 groups
+2025-03-29 12:01:52,700 - src.agents.test_generation - INFO -   Group 'Pets Endpoints' has 5 tests
+2025-03-29 12:01:52,845 - src.agents.test_generation - INFO -     ... and 2 more tests in this group
+2025-03-29 12:01:52,846 - src.agents.test_generation - INFO - === FULL INPUT DATA BEING SENT TO CODER AGENT ===
+2025-03-29 12:01:52,846 - src.agents.test_generation - INFO - Input data keys: ['blueprint', 'original_blueprint', 'targets', 'context']
+2025-03-29 12:01:52,846 - src.agents.test_generation - INFO - === BLUEPRINT CONTENT ===
+2025-03-29 12:01:52,846 - src.agents.test_generation - INFO - Blueprint API Name: Pet Store API
+2025-03-29 12:01:52,846 - src.agents.test_generation - INFO - Blueprint Version: 1.0.0
+2025-03-29 12:01:52,846 - src.agents.test_generation - INFO - Blueprint Description: A simple API for managing pets
+2025-03-29 12:01:52,847 - src.agents.test_generation - INFO - Blueprint Base URL: http://petstore.example.com/api
+2025-03-29 12:01:52,847 - src.agents.test_generation - INFO - Group: Pets Endpoints
+2025-03-29 12:01:52,847 - src.agents.test_generation - INFO -   Test: list-pets-01
+2025-03-29 12:01:52,848 - src.agents.test_generation - INFO -     Endpoint: GET /pets
+2025-03-29 12:01:52,848 - src.agents.test_generation - INFO -     Expected Status: 200
+2025-03-29 12:01:52,848 - src.agents.test_generation - INFO -   Test: create-pet-01
+2025-03-29 12:01:52,848 - src.agents.test_generation - INFO -     Endpoint: POST /pets
+2025-03-29 12:01:52,848 - src.agents.test_generation - INFO -     Expected Status: 201
+2025-03-29 12:01:52,849 - src.agents.test_generation - INFO -     Body: {'name': 'Buddy', 'species': 'dog'}
+2025-03-29 12:01:52,849 - src.agents.test_generation - INFO -   Test: create-pet-02
+2025-03-29 12:01:52,849 - src.agents.test_generation - INFO -     Endpoint: POST /pets
+2025-03-29 12:01:52,849 - src.agents.test_generation - INFO -     Expected Status: 400
+2025-03-29 12:01:52,850 - src.agents.test_generation - INFO -     Body: {'species': 'cat'}
+2025-03-29 12:01:52,850 - src.agents.test_generation - INFO -   Test: get-pet-valid-01
+2025-03-29 12:01:52,850 - src.agents.test_generation - INFO -     Endpoint: GET /pets/{{create-pet-01.response.body.id}}
+2025-03-29 12:01:52,850 - src.agents.test_generation - INFO -     Expected Status: 200
+2025-03-29 12:01:52,850 - src.agents.test_generation - INFO -     Parameters: [{'name': 'petId', 'value': '{{create-pet-01.response.body.id}}', 'in_': 'path', 'required': True, 'description': None}]
+2025-03-29 12:01:52,851 - src.agents.test_generation - INFO -   Test: get-pet-invalid-01
+2025-03-29 12:01:52,851 - src.agents.test_generation - INFO -     Endpoint: GET /pets/non-existent-id
+2025-03-29 12:01:52,851 - src.agents.test_generation - INFO -     Expected Status: 404
+2025-03-29 12:01:52,851 - src.agents.test_generation - INFO - === END BLUEPRINT CONTENT ===
+2025-03-29 12:01:52,851 - src.agents.test_generation - INFO - Targets: ['postman', 'playwright']
+2025-03-29 12:01:52,851 - src.agents.test_generation - INFO - Context keys: ['instructions', 'templates_directory', 'features']
+2025-03-29 12:01:52,851 - src.agents.test_generation - INFO - Features keys: ['variable_extraction', 'test_flow', 'retry_policy', 'environment_variables', 'mock_data', 'setup_teardown']
+2025-03-29 12:01:52,852 - src.agents.test_generation - INFO - === END INPUT DATA ===
+2025-03-29 12:01:52,852 - src.agents.test_generation - INFO - === FULL MESSAGE BEING SENT TO CODER AGENT ===
+2025-03-29 12:01:52,852 - src.agents.test_generation - INFO - Generate API test scripts based EXCLUSIVELY on the provided blueprint. Target frameworks: postman, playwright.
+
+CRITICAL: You MUST generate tests that match the EXACT endpoints, methods, and test cases from the blueprint. The examples below are ONLY for reference on how to implement features - they should NOT be copied or used as templates.
+
+Here is the actual blueprint content you MUST use:
+
+API Name: Pet Store API
+Version: 1.0.0
+Base URL: http://petstore.example.com/api
+
+Test Groups:
+
+Group: Pets Endpoints
+Tests:
+  - list-pets-01
+    Endpoint: GET /pets
+    Expected Status: 200
+    
+    
+    
+  - create-pet-01
+    Endpoint: POST /pets
+    Expected Status: 201
+    
+    
+    Body: {'name': 'Buddy', 'species': 'dog'}
+  - create-pet-02
+    Endpoint: POST /pets
+    Expected Status: 400
+    
+    
+    Body: {'species': 'cat'}
+  - get-pet-valid-01
+    Endpoint: GET /pets/{{create-pet-01.response.body.id}}
+    Expected Status: 200
+    
+    Parameters: [{'name': 'petId', 'value': '{{create-pet-01.response.body.id}}', 'in_': 'path', 'required': True, 'description': None}]
+    
+  - get-pet-invalid-01
+    Endpoint: GET /pets/non-existent-id
+    Expected Status: 404
+    
+    
+    
+
+Your generated tests MUST:
+1. Use the EXACT endpoints from the blueprint above
+2. Use the EXACT HTTP methods from the blueprint above
+3. Expect the EXACT status codes from the blueprint above
+4. Follow the EXACT test groups from the blueprint above
+5. Include the EXACT test names from the blueprint above
+
+DO NOT use the example endpoints or methods. Use ONLY the endpoints and methods from the blueprint above.
+
+The examples below show HOW to implement features, but you MUST use your own endpoints and methods from the blueprint above.
+2025-03-29 12:01:52,852 - src.agents.test_generation - INFO - === END MESSAGE ===
+2025-03-29 12:01:52,852 - src.utils.model_selection - INFO - Using configured model o3-mini for coding task with complexity 0.02
+2025-03-29 12:01:52,852 - src.utils.execution - INFO - Running streaming agent Test Coder with model o3-mini, timeout 312s
+2025-03-29 12:01:52,854 - src.api.generate - INFO - WebSocket disconnected for job 170157f3-a496-436d-b468-36931963df0d
+2025-03-29 12:01:53,008 - src.api.generate - INFO - WebSocket disconnected for job 170157f3-a496-436d-b468-36931963df0d
+2025-03-29 12:01:53,025 - src.api.generate - INFO - WebSocket disconnected for job 0de6d497-62fc-4bc8-a087-813b73c9f04f
+2025-03-29 12:01:53,034 - src.api.generate - INFO - WebSocket disconnected for job 0de6d497-62fc-4bc8-a087-813b73c9f04f
+2025-03-29 12:01:53,048 - src.api.generate - INFO - WebSocket disconnected for job 0de6d497-62fc-4bc8-a087-813b73c9f04f
+2025-03-29 12:01:53,558 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:01:56,974 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:02:08,544 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:02:28,799 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:02:29,467 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:02:34,380 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:02:54,155 - openai.agents - ERROR - Error streaming response: An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_6f275b728ca4147d10435784a830218a in your message.
+2025-03-29 12:02:54,155 - src.utils.execution - ERROR - Agent Test Coder streaming failed with APIError: An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_6f275b728ca4147d10435784a830218a in your message.
+2025-03-29 12:02:54,156 - src.agents.test_generation - ERROR - Streaming execution failed: An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_6f275b728ca4147d10435784a830218a in your message., falling back to non-streaming mode
+2025-03-29 12:02:54,156 - src.utils.model_selection - INFO - Using configured model o3-mini for coding task with complexity 0.02
+2025-03-29 12:02:54,156 - src.utils.execution - INFO - Running Test Coder with model o3-mini, timeout 312s, complexity 0.02
+2025-03-29 12:02:54,157 - src.utils.execution - INFO - Attempt 1/3 for Test Coder
+2025-03-29 12:02:55,240 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:06:11,212 - src.api.generate - INFO - WebSocket disconnected for job 170157f3-a496-436d-b468-36931963df0d
+2025-03-29 12:06:11,213 - src.api.generate - INFO - WebSocket disconnected for job 0de6d497-62fc-4bc8-a087-813b73c9f04f
+2025-03-29 12:06:11,213 - src.api.generate - INFO - WebSocket disconnected for job 170157f3-a496-436d-b468-36931963df0d
+2025-03-29 12:06:11,214 - src.api.generate - INFO - WebSocket disconnected for job 0de6d497-62fc-4bc8-a087-813b73c9f04f
+2025-03-29 12:06:11,214 - src.api.generate - INFO - WebSocket disconnected for job 0de6d497-62fc-4bc8-a087-813b73c9f04f
+2025-03-29 12:06:11,214 - src.api.generate - INFO - WebSocket disconnected for job 0de6d497-62fc-4bc8-a087-813b73c9f04f
+2025-03-29 12:06:11,215 - src.api.generate - INFO - WebSocket disconnected for job 170157f3-a496-436d-b468-36931963df0d
+2025-03-29 12:06:11,215 - src.api.generate - INFO - WebSocket disconnected for job 170157f3-a496-436d-b468-36931963df0d
+2025-03-29 12:06:11,215 - src.api.generate - INFO - WebSocket disconnected for job 170157f3-a496-436d-b468-36931963df0d
+2025-03-29 12:06:11,216 - src.api.generate - INFO - WebSocket disconnected for job 170157f3-a496-436d-b468-36931963df0d
+2025-03-29 12:06:20,443 - root - INFO - Application shutting down
+2025-03-29 12:06:20,443 - root - INFO - Application shutdown complete
+2025-03-29 12:06:21,442 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:08:32,509 - root - INFO - Logging configured with level INFO
+2025-03-29 12:08:32,770 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 12:08:32,771 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:08:32,771 - root - INFO - Model selection strategy initialized
+2025-03-29 12:08:32,771 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:08:32,771 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 12:08:32,771 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 12:08:32,772 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 12:08:32,772 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 12:08:32,772 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 12:08:32,775 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 12:08:32,775 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 12:08:32,776 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 12:08:32,776 - root - INFO - Agents initialized successfully
+2025-03-29 12:08:32,781 - root - INFO - Application starting up
+2025-03-29 12:08:32,781 - root - INFO - Application startup complete
+2025-03-29 12:08:48,604 - src.api.generate - INFO - Starting blueprint generation job dc2470c2-b7c2-47e4-bb9c-5ab4a0d46cac with context: {'request_id': 'trace_03963e1725cb4b7ea1f135e2dbba7506', 'timestamp': '2025-03-29T12:08:48.604704', 'source': 'api', 'user_id': 'anonymous', 'metadata': {}}
+2025-03-29 12:08:48,605 - src.agents.test_generation - INFO - Calculated complexity score: 0.00 (size: 1465, endpoints: 3)
+2025-03-29 12:08:48,605 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:08:48,605 - src.utils.model_selection - INFO - Using configured model o3-mini for planning task with complexity 0.00
+2025-03-29 12:08:48,606 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 12:08:48,606 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 12:08:48,606 - src.utils.model_selection - INFO - Using configured model o3-mini for planning task with complexity 0.00
+2025-03-29 12:08:48,606 - src.utils.execution - INFO - Running streaming agent Test Planner with model o3-mini, timeout 300s
+2025-03-29 12:08:48,927 - src.api.generate - INFO - WebSocket disconnected for job dc2470c2-b7c2-47e4-bb9c-5ab4a0d46cac
+2025-03-29 12:08:48,940 - src.api.generate - INFO - WebSocket disconnected for job dc2470c2-b7c2-47e4-bb9c-5ab4a0d46cac
+2025-03-29 12:08:49,496 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:08:53,141 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:09:07,656 - src.utils.execution - INFO - Agent Test Planner streaming completed
+2025-03-29 12:09:07,657 - src.agents.test_generation - INFO - Blueprint generation completed with trace_id: streaming
+2025-03-29 12:09:07,663 - src.api.generate - INFO - WebSocket disconnected for job dc2470c2-b7c2-47e4-bb9c-5ab4a0d46cac
+2025-03-29 12:09:07,981 - src.api.generate - INFO - WebSocket disconnected for job dc2470c2-b7c2-47e4-bb9c-5ab4a0d46cac
+2025-03-29 12:09:08,889 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:09:21,504 - src.api.generate - INFO - WebSocket disconnected for job dc2470c2-b7c2-47e4-bb9c-5ab4a0d46cac
+2025-03-29 12:09:29,762 - src.api.generate - INFO - Starting script generation job 9a5ae11d-646f-470f-b8c3-3e94878920e0 with context: {'request_id': 'trace_8a1577c1328940d4851d8e04eacc4c29', 'timestamp': '2025-03-29T12:09:29.762105', 'source': 'api', 'user_id': 'anonymous', 'metadata': {}}
+2025-03-29 12:09:29,762 - src.agents.test_generation - INFO - Calculated blueprint complexity: 0.02 (tests: 5, dependencies: 0)
+2025-03-29 12:09:29,763 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:09:29,763 - src.utils.model_selection - INFO - Using configured model o3-mini for coding task with complexity 0.02
+2025-03-29 12:09:29,763 - src.agents.test_generation - INFO - Selected model o3-mini for script generation with complexity 0.020000000000000004
+2025-03-29 12:09:29,763 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 12:09:29,763 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 12:09:29,764 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 12:09:29,766 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 12:09:29,766 - src.agents.test_generation - INFO - Blueprint for Pet Store API has 2 groups
+2025-03-29 12:09:29,767 - src.agents.test_generation - INFO -   Group 'Pet Listing & Creation Tests' has 3 tests
+2025-03-29 12:09:29,803 - src.agents.test_generation - INFO -   Group 'Pet Details Tests' has 2 tests
+2025-03-29 12:09:29,817 - src.agents.test_generation - INFO - === FULL INPUT DATA BEING SENT TO CODER AGENT ===
+2025-03-29 12:09:29,817 - src.agents.test_generation - INFO - Input data keys: ['blueprint', 'original_blueprint', 'targets', 'context']
+2025-03-29 12:09:29,818 - src.agents.test_generation - INFO - === BLUEPRINT CONTENT ===
+2025-03-29 12:09:29,818 - src.agents.test_generation - INFO - Blueprint API Name: Pet Store API
+2025-03-29 12:09:29,818 - src.agents.test_generation - INFO - Blueprint Version: 1.0.0
+2025-03-29 12:09:29,819 - src.agents.test_generation - INFO - Blueprint Description: A simple API for managing pets
+2025-03-29 12:09:29,819 - src.agents.test_generation - INFO - Blueprint Base URL: http://localhost
+2025-03-29 12:09:29,819 - src.agents.test_generation - INFO - Group: Pet Listing & Creation Tests
+2025-03-29 12:09:29,819 - src.agents.test_generation - INFO -   Test: test-1-list-pets
+2025-03-29 12:09:29,820 - src.agents.test_generation - INFO -     Endpoint: GET /pets
+2025-03-29 12:09:29,820 - src.agents.test_generation - INFO -     Expected Status: 200
+2025-03-29 12:09:29,820 - src.agents.test_generation - INFO -   Test: test-2-create-pet-valid
+2025-03-29 12:09:29,821 - src.agents.test_generation - INFO -     Endpoint: POST /pets
+2025-03-29 12:09:29,821 - src.agents.test_generation - INFO -     Expected Status: 201
+2025-03-29 12:09:29,821 - src.agents.test_generation - INFO -     Body: {'name': 'Buddy', 'species': 'dog'}
+2025-03-29 12:09:29,822 - src.agents.test_generation - INFO -   Test: test-3-create-pet-missing-name
+2025-03-29 12:09:29,822 - src.agents.test_generation - INFO -     Endpoint: POST /pets
+2025-03-29 12:09:29,822 - src.agents.test_generation - INFO -     Expected Status: 400
+2025-03-29 12:09:29,823 - src.agents.test_generation - INFO -     Body: {'species': 'cat'}
+2025-03-29 12:09:29,823 - src.agents.test_generation - INFO - Group: Pet Details Tests
+2025-03-29 12:09:29,823 - src.agents.test_generation - INFO -   Test: test-4-get-pet-valid
+2025-03-29 12:09:29,823 - src.agents.test_generation - INFO -     Endpoint: GET /pets/{petId}
+2025-03-29 12:09:29,824 - src.agents.test_generation - INFO -     Expected Status: 200
+2025-03-29 12:09:29,824 - src.agents.test_generation - INFO -     Parameters: [{'name': 'petId', 'value': '{{test-2-create-pet-valid.response.body.id}}', 'in_': 'path', 'required': True, 'description': None}]
+2025-03-29 12:09:29,824 - src.agents.test_generation - INFO -   Test: test-5-get-pet-invalid
+2025-03-29 12:09:29,825 - src.agents.test_generation - INFO -     Endpoint: GET /pets/{petId}
+2025-03-29 12:09:29,825 - src.agents.test_generation - INFO -     Expected Status: 404
+2025-03-29 12:09:29,825 - src.agents.test_generation - INFO -     Parameters: [{'name': 'petId', 'value': 'nonexistent-id', 'in_': 'path', 'required': True, 'description': None}]
+2025-03-29 12:09:29,826 - src.agents.test_generation - INFO - === END BLUEPRINT CONTENT ===
+2025-03-29 12:09:29,826 - src.agents.test_generation - INFO - Targets: ['playwright']
+2025-03-29 12:09:29,826 - src.agents.test_generation - INFO - Context keys: ['instructions', 'templates_directory', 'features']
+2025-03-29 12:09:29,826 - src.agents.test_generation - INFO - Features keys: ['variable_extraction', 'test_flow', 'retry_policy', 'environment_variables', 'mock_data', 'setup_teardown']
+2025-03-29 12:09:29,827 - src.agents.test_generation - INFO - === END INPUT DATA ===
+2025-03-29 12:09:29,827 - src.agents.test_generation - INFO - === FULL MESSAGE BEING SENT TO CODER AGENT ===
+2025-03-29 12:09:29,827 - src.agents.test_generation - INFO - Generate API test scripts based EXCLUSIVELY on the provided blueprint. Target frameworks: playwright.
+
+CRITICAL: You MUST generate tests that match the EXACT endpoints, methods, and test cases from the blueprint. The examples below are ONLY for reference on how to implement features - they should NOT be copied or used as templates.
+
+Here is the actual blueprint content you MUST use:
+
+API Name: Pet Store API
+Version: 1.0.0
+Base URL: http://localhost
+
+Test Groups:
+
+Group: Pet Listing & Creation Tests
+Tests:
+  - test-1-list-pets
+    Endpoint: GET /pets
+    Expected Status: 200
+    
+    
+    
+  - test-2-create-pet-valid
+    Endpoint: POST /pets
+    Expected Status: 201
+    
+    
+    Body: {'name': 'Buddy', 'species': 'dog'}
+  - test-3-create-pet-missing-name
+    Endpoint: POST /pets
+    Expected Status: 400
+    
+    
+    Body: {'species': 'cat'}
+
+Group: Pet Details Tests
+Tests:
+  - test-4-get-pet-valid
+    Endpoint: GET /pets/{petId}
+    Expected Status: 200
+    
+    Parameters: [{'name': 'petId', 'value': '{{test-2-create-pet-valid.response.body.id}}', 'in_': 'path', 'required': True, 'description': None}]
+    
+  - test-5-get-pet-invalid
+    Endpoint: GET /pets/{petId}
+    Expected Status: 404
+    
+    Parameters: [{'name': 'petId', 'value': 'nonexistent-id', 'in_': 'path', 'required': True, 'description': None}]
+    
+
+Your generated tests MUST:
+1. Use the EXACT endpoints from the blueprint above
+2. Use the EXACT HTTP methods from the blueprint above
+3. Expect the EXACT status codes from the blueprint above
+4. Follow the EXACT test groups from the blueprint above
+5. Include the EXACT test names from the blueprint above
+
+DO NOT use the example endpoints or methods. Use ONLY the endpoints and methods from the blueprint above.
+
+The examples below show HOW to implement features, but you MUST use your own endpoints and methods from the blueprint above.
+2025-03-29 12:09:29,828 - src.agents.test_generation - INFO - === END MESSAGE ===
+2025-03-29 12:09:29,828 - src.utils.model_selection - INFO - Using configured model o3-mini for coding task with complexity 0.02
+2025-03-29 12:09:29,829 - src.utils.execution - INFO - Running streaming agent Test Coder with model o3-mini, timeout 312s
+2025-03-29 12:09:30,071 - src.api.generate - INFO - WebSocket disconnected for job 9a5ae11d-646f-470f-b8c3-3e94878920e0
+2025-03-29 12:09:30,338 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:09:34,763 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:09:50,196 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:10:27,085 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:10:27,817 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:10:31,766 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:10:46,855 - src.utils.execution - INFO - Agent Test Coder streaming completed
+2025-03-29 12:10:46,856 - src.agents.test_generation - INFO - Creating ScriptOutput from result type <class 'dict'>
+2025-03-29 12:10:46,856 - src.agents.test_generation - INFO - Output object: apiName='API Tests' version='1.0.0' outputs=[TargetOutput(name='Playwright Scripts', type=<ScriptType.PLAYWRIGHT: 'playwright'>, content={'content': "// Main Playwright API Tests for Pet Store API\n// API Name: Pet Store API\n// Version: 1.0.0\n// Base URL: http://localhost\n\n// The tests are separated into two groups as per the blueprint:\n// 1. Pet Listing & Creation Tests\n// 2. Pet Details Tests\n\nimport { test, expect } from '@playwright/test';\nimport { variableStore } from '../utils/variable-store';\n\n// Base URL (can be set via environment variable BASE_URL)\nconst baseUrl = process.env.BASE_URL || 'http://localhost';\n\n// Group: Pet Listing & Creation Tests\n// This group covers listing pets and two scenarios for pet creation.\n\ntest.describe('Pet Listing & Creation Tests', () => {\n\n  test('test-1-list-pets', async ({ request }) => {\n    // GET /pets, expected status 200\n    const response = await request.get(`${baseUrl}/pets`);\n    expect(response.status()).toBe(200);\n  });\n\n  test('test-2-create-pet-valid', async ({ request }) => {\n    // POST /pets with valid payload { name: 'Buddy', species: 'dog' }, expected status 201\n    const payload = { name: 'Buddy', species: 'dog' };\n    const response = await request.post(`${baseUrl}/pets`, { data: payload });\n    expect(response.status()).toBe(201);\n\n    // Extract the pet id from response and store it for later tests\n    const responseBody = await response.json();\n    const petId = responseBody.id;\n    console.log('Extracted pet id:', petId);\n    variableStore.set('petId', petId);\n  });\n\n  test('test-3-create-pet-missing-name', async ({ request }) => {\n    // POST /pets with payload missing the name { species: 'cat' }, expected status 400\n    const payload = { species: 'cat' };\n    const response = await request.post(`${baseUrl}/pets`, { data: payload });\n    expect(response.status()).toBe(400);\n  });\n\n});\n\n// Group: Pet Details Tests\n// This group covers tests for retrieving pet details using valid and invalid pet IDs\n\ntest.describe('Pet Details Tests', () => {\n\n  test('test-4-get-pet-valid', async ({ request }) => {\n    // GET /pets/{petId} using the petId extracted from test-2-create-pet-valid, expected status 200\n    const petId = variableStore.get('petId');\n    test.skip(!petId, 'Skipping test-4-get-pet-valid because pet id was not created');\n    const response = await request.get(`${baseUrl}/pets/${petId}`);\n    expect(response.status()).toBe(200);\n  });\n\n  test('test-5-get-pet-invalid', async ({ request }) => {\n    // GET /pets/nonexistent-id, expected status 404\n    const response = await request.get(`${baseUrl}/pets/nonexistent-id`);\n    expect(response.status()).toBe(404);\n  });\n\n});\n"}, files=[FileContent(filename='tests/api/pet-store.spec.ts', content="import { test, expect } from '@playwright/test';\nimport { variableStore } from '../utils/variable-store';\n\n// Base URL configuration (can be overridden with process.env.BASE_URL)\nconst baseUrl = process.env.BASE_URL || 'http://localhost';\n\n// Group: Pet Listing & Creation Tests\n// This group includes tests to list pets and create pets (valid and invalid creation scenarios)\n\ntest.describe('Pet Listing & Creation Tests', () => {\n\n  test('test-1-list-pets', async ({ request }) => {\n    // GET /pets; expecting a 200 OK response\n    const response = await request.get(`${baseUrl}/pets`);\n    expect(response.status()).toBe(200);\n  });\n\n  test('test-2-create-pet-valid', async ({ request }) => {\n    // POST /pets with valid data; expecting a 201 Created response\n    const payload = { name: 'Buddy', species: 'dog' };\n    const response = await request.post(`${baseUrl}/pets`, { data: payload });\n    expect(response.status()).toBe(201);\n\n    // Extract pet id for subsequent tests\n    const responseBody = await response.json();\n    const petId = responseBody.id;\n    console.log('Extracted pet id from test-2:', petId);\n    variableStore.set('petId', petId);\n  });\n\n  test('test-3-create-pet-missing-name', async ({ request }) => {\n    // POST /pets with insufficient data (missing name), expecting a 400 Bad Request\n    const payload = { species: 'cat' };\n    const response = await request.post(`${baseUrl}/pets`, { data: payload });\n    expect(response.status()).toBe(400);\n  });\n\n});\n\n// Group: Pet Details Tests\n// This group includes tests to retrieve pet details using a valid and an invalid pet ID\n\ntest.describe('Pet Details Tests', () => {\n\n  test('test-4-get-pet-valid', async ({ request }) => {\n    // GET /pets/{petId}; petId is dynamically extracted from test-2-create-pet-valid\n    const petId = variableStore.get('petId');\n    test.skip(!petId, 'Skipping test-4-get-pet-valid because pet id was not created');\n    const response = await request.get(`${baseUrl}/pets/${petId}`);\n    expect(response.status()).toBe(200);\n  });\n\n  test('test-5-get-pet-invalid', async ({ request }) => {\n    // GET /pets/nonexistent-id; expecting a 404 Not Found\n    const response = await request.get(`${baseUrl}/pets/nonexistent-id`);\n    expect(response.status()).toBe(404);\n  });\n\n});\n", path=None, format=None), FileContent(filename='tests/utils/variable-store.ts', content='// A simple singleton variable store to share data across tests\n\nexport class VariableStore {\n  private static instance: VariableStore;\n  private store: Record<string, any> = {};\n\n  private constructor() {}\n\n  public static getInstance(): VariableStore {\n    if (!VariableStore.instance) {\n      VariableStore.instance = new VariableStore();\n    }\n    return VariableStore.instance;\n  }\n\n  // Set variable\n  public set(key: string, value: any): void {\n    this.store[key] = value;\n  }\n\n  // Get variable\n  public get(key: string): any {\n    return this.store[key];\n  }\n\n  // Clear store (if needed)\n  public clear(): void {\n    this.store = {};\n  }\n}\n\nexport const variableStore = VariableStore.getInstance();\n', path=None, format=None), FileContent(filename='playwright.config.ts', content="import { defineConfig } from '@playwright/test';\n\nexport default defineConfig({\n  testDir: './tests',\n  timeout: 30000,\n  retries: process.env.CI ? 2 : 0,\n  use: {\n    baseURL: process.env.BASE_URL || 'http://localhost',\n    trace: 'on-first-retry'\n  },\n  reporter: [['list']],\n  workers: process.env.CI ? 1 : undefined\n});\n", path=None, format=None), FileContent(filename='.env.example', content='# Environment Variables Template for Playwright API Tests\n\n# Base URL for the API\nBASE_URL=http://localhost\n\n# API Key or authentication token if required\nAPI_KEY=your-api-key-here\n', path=None, format=None), FileContent(filename='README.md', content="# Pet Store API Test Suite with Playwright\n\nThis suite tests the Pet Store API (version 1.0.0) with endpoints as per the provided blueprint.\n\n## Test Groups\n\n1. **Pet Listing & Creation Tests**\n   - test-1-list-pets: GET /pets expecting 200\n   - test-2-create-pet-valid: POST /pets with { name: 'Buddy', species: 'dog' } expecting 201\n   - test-3-create-pet-missing-name: POST /pets with { species: 'cat' } expecting 400\n\n2. **Pet Details Tests**\n   - test-4-get-pet-valid: GET /pets/{petId} (using pet id from test-2) expecting 200\n   - test-5-get-pet-invalid: GET /pets/nonexistent-id expecting 404\n\n## Setup\n\n1. Install dependencies:\n   npm install\n\n2. Configure environment variables by copying `.env.example` to `.env`.\n\n3. Run tests:\n   npx playwright test\n\n## Variable Handling\n\nThe variableStore (in tests/utils/variable-store.ts) is used to share the pet id between tests.\n", path=None, format=None)])]
+2025-03-29 12:10:46,857 - src.agents.test_generation - INFO - Number of outputs: 1
+2025-03-29 12:10:46,857 - src.agents.test_generation - INFO - Processing output item: type=playwright, name=Playwright Scripts
+2025-03-29 12:10:46,857 - src.agents.test_generation - INFO - Added main content file: playwright_collection.json
+2025-03-29 12:10:46,857 - src.agents.test_generation - INFO - Number of files in output item: 5
+2025-03-29 12:10:46,857 - src.agents.test_generation - INFO - Added file: tests/api/pet-store.spec.ts
+2025-03-29 12:10:46,858 - src.agents.test_generation - INFO - Added file: tests/utils/variable-store.ts
+2025-03-29 12:10:46,858 - src.agents.test_generation - INFO - Added file: playwright.config.ts
+2025-03-29 12:10:46,858 - src.agents.test_generation - INFO - Added file: .env.example
+2025-03-29 12:10:46,858 - src.agents.test_generation - INFO - Added file: README.md
+2025-03-29 12:10:46,858 - src.agents.test_generation - INFO - Final target_scripts structure: {"playwright": ["playwright_collection.json", "tests/api/pet-store.spec.ts", "tests/utils/variable-store.ts", "playwright.config.ts", ".env.example", "README.md"]}
+2025-03-29 12:10:46,858 - src.api.generate - INFO - Script generation completed successfully for job 9a5ae11d-646f-470f-b8c3-3e94878920e0
+2025-03-29 12:10:46,859 - src.api.generate - INFO - Scripts generated with types: ['playwright']
+2025-03-29 12:10:46,859 - src.api.generate - INFO - Script type playwright contains 6 files:
+2025-03-29 12:10:46,859 - src.api.generate - INFO -   - playwright_collection.json (size: 2622)
+2025-03-29 12:10:46,859 - src.api.generate - INFO -   - tests/api/pet-store.spec.ts (size: 2288)
+2025-03-29 12:10:46,860 - src.api.generate - INFO -   - tests/utils/variable-store.ts (size: 710)
+2025-03-29 12:10:46,860 - src.api.generate - INFO -   - playwright.config.ts (size: 324)
+2025-03-29 12:10:46,860 - src.api.generate - INFO -   - .env.example (size: 181)
+2025-03-29 12:10:46,860 - src.api.generate - INFO -   - README.md (size: 882)
+2025-03-29 12:10:46,861 - src.api.generate - INFO - Result keys: ['blueprint', 'scripts', 'trace_id']
+2025-03-29 12:10:46,861 - src.api.generate - INFO - Scripts result structure: {"playwright": ["playwright_collection.json", "tests/api/pet-store.spec.ts", "tests/utils/variable-store.ts", "playwright.config.ts", ".env.example", "README.md"]}
+2025-03-29 12:10:46,879 - src.api.generate - INFO - WebSocket disconnected for job 9a5ae11d-646f-470f-b8c3-3e94878920e0
+2025-03-29 12:10:47,193 - src.api.generate - INFO - WebSocket disconnected for job 9a5ae11d-646f-470f-b8c3-3e94878920e0
+2025-03-29 12:10:47,250 - src.api.generate - INFO - WebSocket disconnected for job dc2470c2-b7c2-47e4-bb9c-5ab4a0d46cac
+2025-03-29 12:10:47,251 - src.api.generate - INFO - WebSocket disconnected for job dc2470c2-b7c2-47e4-bb9c-5ab4a0d46cac
+2025-03-29 12:10:47,253 - src.api.generate - INFO - WebSocket disconnected for job dc2470c2-b7c2-47e4-bb9c-5ab4a0d46cac
+2025-03-29 12:10:47,253 - src.api.generate - INFO - WebSocket disconnected for job dc2470c2-b7c2-47e4-bb9c-5ab4a0d46cac
+2025-03-29 12:10:47,254 - src.api.generate - INFO - WebSocket disconnected for job 9a5ae11d-646f-470f-b8c3-3e94878920e0
+2025-03-29 12:10:47,254 - src.api.generate - INFO - WebSocket disconnected for job 9a5ae11d-646f-470f-b8c3-3e94878920e0
+2025-03-29 12:10:47,254 - src.api.generate - INFO - WebSocket disconnected for job dc2470c2-b7c2-47e4-bb9c-5ab4a0d46cac
+2025-03-29 12:10:47,957 - root - INFO - Application shutting down
+2025-03-29 12:10:47,958 - root - INFO - Application shutdown complete
+2025-03-29 12:10:48,819 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:15:19,921 - root - INFO - Logging configured with level INFO and utf-8 encoding
+2025-03-29 12:15:20,160 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 12:15:20,161 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:15:20,161 - root - INFO - Model selection strategy initialized
+2025-03-29 12:15:20,162 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:15:20,162 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 12:15:20,162 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 12:15:20,162 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 12:15:20,162 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 12:15:20,162 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 12:15:20,166 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 12:15:20,166 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 12:15:20,166 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 12:15:20,167 - root - INFO - Agents initialized successfully
+2025-03-29 12:15:20,172 - root - INFO - Application starting up
+2025-03-29 12:15:20,172 - root - INFO - Application startup complete
+2025-03-29 12:15:56,181 - src.api.generate - INFO - Starting script generation job 82e3ee24-9444-4370-b323-acc8bc23af6d with context: {'request_id': 'trace_66d0a4afe7b04386a0b3a3539eb1da17', 'timestamp': '2025-03-29T12:15:56.181612', 'source': 'api', 'user_id': 'anonymous', 'metadata': {}}
+2025-03-29 12:15:56,182 - src.agents.test_generation - INFO - Calculated blueprint complexity: 0.02 (tests: 6, dependencies: 0)
+2025-03-29 12:15:56,183 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:15:56,183 - src.utils.model_selection - INFO - Using configured model o3-mini for coding task with complexity 0.02
+2025-03-29 12:15:56,183 - src.agents.test_generation - INFO - Selected model o3-mini for script generation with complexity 0.024
+2025-03-29 12:15:56,183 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 12:15:56,184 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 12:15:56,184 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 12:15:56,186 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 12:15:56,186 - src.agents.test_generation - INFO - Blueprint for Pet Store API has 3 groups
+2025-03-29 12:15:56,187 - src.agents.test_generation - INFO -   Group 'Pet Listing' has 1 tests
+2025-03-29 12:15:56,187 - src.agents.test_generation - INFO -     Test 'List All Pets - Positive': GET /pets → 200
+2025-03-29 12:15:56,187 - src.agents.test_generation - INFO -   Group 'Pet Creation' has 3 tests
+2025-03-29 12:15:56,187 - src.agents.test_generation - INFO -     Test 'Create Pet with Valid Data': POST /pets → 201
+2025-03-29 12:15:56,187 - src.agents.test_generation - INFO -     Test 'Create Pet Missing Required Field': POST /pets → 400
+2025-03-29 12:15:56,188 - src.agents.test_generation - INFO -     Test 'Create Pet with Invalid Species': POST /pets → 400
+2025-03-29 12:15:56,188 - src.agents.test_generation - INFO -   Group 'Pet Retrieval' has 2 tests
+2025-03-29 12:15:56,188 - src.agents.test_generation - INFO -     Test 'Get Pet by Valid ID': GET /pets/{{create_pet_valid_001.response.body.id}} → 200
+2025-03-29 12:15:56,188 - src.agents.test_generation - INFO -     Test 'Get Pet with Non-Existent ID': GET /pets/non-existing → 404
+2025-03-29 12:15:56,188 - src.agents.test_generation - INFO - === FULL INPUT DATA BEING SENT TO CODER AGENT ===
+2025-03-29 12:15:56,189 - src.agents.test_generation - INFO - Input data keys: ['blueprint', 'original_blueprint', 'targets', 'context']
+2025-03-29 12:15:56,189 - src.agents.test_generation - INFO - === BLUEPRINT CONTENT ===
+2025-03-29 12:15:56,189 - src.agents.test_generation - INFO - Blueprint API Name: Pet Store API
+2025-03-29 12:15:56,189 - src.agents.test_generation - INFO - Blueprint Version: 1.0.0
+2025-03-29 12:15:56,189 - src.agents.test_generation - INFO - Blueprint Description: A simple API for managing pets
+2025-03-29 12:15:56,190 - src.agents.test_generation - INFO - Blueprint Base URL: http://example.com/api
+2025-03-29 12:15:56,190 - src.agents.test_generation - INFO - Group: Pet Listing
+2025-03-29 12:15:56,190 - src.agents.test_generation - INFO -   Test: list_pets_001
+2025-03-29 12:15:56,190 - src.agents.test_generation - INFO -     Endpoint: GET /pets
+2025-03-29 12:15:56,191 - src.agents.test_generation - INFO -     Expected Status: 200
+2025-03-29 12:15:56,191 - src.agents.test_generation - INFO - Group: Pet Creation
+2025-03-29 12:15:56,191 - src.agents.test_generation - INFO -   Test: create_pet_valid_001
+2025-03-29 12:15:56,191 - src.agents.test_generation - INFO -     Endpoint: POST /pets
+2025-03-29 12:15:56,191 - src.agents.test_generation - INFO -     Expected Status: 201
+2025-03-29 12:15:56,192 - src.agents.test_generation - INFO -     Body: {'name': 'Buddy', 'species': 'dog'}
+2025-03-29 12:15:56,192 - src.agents.test_generation - INFO -   Test: create_pet_invalid_missing_name_002
+2025-03-29 12:15:56,192 - src.agents.test_generation - INFO -     Endpoint: POST /pets
+2025-03-29 12:15:56,192 - src.agents.test_generation - INFO -     Expected Status: 400
+2025-03-29 12:15:56,192 - src.agents.test_generation - INFO -     Body: {'species': 'cat'}
+2025-03-29 12:15:56,193 - src.agents.test_generation - INFO -   Test: create_pet_invalid_wrong_species_003
+2025-03-29 12:15:56,193 - src.agents.test_generation - INFO -     Endpoint: POST /pets
+2025-03-29 12:15:56,193 - src.agents.test_generation - INFO -     Expected Status: 400
+2025-03-29 12:15:56,193 - src.agents.test_generation - INFO -     Body: {'name': 'Mittens', 'species': 'lion'}
+2025-03-29 12:15:56,193 - src.agents.test_generation - INFO - Group: Pet Retrieval
+2025-03-29 12:15:56,194 - src.agents.test_generation - INFO -   Test: get_pet_valid_001
+2025-03-29 12:15:56,194 - src.agents.test_generation - INFO -     Endpoint: GET /pets/{{create_pet_valid_001.response.body.id}}
+2025-03-29 12:15:56,194 - src.agents.test_generation - INFO -     Expected Status: 200
+2025-03-29 12:15:56,194 - src.agents.test_generation - INFO -     Parameters: [{'name': 'petId', 'value': '{{create_pet_valid_001.response.body.id}}', 'in_': 'path', 'required': True, 'description': None}]
+2025-03-29 12:15:56,194 - src.agents.test_generation - INFO -   Test: get_pet_not_found_001
+2025-03-29 12:15:56,195 - src.agents.test_generation - INFO -     Endpoint: GET /pets/non-existing
+2025-03-29 12:15:56,195 - src.agents.test_generation - INFO -     Expected Status: 404
+2025-03-29 12:15:56,195 - src.agents.test_generation - INFO -     Parameters: [{'name': 'petId', 'value': 'non-existing', 'in_': 'path', 'required': True, 'description': None}]
+2025-03-29 12:15:56,195 - src.agents.test_generation - INFO - === END BLUEPRINT CONTENT ===
+2025-03-29 12:15:56,195 - src.agents.test_generation - INFO - Targets: ['playwright']
+2025-03-29 12:15:56,196 - src.agents.test_generation - INFO - Context keys: ['instructions', 'templates_directory', 'features']
+2025-03-29 12:15:56,196 - src.agents.test_generation - INFO - Features keys: ['variable_extraction', 'test_flow', 'retry_policy', 'environment_variables', 'mock_data', 'setup_teardown']
+2025-03-29 12:15:56,196 - src.agents.test_generation - INFO - === END INPUT DATA ===
+2025-03-29 12:15:56,196 - src.agents.test_generation - INFO - === FULL MESSAGE BEING SENT TO CODER AGENT ===
+2025-03-29 12:15:56,197 - src.agents.test_generation - INFO - Generate API test scripts based EXCLUSIVELY on the provided blueprint. Target frameworks: playwright.
+
+CRITICAL: You MUST generate tests that match the EXACT endpoints, methods, and test cases from the blueprint. The examples below are ONLY for reference on how to implement features - they should NOT be copied or used as templates.
+
+Here is the actual blueprint content you MUST use:
+
+API Name: Pet Store API
+Version: 1.0.0
+Base URL: http://example.com/api
+
+Test Groups:
+
+Group: Pet Listing
+Tests:
+  - list_pets_001
+    Endpoint: GET /pets
+    Expected Status: 200
+    
+    
+    
+
+Group: Pet Creation
+Tests:
+  - create_pet_valid_001
+    Endpoint: POST /pets
+    Expected Status: 201
+    
+    
+    Body: {'name': 'Buddy', 'species': 'dog'}
+  - create_pet_invalid_missing_name_002
+    Endpoint: POST /pets
+    Expected Status: 400
+    
+    
+    Body: {'species': 'cat'}
+  - create_pet_invalid_wrong_species_003
+    Endpoint: POST /pets
+    Expected Status: 400
+    
+    
+    Body: {'name': 'Mittens', 'species': 'lion'}
+
+Group: Pet Retrieval
+Tests:
+  - get_pet_valid_001
+    Endpoint: GET /pets/{{create_pet_valid_001.response.body.id}}
+    Expected Status: 200
+    
+    Parameters: [{'name': 'petId', 'value': '{{create_pet_valid_001.response.body.id}}', 'in_': 'path', 'required': True, 'description': None}]
+    
+  - get_pet_not_found_001
+    Endpoint: GET /pets/non-existing
+    Expected Status: 404
+    
+    Parameters: [{'name': 'petId', 'value': 'non-existing', 'in_': 'path', 'required': True, 'description': None}]
+    
+
+Your generated tests MUST:
+1. Use the EXACT endpoints from the blueprint above
+2. Use the EXACT HTTP methods from the blueprint above
+3. Expect the EXACT status codes from the blueprint above
+4. Follow the EXACT test groups from the blueprint above
+5. Include the EXACT test names from the blueprint above
+
+DO NOT use the example endpoints or methods. Use ONLY the endpoints and methods from the blueprint above.
+
+The examples below show HOW to implement features, but you MUST use your own endpoints and methods from the blueprint above.
+2025-03-29 12:15:56,197 - src.agents.test_generation - INFO - === END MESSAGE ===
+2025-03-29 12:15:56,198 - src.utils.model_selection - INFO - Using configured model o3-mini for coding task with complexity 0.02
+2025-03-29 12:15:56,198 - src.utils.execution - INFO - Running streaming agent Test Coder with model o3-mini, timeout 314s
+2025-03-29 12:15:56,498 - src.api.generate - INFO - WebSocket disconnected for job 82e3ee24-9444-4370-b323-acc8bc23af6d
+2025-03-29 12:15:56,961 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:16:00,641 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:16:21,063 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:17:02,315 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:17:03,009 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:17:07,012 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:17:28,670 - src.utils.execution - INFO - Agent Test Coder streaming completed
+2025-03-29 12:17:28,670 - src.agents.test_generation - INFO - Creating ScriptOutput from result type <class 'dict'>
+2025-03-29 12:17:28,671 - src.agents.test_generation - INFO - Output object: apiName='API Tests' version='1.0.0' outputs=[TargetOutput(name='Playwright Scripts', type=<ScriptType.PLAYWRIGHT: 'playwright'>, content={'content': '// Main entry point for Playwright API tests with enterprise-grade features such as variable handling, test flows, data-driven testing, retry policies, environment variable management, and integrated mock support.'}, files=[FileContent(filename='tests/api/pets.spec.ts', content="import { test, expect } from '@playwright/test';\nimport { variableStore } from '../utils/variable-store';\n\nconst BASE_URL = process.env.BASE_URL || 'http://example.com/api';\n\n// --------------------\n// Pet Listing\n// --------------------\n\ntest.describe('Pet Listing', () => {\n  test('list_pets_001', async ({ request }) => {\n    const response = await request.get(`${BASE_URL}/pets`);\n    expect(response.status()).toBe(200);\n  });\n});\n\n// --------------------\n// Pet Creation\n// --------------------\n\ntest.describe.serial('Pet Creation', () => {\n  test('create_pet_valid_001', async ({ request }) => {\n    const requestBody = { name: 'Buddy', species: 'dog' };\n    const response = await request.post(`${BASE_URL}/pets`, { data: requestBody });\n    expect(response.status()).toBe(201);\n    const responseBody = await response.json();\n    \n    // Extract and store the pet ID using the variable store for later use\n    variableStore.set('pets', 'createdPetId', responseBody.id);\n    console.log('Extracted pet ID:', responseBody.id);\n  });\n\n  test('create_pet_invalid_missing_name_002', async ({ request }) => {\n    const requestBody = { species: 'cat' };\n    const response = await request.post(`${BASE_URL}/pets`, { data: requestBody });\n    expect(response.status()).toBe(400);\n  });\n\n  test('create_pet_invalid_wrong_species_003', async ({ request }) => {\n    const requestBody = { name: 'Mittens', species: 'lion' };\n    const response = await request.post(`${BASE_URL}/pets`, { data: requestBody });\n    expect(response.status()).toBe(400);\n  });\n});\n\n// --------------------\n// Pet Retrieval\n// --------------------\n\ntest.describe.serial('Pet Retrieval', () => {\n  test('get_pet_valid_001', async ({ request }) => {\n    const petId = variableStore.get('pets', 'createdPetId');\n    if (!petId) {\n      throw new Error('Missing pet ID from create_pet_valid_001; cannot perform get_pet_valid_001 test.');\n    }\n    const response = await request.get(`${BASE_URL}/pets/${petId}`);\n    expect(response.status()).toBe(200);\n  });\n\n  test('get_pet_not_found_001', async ({ request }) => {\n    const response = await request.get(`${BASE_URL}/pets/non-existing`);\n    expect(response.status()).toBe(404);\n  });\n});\n", path=None, format=None), FileContent(filename='tests/utils/variable-store.ts', content='// Variable handling utilities: provides a robust in-memory store for sharing data between tests.\n\ninterface Store {\n  [group: string]: { [key: string]: any };\n}\n\nclass VariableStore {\n  private store: Store = {};\n\n  // Sets a variable under a specific group\n  set(group: string, key: string, value: any) {\n    if (!this.store[group]) {\n      this.store[group] = {};\n    }\n    this.store[group][key] = value;\n  }\n\n  // Retrieves a variable from a specific group\n  get(group: string, key: string): any {\n    return this.store[group] ? this.store[group][key] : undefined;\n  }\n}\n\nexport const variableStore = new VariableStore();\n', path=None, format=None), FileContent(filename='tests/flows/user-journey.spec.ts', content="import { test, expect } from '@playwright/test';\nimport { variableStore } from '../utils/variable-store';\n\nconst BASE_URL = process.env.BASE_URL || 'http://example.com/api';\n\n// Test flow: A complete pet journey including listing, creation with variable extraction, and retrieval\n\ntest.describe('User Journey Flow for Pets', () => {\n  test('Complete pet flow - list, create, and retrieve', async ({ request }) => {\n    await test.step('List pets', async () => {\n      const response = await request.get(`${BASE_URL}/pets`);\n      expect(response.status()).toBe(200);\n    });\n\n    await test.step('Create pet', async () => {\n      const requestBody = { name: 'Buddy', species: 'dog' };\n      const response = await request.post(`${BASE_URL}/pets`, { data: requestBody });\n      expect(response.status()).toBe(201);\n      const responseBody = await response.json();\n      variableStore.set('pets', 'createdPetId', responseBody.id);\n      console.log('User Journey: Extracted pet ID:', responseBody.id);\n    });\n\n    await test.step('Retrieve created pet', async () => {\n      const petId = variableStore.get('pets', 'createdPetId');\n      if (!petId) {\n        throw new Error('Pet ID not found from creation step.');\n      }\n      const response = await request.get(`${BASE_URL}/pets/${petId}`);\n      expect(response.status()).toBe(200);\n    });\n  });\n});\n", path=None, format=None), FileContent(filename='tests/fixtures/auth.fixtures.ts', content="import { test as base } from '@playwright/test';\n\n// Auth fixtures: Extend the base test to include authentication setup if needed\nexport const test = base.extend({\n  // Example fixture for providing an auth token\n  authToken: async ({}, use) => {\n    const token = process.env.AUTH_TOKEN || 'default-token';\n    await use(token);\n  }\n});\n", path=None, format=None), FileContent(filename='playwright.config.ts', content="import { defineConfig, devices } from '@playwright/test';\nimport dotenv from 'dotenv';\n\n// Load environment variables\ndotenv.config();\n\nexport default defineConfig({\n  testDir: './tests',\n  timeout: 30000,\n  expect: {\n    timeout: 5000\n  },\n  retries: process.env.CI ? 2 : 0,\n  use: {\n    baseURL: process.env.BASE_URL || 'http://example.com/api',\n    trace: 'on-first-retry',\n    video: 'retain-on-failure'\n  },\n  reporter: 'html',\n  projects: [\n    {\n      name: 'chromium',\n      use: { ...devices['Desktop Chrome'] }\n    },\n    {\n      name: 'firefox',\n      use: { ...devices['Desktop Firefox'] }\n    },\n    {\n      name: 'webkit',\n      use: { ...devices['Desktop Safari'] }\n    }\n  ]\n});\n", path=None, format=None), FileContent(filename='.env.example', content='# Environment Variables Template for Playwright API Tests\n\n# Base URL for the API under test\nBASE_URL=http://example.com/api\n\n# Authentication token if required\nAUTH_TOKEN=your-auth-token\n\n# Set true in CI environments\nCI=false\n', path=None, format=None), FileContent(filename='README.md', content='# Playwright API Tests\n\nThis repository provides production-ready Playwright tests for the Pet Store API implementing enterprise-grade features:\n\n- Variable handling: Extracts and shares variables between tests using an in-memory store.\n- Test flows: Organized steps using test.step to ensure proper data sharing and ordering.\n- Data-driven testing: Structure ready for further parameterization if required.\n- Retry policies: Configured globally in playwright.config.ts with conditional CI support.\n- Environment variables: Managed through .env files and process.env parsing.\n- Mock support: Templates provided for conditional mock responses if needed.\n\n## Directory Structure\n\n- /tests/api: Contains API endpoint tests (pets.spec.ts).\n- /tests/flows: Contains multi-step test flows (user-journey.spec.ts).\n- /tests/utils: Utility functions such as the variable store (variable-store.ts).\n- /tests/fixtures: Fixtures for shared test configuration (auth.fixtures.ts).\n- playwright.config.ts: Main Playwright configuration file.\n- .env.example: Example environment configuration.\n- README.md: Project documentation and usage instructions.\n\n## How to Run\n\n1. Install dependencies:\n   npm install\n\n2. Copy and update environment variables:\n   cp .env.example .env\n\n3. Run tests:\n   npx playwright test\n\nHappy Testing!\n', path=None, format=None)])]
+2025-03-29 12:17:28,671 - src.agents.test_generation - INFO - Number of outputs: 1
+2025-03-29 12:17:28,672 - src.agents.test_generation - INFO - Processing output item: type=playwright, name=Playwright Scripts
+2025-03-29 12:17:28,672 - src.agents.test_generation - INFO - Added main content file: playwright_collection.json
+2025-03-29 12:17:28,672 - src.agents.test_generation - INFO - Number of files in output item: 7
+2025-03-29 12:17:28,672 - src.agents.test_generation - INFO - Added file: tests/api/pets.spec.ts
+2025-03-29 12:17:28,673 - src.agents.test_generation - INFO - Added file: tests/utils/variable-store.ts
+2025-03-29 12:17:28,673 - src.agents.test_generation - INFO - Added file: tests/flows/user-journey.spec.ts
+2025-03-29 12:17:28,673 - src.agents.test_generation - INFO - Added file: tests/fixtures/auth.fixtures.ts
+2025-03-29 12:17:28,673 - src.agents.test_generation - INFO - Added file: playwright.config.ts
+2025-03-29 12:17:28,673 - src.agents.test_generation - INFO - Added file: .env.example
+2025-03-29 12:17:28,673 - src.agents.test_generation - INFO - Added file: README.md
+2025-03-29 12:17:28,674 - src.agents.test_generation - INFO - Final target_scripts structure: {"playwright": ["playwright_collection.json", "tests/api/pets.spec.ts", "tests/utils/variable-store.ts", "tests/flows/user-journey.spec.ts", "tests/fixtures/auth.fixtures.ts", "playwright.config.ts", ".env.example", "README.md"]}
+2025-03-29 12:17:28,674 - src.api.generate - INFO - Script generation completed successfully for job 82e3ee24-9444-4370-b323-acc8bc23af6d
+2025-03-29 12:17:28,674 - src.api.generate - INFO - Scripts generated with types: ['playwright']
+2025-03-29 12:17:28,675 - src.api.generate - INFO - Script type playwright contains 8 files:
+2025-03-29 12:17:28,675 - src.api.generate - INFO -   - playwright_collection.json (size: 232)
+2025-03-29 12:17:28,675 - src.api.generate - INFO -   - tests/api/pets.spec.ts (size: 2213)
+2025-03-29 12:17:28,676 - src.api.generate - INFO -   - tests/utils/variable-store.ts (size: 627)
+2025-03-29 12:17:28,676 - src.api.generate - INFO -   - tests/flows/user-journey.spec.ts (size: 1356)
+2025-03-29 12:17:28,676 - src.api.generate - INFO -   - tests/fixtures/auth.fixtures.ts (size: 339)
+2025-03-29 12:17:28,676 - src.api.generate - INFO -   - playwright.config.ts (size: 695)
+2025-03-29 12:17:28,677 - src.api.generate - INFO -   - .env.example (size: 228)
+2025-03-29 12:17:28,677 - src.api.generate - INFO -   - README.md (size: 1314)
+2025-03-29 12:17:28,677 - src.api.generate - INFO - Result keys: ['blueprint', 'scripts', 'trace_id']
+2025-03-29 12:17:28,677 - src.api.generate - INFO - Scripts result structure: {"playwright": ["playwright_collection.json", "tests/api/pets.spec.ts", "tests/utils/variable-store.ts", "tests/flows/user-journey.spec.ts", "tests/fixtures/auth.fixtures.ts", "playwright.config.ts", ".env.example", "README.md"]}
+2025-03-29 12:17:28,684 - src.api.generate - INFO - WebSocket disconnected for job 82e3ee24-9444-4370-b323-acc8bc23af6d
+2025-03-29 12:17:29,001 - src.api.generate - INFO - WebSocket disconnected for job 82e3ee24-9444-4370-b323-acc8bc23af6d
+2025-03-29 12:17:32,808 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:17:38,893 - src.api.generate - INFO - WebSocket disconnected for job 82e3ee24-9444-4370-b323-acc8bc23af6d
+2025-03-29 12:17:38,894 - src.api.generate - INFO - WebSocket disconnected for job 82e3ee24-9444-4370-b323-acc8bc23af6d
+2025-03-29 12:17:38,894 - src.api.generate - INFO - WebSocket disconnected for job 82e3ee24-9444-4370-b323-acc8bc23af6d
+2025-03-29 12:17:38,894 - src.api.generate - INFO - WebSocket disconnected for job 82e3ee24-9444-4370-b323-acc8bc23af6d
+2025-03-29 12:17:39,003 - root - INFO - Application shutting down
+2025-03-29 12:17:39,003 - root - INFO - Application shutdown complete
+2025-03-29 12:19:25,204 - root - INFO - Logging configured with level INFO and utf-8 encoding
+2025-03-29 12:19:25,521 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 12:19:25,523 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:19:25,523 - root - INFO - Model selection strategy initialized
+2025-03-29 12:19:25,523 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:19:25,523 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 12:19:25,524 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 12:19:25,524 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 12:19:25,524 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 12:19:25,524 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 12:19:25,529 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 12:19:25,530 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 12:19:25,530 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 12:19:25,533 - root - INFO - Agents initialized successfully
+2025-03-29 12:19:25,544 - root - INFO - Application starting up
+2025-03-29 12:19:25,545 - root - INFO - Application startup complete
+2025-03-29 12:19:52,525 - src.api.generate - INFO - Starting script generation job 49cffec5-3219-4189-bb87-e9a2904a658e with context: {'request_id': 'trace_d77eb207c0594fb2b6a250575f9a6b7d', 'timestamp': '2025-03-29T12:19:52.525093', 'source': 'api', 'user_id': 'anonymous', 'metadata': {}}
+2025-03-29 12:19:52,526 - src.agents.test_generation - INFO - Calculated blueprint complexity: 0.02 (tests: 6, dependencies: 0)
+2025-03-29 12:19:52,526 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:19:52,527 - src.utils.model_selection - INFO - Using configured model o3-mini for coding task with complexity 0.02
+2025-03-29 12:19:52,527 - src.agents.test_generation - INFO - Selected model o3-mini for script generation with complexity 0.024
+2025-03-29 12:19:52,527 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 12:19:52,528 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 12:19:52,528 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 12:19:52,530 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 12:19:52,530 - src.agents.test_generation - INFO - Blueprint for Pet Store API has 3 groups
+2025-03-29 12:19:52,530 - src.agents.test_generation - INFO -   Group 'Pet Listing' has 1 tests
+2025-03-29 12:19:52,530 - src.agents.test_generation - INFO -     Test 'List All Pets - Positive': GET /pets → 200
+2025-03-29 12:19:52,530 - src.agents.test_generation - INFO -   Group 'Pet Creation' has 3 tests
+2025-03-29 12:19:52,531 - src.agents.test_generation - INFO -     Test 'Create Pet with Valid Data': POST /pets → 201
+2025-03-29 12:19:52,531 - src.agents.test_generation - INFO -     Test 'Create Pet Missing Required Field': POST /pets → 400
+2025-03-29 12:19:52,531 - src.agents.test_generation - INFO -     Test 'Create Pet with Invalid Species': POST /pets → 400
+2025-03-29 12:19:52,531 - src.agents.test_generation - INFO -   Group 'Pet Retrieval' has 2 tests
+2025-03-29 12:19:52,531 - src.agents.test_generation - INFO -     Test 'Get Pet by Valid ID': GET /pets/{{create_pet_valid_001.response.body.id}} → 200
+2025-03-29 12:19:52,531 - src.agents.test_generation - INFO -     Test 'Get Pet with Non-Existent ID': GET /pets/non-existing → 404
+2025-03-29 12:19:52,531 - src.agents.test_generation - INFO - === FULL INPUT DATA BEING SENT TO CODER AGENT ===
+2025-03-29 12:19:52,531 - src.agents.test_generation - INFO - Input data keys: ['blueprint', 'original_blueprint', 'targets', 'context']
+2025-03-29 12:19:52,531 - src.agents.test_generation - INFO - === BLUEPRINT CONTENT ===
+2025-03-29 12:19:52,532 - src.agents.test_generation - INFO - Blueprint API Name: Pet Store API
+2025-03-29 12:19:52,532 - src.agents.test_generation - INFO - Blueprint Version: 1.0.0
+2025-03-29 12:19:52,532 - src.agents.test_generation - INFO - Blueprint Description: A simple API for managing pets
+2025-03-29 12:19:52,532 - src.agents.test_generation - INFO - Blueprint Base URL: http://example.com/api
+2025-03-29 12:19:52,532 - src.agents.test_generation - INFO - Group: Pet Listing
+2025-03-29 12:19:52,532 - src.agents.test_generation - INFO -   Test: list_pets_001
+2025-03-29 12:19:52,533 - src.agents.test_generation - INFO -     Endpoint: GET /pets
+2025-03-29 12:19:52,533 - src.agents.test_generation - INFO -     Expected Status: 200
+2025-03-29 12:19:52,533 - src.agents.test_generation - INFO - Group: Pet Creation
+2025-03-29 12:19:52,533 - src.agents.test_generation - INFO -   Test: create_pet_valid_001
+2025-03-29 12:19:52,533 - src.agents.test_generation - INFO -     Endpoint: POST /pets
+2025-03-29 12:19:52,533 - src.agents.test_generation - INFO -     Expected Status: 201
+2025-03-29 12:19:52,534 - src.agents.test_generation - INFO -     Body: {'name': 'Buddy', 'species': 'dog'}
+2025-03-29 12:19:52,534 - src.agents.test_generation - INFO -   Test: create_pet_invalid_missing_name_002
+2025-03-29 12:19:52,534 - src.agents.test_generation - INFO -     Endpoint: POST /pets
+2025-03-29 12:19:52,534 - src.agents.test_generation - INFO -     Expected Status: 400
+2025-03-29 12:19:52,534 - src.agents.test_generation - INFO -     Body: {'species': 'cat'}
+2025-03-29 12:19:52,534 - src.agents.test_generation - INFO -   Test: create_pet_invalid_wrong_species_003
+2025-03-29 12:19:52,534 - src.agents.test_generation - INFO -     Endpoint: POST /pets
+2025-03-29 12:19:52,535 - src.agents.test_generation - INFO -     Expected Status: 400
+2025-03-29 12:19:52,535 - src.agents.test_generation - INFO -     Body: {'name': 'Mittens', 'species': 'lion'}
+2025-03-29 12:19:52,535 - src.agents.test_generation - INFO - Group: Pet Retrieval
+2025-03-29 12:19:52,535 - src.agents.test_generation - INFO -   Test: get_pet_valid_001
+2025-03-29 12:19:52,535 - src.agents.test_generation - INFO -     Endpoint: GET /pets/{{create_pet_valid_001.response.body.id}}
+2025-03-29 12:19:52,535 - src.agents.test_generation - INFO -     Expected Status: 200
+2025-03-29 12:19:52,535 - src.agents.test_generation - INFO -     Parameters: [{'name': 'petId', 'value': '{{create_pet_valid_001.response.body.id}}', 'in_': 'path', 'required': True, 'description': None}]
+2025-03-29 12:19:52,536 - src.agents.test_generation - INFO -   Test: get_pet_not_found_001
+2025-03-29 12:19:52,536 - src.agents.test_generation - INFO -     Endpoint: GET /pets/non-existing
+2025-03-29 12:19:52,536 - src.agents.test_generation - INFO -     Expected Status: 404
+2025-03-29 12:19:52,536 - src.agents.test_generation - INFO -     Parameters: [{'name': 'petId', 'value': 'non-existing', 'in_': 'path', 'required': True, 'description': None}]
+2025-03-29 12:19:52,536 - src.agents.test_generation - INFO - === END BLUEPRINT CONTENT ===
+2025-03-29 12:19:52,537 - src.agents.test_generation - INFO - Targets: ['playwright']
+2025-03-29 12:19:52,537 - src.agents.test_generation - INFO - Context keys: ['instructions', 'templates_directory', 'features']
+2025-03-29 12:19:52,537 - src.agents.test_generation - INFO - Features keys: ['variable_extraction', 'test_flow', 'retry_policy', 'environment_variables', 'mock_data', 'setup_teardown']
+2025-03-29 12:19:52,537 - src.agents.test_generation - INFO - === END INPUT DATA ===
+2025-03-29 12:19:52,537 - src.agents.test_generation - INFO - === FULL MESSAGE BEING SENT TO CODER AGENT ===
+2025-03-29 12:19:52,537 - src.agents.test_generation - INFO - Generate API test scripts based EXCLUSIVELY on the provided blueprint. Target frameworks: playwright.
+
+CRITICAL: You MUST generate tests that match the EXACT endpoints, methods, and test cases from the blueprint. The examples below are ONLY for reference on how to implement features - they should NOT be copied or used as templates.
+
+Here is the actual blueprint content you MUST use:
+
+API Name: Pet Store API
+Version: 1.0.0
+Base URL: http://example.com/api
+
+Test Groups:
+
+Group: Pet Listing
+Tests:
+  - list_pets_001
+    Endpoint: GET /pets
+    Expected Status: 200
+    
+    
+    
+
+Group: Pet Creation
+Tests:
+  - create_pet_valid_001
+    Endpoint: POST /pets
+    Expected Status: 201
+    
+    
+    Body: {'name': 'Buddy', 'species': 'dog'}
+  - create_pet_invalid_missing_name_002
+    Endpoint: POST /pets
+    Expected Status: 400
+    
+    
+    Body: {'species': 'cat'}
+  - create_pet_invalid_wrong_species_003
+    Endpoint: POST /pets
+    Expected Status: 400
+    
+    
+    Body: {'name': 'Mittens', 'species': 'lion'}
+
+Group: Pet Retrieval
+Tests:
+  - get_pet_valid_001
+    Endpoint: GET /pets/{{create_pet_valid_001.response.body.id}}
+    Expected Status: 200
+    
+    Parameters: [{'name': 'petId', 'value': '{{create_pet_valid_001.response.body.id}}', 'in_': 'path', 'required': True, 'description': None}]
+    
+  - get_pet_not_found_001
+    Endpoint: GET /pets/non-existing
+    Expected Status: 404
+    
+    Parameters: [{'name': 'petId', 'value': 'non-existing', 'in_': 'path', 'required': True, 'description': None}]
+    
+
+Your generated tests MUST:
+1. Use the EXACT endpoints from the blueprint above
+2. Use the EXACT HTTP methods from the blueprint above
+3. Expect the EXACT status codes from the blueprint above
+4. Follow the EXACT test groups from the blueprint above
+5. Include the EXACT test names from the blueprint above
+
+DO NOT use the example endpoints or methods. Use ONLY the endpoints and methods from the blueprint above.
+
+The examples below show HOW to implement features, but you MUST use your own endpoints and methods from the blueprint above.
+2025-03-29 12:19:52,538 - src.agents.test_generation - INFO - === END MESSAGE ===
+2025-03-29 12:19:52,538 - src.utils.model_selection - INFO - Using configured model o3-mini for coding task with complexity 0.02
+2025-03-29 12:19:52,538 - src.utils.execution - INFO - Running streaming agent Test Coder with model o3-mini, timeout 314s
+2025-03-29 12:19:52,835 - src.api.generate - INFO - WebSocket disconnected for job 49cffec5-3219-4189-bb87-e9a2904a658e
+2025-03-29 12:19:53,747 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:19:55,894 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:20:21,623 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:20:40,545 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:20:41,312 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:20:42,380 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:21:02,801 - src.utils.execution - INFO - Agent Test Coder streaming completed
+2025-03-29 12:21:02,801 - src.agents.test_generation - INFO - Creating ScriptOutput from result type <class 'dict'>
+2025-03-29 12:21:02,801 - src.agents.test_generation - INFO - Output object: apiName='API Tests' version='1.0.0' outputs=[TargetOutput(name='Playwright Scripts', type=<ScriptType.PLAYWRIGHT: 'playwright'>, content={'content': '// Main entry point description - This project implements production quality Playwright API tests for the Pet Store API including advanced enterprise features such as variable extraction, test flows, data-driven testing, retry policies, and environment variable management.\n\n// The tests have been implemented according to the provided blueprint for the following API endpoints and test cases:\n// 1. Group: Pet Listing\n//    - list_pets_001: GET /pets, Expected Status: 200\n// 2. Group: Pet Creation\n//    - create_pet_valid_001: POST /pets, Expected Status: 201, Body: {"name": "Buddy", "species": "dog"}\n//    - create_pet_invalid_missing_name_002: POST /pets, Expected Status: 400, Body: {"species": "cat"}\n//    - create_pet_invalid_wrong_species_003: POST /pets, Expected Status: 400, Body: {"name": "Mittens", "species": "lion"}\n// 3. Group: Pet Retrieval\n//    - get_pet_valid_001: GET /pets/{{create_pet_valid_001.response.body.id}}, Expected Status: 200\n//    - get_pet_not_found_001: GET /pets/non-existing, Expected Status: 404\n\n// The tests are organized into separate groups and utilize a variable store to manage data dependencies between tests.\n'}, files=[FileContent(filename='tests/api/petStore.spec.ts', content="import { test, expect } from '@playwright/test';\nimport { VariableStore } from '../utils/variable-store';\n\n// Base URL from environment variable, defaults to provided blueprint endpoint\nconst BASE_URL = process.env.BASE_URL || 'http://example.com/api';\n\n// This variable will hold the pet id created in the valid pet creation test\nlet createdPetId: string | number;\n\n// Serial execution is used because some tests depend on data extracted in prior tests\n\ntest.describe.serial('Pet Store API', () => {\n  // Group: Pet Listing\n  test.describe('Pet Listing', () => {\n    test('list_pets_001', async ({ request }) => {\n      const response = await request.get(`${BASE_URL}/pets`);\n      await expect(response).toHaveStatus(200);\n    });\n  });\n\n  // Group: Pet Creation\n  test.describe('Pet Creation', () => {\n    test('create_pet_valid_001', async ({ request }) => {\n      const requestBody = { name: 'Buddy', species: 'dog' };\n      const response = await request.post(`${BASE_URL}/pets`, { data: requestBody });\n      await expect(response).toHaveStatus(201);\n\n      const responseBody = await response.json();\n      createdPetId = responseBody.id;\n      expect(createdPetId).toBeTruthy();\n      console.log('create_pet_valid_001: Extracted pet id:', createdPetId);\n      // Store the variable for use in retrieval tests\n      VariableStore.set('create_pet_valid_001.response.body.id', createdPetId);\n    });\n\n    test('create_pet_invalid_missing_name_002', async ({ request }) => {\n      const requestBody = { species: 'cat' };\n      const response = await request.post(`${BASE_URL}/pets`, { data: requestBody });\n      await expect(response).toHaveStatus(400);\n    });\n\n    test('create_pet_invalid_wrong_species_003', async ({ request }) => {\n      const requestBody = { name: 'Mittens', species: 'lion' };\n      const response = await request.post(`${BASE_URL}/pets`, { data: requestBody });\n      await expect(response).toHaveStatus(400);\n    });\n  });\n\n  // Group: Pet Retrieval\n  test.describe('Pet Retrieval', () => {\n    test('get_pet_valid_001', async ({ request }) => {\n      // Resolve the pet id from the variable store\n      createdPetId = VariableStore.get('create_pet_valid_001.response.body.id');\n      if (!createdPetId) {\n        throw new Error('No pet id available from create_pet_valid_001 test.');\n      }\n      const response = await request.get(`${BASE_URL}/pets/${createdPetId}`);\n      await expect(response).toHaveStatus(200);\n    });\n\n    test('get_pet_not_found_001', async ({ request }) => {\n      const response = await request.get(`${BASE_URL}/pets/non-existing`);\n      await expect(response).toHaveStatus(404);\n    });\n  });\n});\n", path=None, format=None), FileContent(filename='tests/utils/variable-store.ts', content="// VariableStore utility for managing variables extracted during API responses.\n// This allows sharing data (e.g., createdPetId) between tests.\n\nclass VariableStoreClass {\n  private store: { [key: string]: any } = {};\n\n  // Set a variable with a specified key\n  set(key: string, value: any): void {\n    this.store[key] = value;\n    console.log(`VariableStore: Set ${key} =`, value);\n  }\n\n  // Retrieve a variable by key\n  get(key: string): any {\n    return this.store[key];\n  }\n\n  // Resolve variables within a string if necessary (e.g., replacing {{variable}} with its value)\n  resolve(str: string): string {\n    return str.replace(/{{([^}]+)}}/g, (_, key) => {\n      const value = this.get(key.trim());\n      if (value === undefined) {\n        console.warn(`VariableStore: No value found for ${key}`);\n        return '';\n      }\n      return value.toString();\n    });\n  }\n}\n\nexport const VariableStore = new VariableStoreClass();\n", path=None, format=None), FileContent(filename='playwright.config.ts', content="import { defineConfig, devices } from '@playwright/test';\n\nexport default defineConfig({\n  testDir: './tests',\n  timeout: 30000,\n  retries: 2, // Global retry policy as per enterprise features\n  use: {\n    baseURL: process.env.BASE_URL || 'http://example.com/api',\n    trace: 'on-first-retry'\n  },\n  projects: [\n    {\n      name: 'API tests',\n      use: { ...devices['Desktop Chrome'] }\n    }\n  ]\n});\n", path=None, format=None), FileContent(filename='.env.example', content='# Environment Variables for Pet Store API Testing\n\n# Base URL for the API, defaults to what is in the blueprint.\nBASE_URL=http://example.com/api\n\n# Additional environment settings can be added as needed.\n', path=None, format=None), FileContent(filename='README.md', content='# Pet Store API Testing using Playwright\n\nThis project contains Playwright API tests for the Pet Store API (v1.0.0) based on a detailed blueprint. The tests implement the following scenarios:\n\n## Test Groups and Cases\n\n1. **Pet Listing**\n   - *list_pets_001*: Verify GET /pets returns a status code of 200.\n\n2. **Pet Creation**\n   - *create_pet_valid_001*: Verify POST /pets with body {"name": "Buddy", "species": "dog"} returns 201 and extract pet id.\n   - *create_pet_invalid_missing_name_002*: Verify POST /pets with body {"species": "cat"} returns 400.\n   - *create_pet_invalid_wrong_species_003*: Verify POST /pets with body {"name": "Mittens", "species": "lion"} returns 400.\n\n3. **Pet Retrieval**\n   - *get_pet_valid_001*: Verify GET /pets/{{create_pet_valid_001.response.body.id}} returns 200.\n   - *get_pet_not_found_001*: Verify GET /pets/non-existing returns 404.\n\n## Features\n\n- **Variable Handling:** Variables are extracted from responses and stored using a custom VariableStore for later use.\n- **Test Flows:** Tests are executed serially to manage dependencies between creation and retrieval tests.\n- **Retry Policies:** Global retry configuration is provided in the Playwright configuration.\n- **Environment Variables:** Use the .env file to configure the base URL and additional settings.\n\n## Running the Tests\n\n1. Install dependencies:\n   ```bash\n   npm install\n   ```\n\n2. Create a .env file from .env.example and adjust the values if necessary.\n\n3. Execute the tests with:\n   ```bash\n   npx playwright test\n   ```\n', path=None, format=None)])]
+2025-03-29 12:21:02,802 - src.agents.test_generation - INFO - Number of outputs: 1
+2025-03-29 12:21:02,802 - src.agents.test_generation - INFO - Processing output item: type=playwright, name=Playwright Scripts
+2025-03-29 12:21:02,802 - src.agents.test_generation - INFO - Added main content file: playwright_collection.json
+2025-03-29 12:21:02,803 - src.agents.test_generation - INFO - Number of files in output item: 5
+2025-03-29 12:21:02,803 - src.agents.test_generation - INFO - Added file: tests/api/petStore.spec.ts
+2025-03-29 12:21:02,803 - src.agents.test_generation - INFO - Added file: tests/utils/variable-store.ts
+2025-03-29 12:21:02,803 - src.agents.test_generation - INFO - Added file: playwright.config.ts
+2025-03-29 12:21:02,803 - src.agents.test_generation - INFO - Added file: .env.example
+2025-03-29 12:21:02,804 - src.agents.test_generation - INFO - Added file: README.md
+2025-03-29 12:21:02,804 - src.agents.test_generation - INFO - Final target_scripts structure: {"playwright": ["playwright_collection.json", "tests/api/petStore.spec.ts", "tests/utils/variable-store.ts", "playwright.config.ts", ".env.example", "README.md"]}
+2025-03-29 12:21:02,804 - src.api.generate - INFO - Script generation completed successfully for job 49cffec5-3219-4189-bb87-e9a2904a658e
+2025-03-29 12:21:02,804 - src.api.generate - INFO - Scripts generated with types: ['playwright']
+2025-03-29 12:21:02,805 - src.api.generate - INFO - Script type playwright contains 6 files:
+2025-03-29 12:21:02,805 - src.api.generate - INFO -   - playwright_collection.json (size: 1213)
+2025-03-29 12:21:02,805 - src.api.generate - INFO -   - tests/api/petStore.spec.ts (size: 2662)
+2025-03-29 12:21:02,805 - src.api.generate - INFO -   - tests/utils/variable-store.ts (size: 932)
+2025-03-29 12:21:02,805 - src.api.generate - INFO -   - playwright.config.ts (size: 401)
+2025-03-29 12:21:02,805 - src.api.generate - INFO -   - .env.example (size: 204)
+2025-03-29 12:21:02,805 - src.api.generate - INFO -   - README.md (size: 1534)
+2025-03-29 12:21:02,806 - src.api.generate - INFO - Result keys: ['blueprint', 'scripts', 'trace_id']
+2025-03-29 12:21:02,806 - src.api.generate - INFO - Scripts result structure: {"playwright": ["playwright_collection.json", "tests/api/petStore.spec.ts", "tests/utils/variable-store.ts", "playwright.config.ts", ".env.example", "README.md"]}
+2025-03-29 12:21:02,812 - src.api.generate - INFO - WebSocket disconnected for job 49cffec5-3219-4189-bb87-e9a2904a658e
+2025-03-29 12:21:03,127 - src.api.generate - INFO - WebSocket disconnected for job 49cffec5-3219-4189-bb87-e9a2904a658e
+2025-03-29 12:21:08,459 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:22:47,542 - src.api.generate - INFO - WebSocket disconnected for job 49cffec5-3219-4189-bb87-e9a2904a658e
+2025-03-29 12:22:47,543 - src.api.generate - INFO - WebSocket disconnected for job 49cffec5-3219-4189-bb87-e9a2904a658e
+2025-03-29 12:22:47,543 - src.api.generate - INFO - WebSocket disconnected for job 49cffec5-3219-4189-bb87-e9a2904a658e
+2025-03-29 12:22:47,544 - src.api.generate - INFO - WebSocket disconnected for job 49cffec5-3219-4189-bb87-e9a2904a658e
+2025-03-29 12:22:47,648 - root - INFO - Application shutting down
+2025-03-29 12:22:47,648 - root - INFO - Application shutdown complete
+2025-03-29 12:22:49,663 - root - INFO - Logging configured with level INFO and utf-8 encoding
+2025-03-29 12:22:49,891 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 12:22:49,892 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:22:49,893 - root - INFO - Model selection strategy initialized
+2025-03-29 12:22:49,893 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:22:49,893 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 12:22:49,894 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 12:22:49,894 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 12:22:49,894 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 12:22:49,894 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 12:22:49,898 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 12:22:49,898 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 12:22:49,898 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 12:22:49,899 - root - INFO - Agents initialized successfully
+2025-03-29 12:22:49,904 - root - INFO - Application starting up
+2025-03-29 12:22:49,904 - root - INFO - Application startup complete
+2025-03-29 12:22:51,453 - root - INFO - Application shutting down
+2025-03-29 12:22:51,453 - root - INFO - Application shutdown complete
+2025-03-29 12:30:53,139 - root - INFO - Logging configured with level INFO and utf-8 encoding
+2025-03-29 12:30:53,395 - src.utils.openai_setup - INFO - OpenAI client successfully initialized
+2025-03-29 12:30:53,396 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:30:53,396 - root - INFO - Model selection strategy initialized
+2025-03-29 12:30:53,397 - src.agents.setup - INFO - Setting up all agents with models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:30:53,397 - src.agents.setup - INFO - Setting up Test Planner agent with model: o3-mini
+2025-03-29 12:30:53,397 - src.agents.setup - INFO - Test Planner agent set up with model: o3-mini
+2025-03-29 12:30:53,397 - src.agents.setup - INFO - Setting up Coder agent with model: o3-mini
+2025-03-29 12:30:53,397 - src.agents.setup - INFO - Postman Coder agent set up with model: o3-mini
+2025-03-29 12:30:53,398 - src.agents.setup - INFO - Playwright Coder agent set up with model: o3-mini
+2025-03-29 12:30:53,401 - src.agents.setup - INFO - Coder agent set up with model: o3-mini
+2025-03-29 12:30:53,402 - src.agents.setup - INFO - Setting up Triage agent with model: o3-mini
+2025-03-29 12:30:53,402 - src.agents.setup - INFO - Triage agent set up with model: o3-mini
+2025-03-29 12:30:53,402 - root - INFO - Agents initialized successfully
+2025-03-29 12:30:53,408 - root - INFO - Application starting up
+2025-03-29 12:30:53,408 - root - INFO - Application startup complete
+2025-03-29 12:31:15,395 - src.api.generate - INFO - Starting blueprint generation job c776b78d-53ac-4287-88ba-c1b08cc64c8a with context: {'request_id': 'trace_5b76774cf3be4ce69a518f99a2edfd3a', 'timestamp': '2025-03-29T12:31:15.395034', 'source': 'api', 'user_id': 'anonymous', 'metadata': {}}
+2025-03-29 12:31:15,395 - src.api.generate - INFO - Starting AUTONOMOUS blueprint generation for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:31:15,396 - src.agents.autonomous.pipeline - INFO - Analyzing initial OpenAPI spec...
+2025-03-29 12:31:15,396 - src.agents.autonomous.pipeline - INFO - Spec analysis complete. Found 2 endpoints, 2 schemas.
+2025-03-29 12:31:15,396 - src.agents.autonomous.pipeline - INFO - Starting autonomous blueprint pipeline with max 3 iterations
+2025-03-29 12:31:15,396 - src.utils.model_selection - INFO - Using configured model o3-mini for blueprint_authoring task with complexity 0.60
+2025-03-29 12:31:15,397 - src.agents.autonomous.agents - INFO - Setting up Blueprint Author Agent with model: o3-mini
+2025-03-29 12:31:15,397 - src.utils.model_selection - INFO - Using configured model o3-mini for blueprint_reviewing task with complexity 0.50
+2025-03-29 12:31:15,397 - src.agents.autonomous.agents - INFO - Setting up Blueprint Reviewer Agent with model: o3-mini
+2025-03-29 12:31:15,397 - src.agents.autonomous.pipeline - INFO - Starting blueprint iteration 1/3
+2025-03-29 12:31:15,397 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:31:15,398 - src.utils.model_selection - INFO - Using configured model o3-mini for blueprint_authoring task with complexity 0.60
+2025-03-29 12:31:15,398 - src.utils.execution - INFO - Running BlueprintAuthorAgent with model o3-mini, timeout 660s, complexity 0.60
+2025-03-29 12:31:15,398 - src.utils.execution - INFO - Attempt 1/3 for BlueprintAuthorAgent
+2025-03-29 12:31:15,719 - src.api.generate - INFO - WebSocket disconnected for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:31:15,732 - src.api.generate - INFO - WebSocket disconnected for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:31:18,708 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:31:33,235 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:31:33,249 - src.utils.execution - INFO - Agent BlueprintAuthorAgent completed successfully
+2025-03-29 12:31:33,249 - src.agents.autonomous.pipeline - INFO - Blueprint author completed successfully (iteration 1)
+2025-03-29 12:31:33,255 - src.api.generate - INFO - WebSocket disconnected for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:31:33,354 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:31:33,355 - src.utils.model_selection - INFO - Using configured model o3-mini for blueprint_reviewing task with complexity 0.50
+2025-03-29 12:31:33,355 - src.utils.execution - INFO - Running BlueprintReviewerAgent with model o3-mini, timeout 600s, complexity 0.50
+2025-03-29 12:31:33,356 - src.utils.execution - INFO - Attempt 1/3 for BlueprintReviewerAgent
+2025-03-29 12:31:34,507 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:31:46,305 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:31:46,307 - src.utils.execution - INFO - Agent BlueprintReviewerAgent completed successfully
+2025-03-29 12:31:46,307 - src.agents.autonomous.pipeline - INFO - Blueprint revision needed (iteration 1)
+2025-03-29 12:31:46,307 - src.agents.autonomous.pipeline - INFO - Starting blueprint iteration 2/3
+2025-03-29 12:31:46,312 - src.api.generate - INFO - WebSocket disconnected for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:31:46,415 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:31:46,415 - src.utils.model_selection - INFO - Using configured model o3-mini for blueprint_authoring task with complexity 0.60
+2025-03-29 12:31:46,415 - src.utils.execution - INFO - Running BlueprintAuthorAgent with model o3-mini, timeout 660s, complexity 0.60
+2025-03-29 12:31:46,416 - src.utils.execution - INFO - Attempt 1/3 for BlueprintAuthorAgent
+2025-03-29 12:31:50,300 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:32:03,322 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:32:03,324 - src.utils.execution - INFO - Agent BlueprintAuthorAgent completed successfully
+2025-03-29 12:32:03,324 - src.agents.autonomous.pipeline - INFO - Blueprint author completed successfully (iteration 2)
+2025-03-29 12:32:03,329 - src.api.generate - INFO - WebSocket disconnected for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:32:03,428 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:32:03,428 - src.utils.model_selection - INFO - Using configured model o3-mini for blueprint_reviewing task with complexity 0.50
+2025-03-29 12:32:03,429 - src.utils.execution - INFO - Running BlueprintReviewerAgent with model o3-mini, timeout 600s, complexity 0.50
+2025-03-29 12:32:03,429 - src.utils.execution - INFO - Attempt 1/3 for BlueprintReviewerAgent
+2025-03-29 12:32:06,323 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:32:14,088 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:32:14,090 - src.utils.execution - INFO - Agent BlueprintReviewerAgent completed successfully
+2025-03-29 12:32:14,090 - src.agents.autonomous.pipeline - WARNING - No recognized keyword found in reviewer output (iteration 2)
+2025-03-29 12:32:14,090 - src.agents.autonomous.pipeline - INFO - Starting blueprint iteration 3/3
+2025-03-29 12:32:14,096 - src.api.generate - INFO - WebSocket disconnected for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:32:14,200 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:32:14,201 - src.utils.model_selection - INFO - Using configured model o3-mini for blueprint_authoring task with complexity 0.60
+2025-03-29 12:32:14,201 - src.utils.execution - INFO - Running BlueprintAuthorAgent with model o3-mini, timeout 660s, complexity 0.60
+2025-03-29 12:32:14,201 - src.utils.execution - INFO - Attempt 1/3 for BlueprintAuthorAgent
+2025-03-29 12:32:16,786 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:32:31,739 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:32:31,741 - src.utils.execution - INFO - Agent BlueprintAuthorAgent completed successfully
+2025-03-29 12:32:31,741 - src.agents.autonomous.pipeline - INFO - Blueprint author completed successfully (iteration 3)
+2025-03-29 12:32:31,747 - src.api.generate - INFO - WebSocket disconnected for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:32:31,857 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:32:31,857 - src.utils.model_selection - INFO - Using configured model o3-mini for blueprint_reviewing task with complexity 0.50
+2025-03-29 12:32:31,857 - src.utils.execution - INFO - Running BlueprintReviewerAgent with model o3-mini, timeout 600s, complexity 0.50
+2025-03-29 12:32:31,857 - src.utils.execution - INFO - Attempt 1/3 for BlueprintReviewerAgent
+2025-03-29 12:32:32,218 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:32:33,309 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:32:48,158 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:32:48,160 - src.utils.execution - INFO - Agent BlueprintReviewerAgent completed successfully
+2025-03-29 12:32:48,160 - src.agents.autonomous.pipeline - INFO - Blueprint approved by reviewer on iteration 3
+2025-03-29 12:32:48,165 - src.api.generate - INFO - WebSocket disconnected for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:32:48,263 - src.api.generate - INFO - Autonomous blueprint generation complete for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:32:48,474 - src.api.generate - INFO - WebSocket disconnected for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:32:48,782 - src.api.generate - INFO - WebSocket disconnected for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:32:49,053 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:33:31,392 - src.api.generate - INFO - WebSocket disconnected for job c776b78d-53ac-4287-88ba-c1b08cc64c8a
+2025-03-29 12:33:36,997 - src.api.generate - INFO - Starting script generation job 4b392997-8ad1-4e77-ac96-386717b4c590 with context: {'request_id': 'trace_b312608222634cdc8fd208b6ec504daa', 'timestamp': '2025-03-29T12:33:36.997163', 'source': 'api', 'user_id': 'anonymous', 'metadata': {}}
+2025-03-29 12:33:36,998 - src.api.generate - INFO - Starting AUTONOMOUS script generation for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:33:36,998 - src.api.generate - INFO - Running autonomous script pipeline for target: playwright (1/1)
+2025-03-29 12:33:36,998 - src.agents.autonomous.pipeline - INFO - Starting autonomous script pipeline for playwright with max 3 iterations
+2025-03-29 12:33:36,998 - src.utils.model_selection - INFO - Using configured model o3-mini for script_coding task with complexity 0.70
+2025-03-29 12:33:36,998 - src.agents.autonomous.agents - INFO - Setting up Script Coder Agent for playwright with model: o3-mini
+2025-03-29 12:33:36,999 - src.utils.model_selection - INFO - Using configured model o3-mini for script_reviewing task with complexity 0.60
+2025-03-29 12:33:36,999 - src.agents.autonomous.agents - INFO - Setting up Script Reviewer Agent for playwright with model: o3-mini
+2025-03-29 12:33:36,999 - src.agents.autonomous.pipeline - INFO - Starting script generation iteration 1/3
+2025-03-29 12:33:36,999 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:33:36,999 - src.utils.model_selection - INFO - Using configured model o3-mini for script_coding task with complexity 0.70
+2025-03-29 12:33:37,000 - src.utils.execution - INFO - Running ScriptCoderAgent_playwright with model o3-mini, timeout 720s, complexity 0.70
+2025-03-29 12:33:37,000 - src.utils.execution - INFO - Attempt 1/3 for ScriptCoderAgent_playwright
+2025-03-29 12:33:37,309 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:33:39,931 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:33:55,914 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:33:56,013 - src.utils.execution - INFO - Agent ScriptCoderAgent_playwright completed successfully
+2025-03-29 12:33:56,013 - src.agents.autonomous.pipeline - INFO - Script coder completed successfully with 2 files (iteration 1)
+2025-03-29 12:33:56,019 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:33:56,121 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:33:56,121 - src.utils.model_selection - INFO - Using configured model o3-mini for script_reviewing task with complexity 0.60
+2025-03-29 12:33:56,121 - src.utils.execution - INFO - Running ScriptReviewerAgent_playwright with model o3-mini, timeout 660s, complexity 0.60
+2025-03-29 12:33:56,121 - src.utils.execution - INFO - Attempt 1/3 for ScriptReviewerAgent_playwright
+2025-03-29 12:34:00,842 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:34:03,829 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:34:03,835 - src.utils.execution - INFO - Agent ScriptReviewerAgent_playwright completed successfully
+2025-03-29 12:34:03,835 - src.agents.autonomous.pipeline - INFO - Script revision needed (iteration 1)
+2025-03-29 12:34:03,836 - src.agents.autonomous.pipeline - INFO - Starting script generation iteration 2/3
+2025-03-29 12:34:03,842 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:34:03,936 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:34:03,937 - src.utils.model_selection - INFO - Using configured model o3-mini for script_coding task with complexity 0.70
+2025-03-29 12:34:03,937 - src.utils.execution - INFO - Running ScriptCoderAgent_playwright with model o3-mini, timeout 720s, complexity 0.70
+2025-03-29 12:34:03,937 - src.utils.execution - INFO - Attempt 1/3 for ScriptCoderAgent_playwright
+2025-03-29 12:34:06,538 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:34:43,792 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:34:43,794 - src.utils.execution - INFO - Agent ScriptCoderAgent_playwright completed successfully
+2025-03-29 12:34:43,794 - src.agents.autonomous.pipeline - INFO - Script coder completed successfully with 3 files (iteration 2)
+2025-03-29 12:34:43,802 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:34:43,906 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:34:43,906 - src.utils.model_selection - INFO - Using configured model o3-mini for script_reviewing task with complexity 0.60
+2025-03-29 12:34:43,907 - src.utils.execution - INFO - Running ScriptReviewerAgent_playwright with model o3-mini, timeout 660s, complexity 0.60
+2025-03-29 12:34:43,907 - src.utils.execution - INFO - Attempt 1/3 for ScriptReviewerAgent_playwright
+2025-03-29 12:34:47,316 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:34:52,364 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:34:52,366 - src.utils.execution - INFO - Agent ScriptReviewerAgent_playwright completed successfully
+2025-03-29 12:34:52,367 - src.agents.autonomous.pipeline - INFO - Script revision needed (iteration 2)
+2025-03-29 12:34:52,367 - src.agents.autonomous.pipeline - INFO - Starting script generation iteration 3/3
+2025-03-29 12:34:52,372 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:34:52,480 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:34:52,481 - src.utils.model_selection - INFO - Using configured model o3-mini for script_coding task with complexity 0.70
+2025-03-29 12:34:52,481 - src.utils.execution - INFO - Running ScriptCoderAgent_playwright with model o3-mini, timeout 720s, complexity 0.70
+2025-03-29 12:34:52,481 - src.utils.execution - INFO - Attempt 1/3 for ScriptCoderAgent_playwright
+2025-03-29 12:34:58,049 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:35:16,706 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:35:16,707 - src.utils.execution - INFO - Agent ScriptCoderAgent_playwright completed successfully
+2025-03-29 12:35:16,708 - src.agents.autonomous.pipeline - INFO - Script coder completed successfully with 3 files (iteration 3)
+2025-03-29 12:35:16,713 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:16,813 - src.utils.model_selection - INFO - Using models: planning=o3-mini, coding=o3-mini, triage=o3-mini
+2025-03-29 12:35:16,814 - src.utils.model_selection - INFO - Using configured model o3-mini for script_reviewing task with complexity 0.60
+2025-03-29 12:35:16,814 - src.utils.execution - INFO - Running ScriptReviewerAgent_playwright with model o3-mini, timeout 660s, complexity 0.60
+2025-03-29 12:35:16,814 - src.utils.execution - INFO - Attempt 1/3 for ScriptReviewerAgent_playwright
+2025-03-29 12:35:18,775 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:35:27,846 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-03-29 12:35:27,847 - src.utils.execution - INFO - Agent ScriptReviewerAgent_playwright completed successfully
+2025-03-29 12:35:27,848 - src.agents.autonomous.pipeline - INFO - Scripts approved by reviewer on iteration 3
+2025-03-29 12:35:27,852 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:27,957 - src.api.generate - INFO - Autonomous script generation for target playwright successful: 3 files
+2025-03-29 12:35:27,957 - src.api.generate - INFO - Autonomous script generation phase finished for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:27,958 - src.api.generate - INFO - Scripts generated with types: ['playwright']
+2025-03-29 12:35:27,958 - src.api.generate - INFO - Script type playwright contains 3 files:
+2025-03-29 12:35:27,958 - src.api.generate - INFO -   - apiHelper.ts (size: 1261)
+2025-03-29 12:35:27,958 - src.api.generate - INFO -   - userEndpoints.spec.ts (size: 4594)
+2025-03-29 12:35:27,958 - src.api.generate - INFO -   - authentication.spec.ts (size: 1149)
+2025-03-29 12:35:27,959 - src.api.generate - INFO - Result keys: ['blueprint', 'scripts', 'trace_id']
+2025-03-29 12:35:27,959 - src.api.generate - INFO - Scripts result structure: {"playwright": ["apiHelper.ts", "userEndpoints.spec.ts", "authentication.spec.ts"]}
+2025-03-29 12:35:28,174 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:28,483 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:29,281 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2025-03-29 12:35:42,706 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:44,019 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:45,310 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:46,450 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:48,357 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:49,199 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:51,133 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:51,929 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:52,984 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:35:53,504 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590
+2025-03-29 12:36:01,608 - src.api.generate - INFO - WebSocket disconnected for job 4b392997-8ad1-4e77-ac96-386717b4c590

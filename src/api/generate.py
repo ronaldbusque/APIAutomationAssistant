@@ -10,7 +10,7 @@ import uuid
 import logging
 from typing import Dict, List, Any, Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Depends
+from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -37,6 +37,7 @@ class GenerateBlueprintRequest(BaseModel):
     business_rules: Optional[str] = Field(None, description="Business rules (for advanced mode)")
     test_data: Optional[str] = Field(None, description="Test data setup (for advanced mode)")
     test_flow: Optional[str] = Field(None, description="Test flow (for advanced mode)")
+    use_autonomous: bool = Field(False, description="Use autonomous agent loop for generation")
     
     class Config:
         json_schema_extra = {
@@ -50,6 +51,7 @@ class GenerateScriptsRequest(BaseModel):
     """Request model for script generation."""
     blueprint: Dict[str, Any] = Field(..., description="Test blueprint to generate scripts from")
     targets: List[str] = Field(..., description="Target frameworks (e.g., ['postman', 'playwright'])")
+    use_autonomous: bool = Field(False, description="Use autonomous agent loop for generation")
     
     class Config:
         json_schema_extra = {
@@ -138,8 +140,8 @@ async def generate_blueprint_background(
             except Exception as ws_error:
                 logger.error(f"WebSocket error: {str(ws_error)}")
         
-        # Set up progress callback with more granular updates
-        async def progress_callback(stage, progress, agent):
+        # Set up progress callback wrapper for both standard and autonomous mode
+        async def progress_callback_wrapper(stage, progress, agent):
             # Extract trace_id if available
             trace_id = None
             if isinstance(progress, dict) and "trace_id" in progress:
@@ -150,25 +152,49 @@ async def generate_blueprint_background(
             
             # Determine percentage based on stage and content
             percent = 0
-            if stage == "initializing":
-                percent = 10
-                message = "Setting up blueprint generation environment..."
-            elif stage == "planning":
-                # Increment percent gradually during planning stage
-                old_percent = job_progress[job_id].get("percent", 10)
-                # Ensure we're always making forward progress but not jumping to 100%
-                percent = min(90, old_percent + 5)
+            # For autonomous mode, stages will be different
+            if request.use_autonomous:
+                if stage == "spec_analysis":
+                    percent = 10
+                    message = f"Analyzing spec: {message}"
+                elif stage == "blueprint_authoring":
+                    old_percent = job_progress[job_id].get("percent", 10)
+                    percent = min(50, old_percent + 5)
+                    message = f"Authoring blueprint: {message}"
+                elif stage == "blueprint_reviewing":
+                    old_percent = job_progress[job_id].get("percent", 50)
+                    percent = min(90, old_percent + 5)
+                    message = f"Reviewing blueprint: {message}"
+                elif stage == "blueprint_complete":
+                    percent = 100
+                    message = "Blueprint generation complete!"
                 
-                if not message.startswith("Planning"):
-                    message = f"Analyzing API endpoints: {message}"
+                # For reporting to the UI, use a consistent stage name
+                reported_stage = "planning"
+            else:
+                # Standard mode stages
+                if stage == "initializing":
+                    percent = 10
+                    message = "Setting up blueprint generation environment..."
+                elif stage == "planning":
+                    # Increment percent gradually during planning stage
+                    old_percent = job_progress[job_id].get("percent", 10)
+                    # Ensure we're always making forward progress but not jumping to 100%
+                    percent = min(90, old_percent + 5)
+                    
+                    if not message.startswith("Planning"):
+                        message = f"Analyzing API endpoints: {message}"
+                
+                reported_stage = stage
             
             # Update progress
             job_progress[job_id] = {
-                "stage": stage,
+                "stage": reported_stage,
                 "percent": percent,
                 "message": message,
                 "agent": agent,
-                "trace_id": trace_id
+                "trace_id": trace_id,
+                "autonomous_stage": stage if request.use_autonomous else None
             }
             
             # Send progress to WebSocket if connected
@@ -184,15 +210,38 @@ async def generate_blueprint_background(
                 except Exception as ws_error:
                     logger.error(f"WebSocket error: {str(ws_error)}")
         
-        # Generate blueprint
-        blueprint, trace_id = await process_openapi_spec(
-            request.spec,
-            request.mode,
-            request.business_rules,
-            request.test_data,
-            request.test_flow,
-            progress_callback
-        )
+        # Generate blueprint based on mode
+        if request.use_autonomous:
+            logger.info(f"Starting AUTONOMOUS blueprint generation for job {job_id}")
+            
+            # First analyze the spec
+            await progress_callback_wrapper("spec_analysis", {"percent": 5, "message": "Analyzing specification..."}, "System")
+            spec_analysis, spec_warnings = await analyze_initial_spec(request.spec)
+            
+            # Start the autonomous pipeline
+            await progress_callback_wrapper("blueprint_authoring", {"percent": 10, "message": "Starting generation loop..."}, "System")
+            from ..config.settings import settings
+            max_iterations = settings.get("AUTONOMOUS_MAX_ITERATIONS", 3)
+            blueprint = await run_autonomous_blueprint_pipeline(
+                spec_analysis=spec_analysis,
+                progress_callback=progress_callback_wrapper,
+                max_iterations=max_iterations
+            )
+            
+            trace_id = f"autonomous_bp_{job_id}"
+            logger.info(f"Autonomous blueprint generation complete for job {job_id}")
+        else:
+            # Standard blueprint generation
+            logger.info(f"Starting STANDARD blueprint generation for job {job_id}")
+            blueprint, trace_id = await process_openapi_spec(
+                request.spec,
+                request.mode,
+                request.business_rules,
+                request.test_data,
+                request.test_flow,
+                progress_callback_wrapper
+            )
+            logger.info(f"Standard blueprint generation complete for job {job_id}")
         
         # Store result
         job_results[job_id] = {
@@ -284,8 +333,8 @@ async def generate_scripts_background(
             except Exception as ws_error:
                 logger.error(f"WebSocket error: {str(ws_error)}")
         
-        # Set up progress callback with more granular updates
-        async def progress_callback(stage, progress, agent):
+        # Set up progress callback wrapper for both standard and autonomous mode
+        async def progress_callback_wrapper(stage, progress, agent):
             # Extract trace_id if available
             trace_id = None
             if isinstance(progress, dict) and "trace_id" in progress:
@@ -293,36 +342,65 @@ async def generate_scripts_background(
             
             # Create a more descriptive message
             message = progress.get("message", "Processing") if isinstance(progress, dict) else str(progress)[:150]
+            target = progress.get("target", "unknown") if isinstance(progress, dict) else "unknown"
             
-            # Determine percentage based on stage and content
-            percent = 0
-            if stage == "initializing":
-                percent = 10
-                message = "Setting up test generation environment..."
-            elif stage == "planning":
-                # During planning stage (40% of progress)
-                old_percent = job_progress[job_id].get("percent", 10)
-                # Ensure we're making forward progress but not jumping too far
-                percent = min(40, old_percent + 5)
+            # For autonomous mode, stages will be different
+            if request.use_autonomous:
+                # Determine percentage based on stage and number of targets
+                percent = 0
+                if stage == "script_target_start":
+                    percent = progress.get("percent", 0)
+                    message = f"Starting script generation for {target}: {message}"
+                elif stage == "script_coding":
+                    # Get previous percent or start at 10% for this target
+                    old_percent = job_progress[job_id].get("percent", 10)
+                    # Ensure we're making forward progress
+                    percent = min(80, old_percent + 3)
+                    message = f"Generating {target} scripts: {message}"
+                elif stage == "script_reviewing":
+                    old_percent = job_progress[job_id].get("percent", 80)
+                    percent = min(95, old_percent + 2)
+                    message = f"Reviewing {target} scripts: {message}"
+                elif stage == "script_target_complete":
+                    percent = progress.get("percent", 100)
+                    message = f"Completed scripts for {target}"
                 
-                if not message.startswith("Planning"):
-                    message = f"Planning test structure: {message}"
-            elif stage == "coding":
-                # During coding stage (41-90% of progress)
-                old_percent = job_progress[job_id].get("percent", 40)
-                # Ensure we're making forward progress
-                percent = min(90, max(41, old_percent + 5))
+                # For reporting to the UI, use a consistent stage name
+                reported_stage = "coding"
+            else:
+                # Standard mode stages
+                percent = 0
+                if stage == "initializing":
+                    percent = 10
+                    message = "Setting up test generation environment..."
+                elif stage == "planning":
+                    # During planning stage (40% of progress)
+                    old_percent = job_progress[job_id].get("percent", 10)
+                    # Ensure we're making forward progress but not jumping too far
+                    percent = min(40, old_percent + 5)
+                    
+                    if not message.startswith("Planning"):
+                        message = f"Planning test structure: {message}"
+                elif stage == "coding":
+                    # During coding stage (41-90% of progress)
+                    old_percent = job_progress[job_id].get("percent", 40)
+                    # Ensure we're making forward progress
+                    percent = min(90, max(41, old_percent + 5))
+                    
+                    if not message.startswith("Generating"):
+                        message = f"Generating test code: {message}"
                 
-                if not message.startswith("Generating"):
-                    message = f"Generating test code: {message}"
+                reported_stage = stage
             
             # Update progress
             job_progress[job_id] = {
-                "stage": stage,
+                "stage": reported_stage,
                 "percent": percent,
                 "message": message,
                 "agent": agent,
-                "trace_id": trace_id
+                "trace_id": trace_id,
+                "autonomous_stage": stage if request.use_autonomous else None,
+                "target": target
             }
             
             # Send progress to WebSocket if connected
@@ -338,32 +416,84 @@ async def generate_scripts_background(
                 except Exception as ws_error:
                     logger.error(f"WebSocket error: {str(ws_error)}")
         
-        # Generate scripts - use try/except to ensure we always get some output
-        try:
-            scripts, trace_id = await generate_test_scripts(
-                request.blueprint,
-                request.targets,
-                progress_callback
-            )
+        # Generate scripts based on mode
+        if request.use_autonomous:
+            logger.info(f"Starting AUTONOMOUS script generation for job {job_id}")
             
-            # Log success
-            logger.info(f"Script generation completed successfully for job {job_id}")
+            # Process each target framework using the autonomous pipeline
+            generated_scripts_data = {}
+            total_targets = len(request.targets)
             
-        except Exception as gen_error:
-            logger.error(f"Error during script generation for job {job_id}: {str(gen_error)}")
+            for i, target in enumerate(request.targets):
+                logger.info(f"Running autonomous script pipeline for target: {target} ({i+1}/{total_targets})")
+                await progress_callback_wrapper("script_target_start", 
+                                               {"percent": int(i/total_targets * 100), 
+                                                "message": f"Starting {target}",
+                                                "target": target}, 
+                                               "System")
+                try:
+                    from ..config.settings import settings
+                    max_iterations = settings.get("AUTONOMOUS_MAX_ITERATIONS", 3)
+                    
+                    script_files_list = await run_autonomous_script_pipeline(
+                        blueprint=request.blueprint,
+                        framework=target,
+                        progress_callback=progress_callback_wrapper,
+                        max_iterations=max_iterations
+                    )
+                    
+                    # Convert list format to dictionary format
+                    generated_scripts_data[target] = {}
+                    for file_dict in script_files_list:
+                        if isinstance(file_dict, dict) and "filename" in file_dict and "content" in file_dict:
+                            generated_scripts_data[target][file_dict["filename"]] = file_dict["content"]
+                    
+                    logger.info(f"Autonomous script generation for target {target} successful: {len(generated_scripts_data[target])} files")
+                    await progress_callback_wrapper("script_target_complete", 
+                                                  {"percent": int((i+1)/total_targets * 100), 
+                                                   "message": f"Completed {target}",
+                                                   "target": target}, 
+                                                  "System")
+                except Exception as script_err:
+                    logger.error(f"Autonomous script generation failed for target {target}: {script_err}", exc_info=True)
+                    generated_scripts_data[target] = {
+                        "error.txt": f"Failed to generate scripts for {target}: {str(script_err)}"
+                    }
+                    # Continue with next target
             
-            # Try to generate minimal scripts as fallback
-            logger.info(f"Attempting to generate minimal scripts as fallback for job {job_id}")
+            scripts = generated_scripts_data
+            trace_id = f"autonomous_scripts_{job_id}"
+            logger.info(f"Autonomous script generation phase finished for job {job_id}")
+        else:
+            # Standard script generation
+            logger.info(f"Starting STANDARD script generation for job {job_id}")
             
-            # Create minimal outputs for each target
-            scripts = {}
-            for target in request.targets:
-                scripts[target] = {
-                    f"minimal_{target}_tests.txt": f"// Minimal tests for {target}\n// Error occurred: {str(gen_error)}\n\n// Original blueprint API name: {request.blueprint.get('apiName', 'Unknown')}"
-                }
-            
-            # Generate a trace ID for tracking
-            trace_id = f"error-{uuid.uuid4()}"
+            # Generate scripts - use try/except to ensure we always get some output
+            try:
+                scripts, trace_id = await generate_test_scripts(
+                    request.blueprint,
+                    request.targets,
+                    progress_callback_wrapper
+                )
+                
+                # Log success
+                logger.info(f"Script generation completed successfully for job {job_id}")
+                
+            except Exception as gen_error:
+                logger.error(f"Error during script generation for job {job_id}: {str(gen_error)}")
+                
+                # Try to generate minimal scripts as fallback
+                logger.info(f"Attempting to generate minimal scripts as fallback for job {job_id}")
+                
+                # Create minimal outputs for each target
+                scripts = {}
+                for target in request.targets:
+                    scripts[target] = {
+                        f"minimal_{target}_tests.txt": f"// Minimal tests for {target}\n// Error occurred: {str(gen_error)}\n\n// Original blueprint API name: {request.blueprint.get('apiName', 'Unknown')}"
+                    }
+                
+                # Generate a trace ID for tracking
+                trace_id = f"error-{uuid.uuid4()}"
         
         # Log script structure before storing
         logger.info(f"Scripts generated with types: {list(scripts.keys())}")
@@ -641,6 +771,18 @@ def create_api_router(app: FastAPI = None):
         from fastapi import APIRouter
         app = APIRouter()
     
+    # Add middleware to suppress logging for status endpoints
+    @app.middleware("http")
+    async def suppress_status_logging(request: Request, call_next):
+        path = request.url.path
+        if path.startswith("/status/"):
+            # Set attribute to indicate this request should not be logged
+            # (uvicorn's access logger checks for this attribute if configured)
+            request.state.access_log = False
+        
+        response = await call_next(request)
+        return response
+    
     @app.post("/generate-blueprint", response_model=Dict[str, str])
     async def generate_blueprint(request: GenerateBlueprintRequest, background_tasks: BackgroundTasks):
         """
@@ -740,34 +882,25 @@ def create_api_router(app: FastAPI = None):
     
     @app.get("/status/{job_id}", response_model=JobStatusResponse)
     async def get_job_status(job_id: str):
-        """
-        Get the status of a generation job.
-        
-        Args:
-            job_id: Job ID
-            
-        Returns:
-            Job status response
-        """
-        # Check if job exists
+        """Get the status of a job."""
+        # This endpoint is polled frequently, so we need to make it efficient
+        # If job not found, return 404
         if job_id not in active_jobs:
             raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
         
-        # Get job status
-        status = active_jobs[job_id]
-        progress = job_progress.get(job_id)
-        result = job_results.get(job_id)
+        # Return job status
+        status = active_jobs.get(job_id, "not_found")
+        progress = job_progress.get(job_id, {})
+        result = job_results.get(job_id, {})
+        error = result.get("error") if status == "failed" else None
         
-        # Build response
-        response = JobStatusResponse(
-            job_id=job_id,
-            status=status,
-            progress=progress,
-            result=result if status == "completed" else None,
-            error=result.get("error") if status == "failed" and result else None
-        )
-        
-        return response
+        return {
+            "job_id": job_id,
+            "status": status,
+            "progress": progress,
+            "result": result if status == "completed" else None,
+            "error": error,
+        }
     
     @app.websocket("/ws/job/{job_id}")
     async def websocket_job_status(websocket: WebSocket, job_id: str):

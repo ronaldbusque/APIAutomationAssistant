@@ -27,6 +27,8 @@ export interface AppState {
     stage: string;
     percent: number;
     message: string;
+    autonomous_stage?: string;
+    agent?: string;
   };
   
   // Blueprint data
@@ -43,6 +45,9 @@ export interface AppState {
     stage: string;
     percent: number;
     message: string;
+    autonomous_stage?: string;
+    target?: string;
+    agent?: string;
     files: {
       [target: string]: {
         name: string;
@@ -85,6 +90,9 @@ export interface JobStatusResponse {
     stage: string;
     percent: number;
     message: string;
+    autonomous_stage?: string;
+    target?: string;
+    agent?: string;
   };
   result?: any;
   error?: string;

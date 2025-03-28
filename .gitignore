@@ -78,9 +78,4 @@ src/download_files.py
 src/simple_task_test.py
 ui/src/components/ApiTest.tsx
 ui/ux_plan.md
-app.log
-autonomous-agents-plan.md
-gemini_integration_plan.md
-inspect_models.py
-inspect_parameter.py
-openai-agents-python-overview.md
+fixes/

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { useJobStatus, useWebSocket } from '../hooks/useApi';
+import { useGenerateScripts, useJobStatus, useWebSocket } from '../hooks/useApi';
 
 interface Props {
   onBack: () => void;
@@ -12,6 +12,7 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
     state, 
     setBlueprint, 
     setBlueprintIsValid,
+    setScriptJobId
   } = useAppContext();
   
   const [isEditing, setIsEditing] = useState(false);
@@ -43,6 +44,9 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
       jobStatus.refetch();
     }
   });
+  
+  // Generate scripts hook
+  const generateScriptsMutation = useGenerateScripts();
   
   // Update blueprint when job completes
   useEffect(() => {
@@ -140,6 +144,13 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
     setError(null);
   };
   
+  // Handle continue to script generation
+  const handleContinue = async () => {
+    // Simply navigate to the next step (ScriptOutput)
+    // Script generation will be initiated from ScriptOutput component instead
+    onNext();
+  };
+  
   // Render progress indicator
   const renderProgress = () => {
     if (jobStatus.isLoading) {
@@ -172,12 +183,24 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
     
     if (jobStatus.data?.status === 'processing' && progress) {
       // Get more descriptive stage name
-      const getStageName = (stage: string) => {
+      const getStageName = (stage: string, autonomousStage?: string) => {
+        // Check if we have an autonomous-specific stage to display
+        if (autonomousStage) {
+          switch (autonomousStage) {
+            case "spec_analysis": return "Analyzing Specification";
+            case "blueprint_authoring": return "Creating Blueprint";
+            case "blueprint_reviewing": return "Reviewing Blueprint";
+            case "blueprint_complete": return "Blueprint Complete";
+            default: return autonomousStage.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+          }
+        }
+        
+        // Standard stage names
         switch (stage) {
-          case 'planning': return 'Planning Blueprint Structure';
-          case 'initializing': return 'Initializing';
-          case 'completed': return 'Completed';
-          case 'failed': return 'Failed';
+          case "planning": return 'Planning Blueprint Structure';
+          case "initializing": return 'Initializing';
+          case "completed": return 'Completed';
+          case "failed": return 'Failed';
           default: return stage.charAt(0).toUpperCase() + stage.slice(1);
         }
       };
@@ -206,8 +229,13 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
           <div className="mb-6">
             <div className="flex items-center mb-4">
               <div className="font-medium text-gray-800 dark:text-gray-200">
-                {getStageName(progress.stage)}
+                {getStageName(progress.stage, progress.autonomous_stage)}
               </div>
+              {state.isAutonomousMode && (
+                <div className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs rounded-full">
+                  Autonomous Mode
+                </div>
+              )}
             </div>
             
             {/* Visual animated indicator */}
@@ -387,7 +415,7 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
         </button>
         
         <button
-          onClick={onNext}
+          onClick={handleContinue}
           disabled={!state.blueprintIsValid || jobStatus.data?.status !== 'completed'}
           className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-colors"
         >

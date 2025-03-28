@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { useGenerateBlueprint, useGenerateAutonomous } from '../hooks/useApi';
+import { useGenerateBlueprint } from '../hooks/useApi';
 import { Switch } from '@headlessui/react';
 
 interface Props {
@@ -16,15 +16,13 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
     setTestData,
     setTestFlow,
     setBlueprintJobId,
-    setIsAutonomousMode,
-    setCurrentStep
+    setIsAutonomousMode
   } = useAppContext();
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const generateBlueprintMutation = useGenerateBlueprint();
-  const generateAutonomousMutation = useGenerateAutonomous();
   
   const handleModeChange = (mode: 'basic' | 'advanced') => {
     setMode(mode);
@@ -35,49 +33,29 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
     setError(null);
     
     try {
-      if (state.isAutonomousMode) {
-        // Call the autonomous generation endpoint
-        console.log("Starting Autonomous Generation...");
-        
-        const autonomousRequest = {
-          spec: state.openApiSpec,
-          targets: state.targets,
-        };
-        
-        const result = await generateAutonomousMutation.mutateAsync(autonomousRequest);
-        
-        // Store the job ID (single job for both blueprint and scripts)
-        setBlueprintJobId(result.job_id);
-        
-        // Skip blueprint view, go directly to scripts view to see progress
-        setCurrentStep('scripts');
-      } else {
-        // Call the standard blueprint generation endpoint
-        console.log("Starting Standard Blueprint Generation...");
-        
-        // Build request based on mode
-        const request = {
-          spec: state.openApiSpec,
-          mode: state.mode as 'basic' | 'advanced',
-        };
-        
-        if (state.mode === 'advanced') {
-          Object.assign(request, {
-            business_rules: state.businessRules || undefined,
-            test_data: state.testData || undefined,
-            test_flow: state.testFlow || undefined
-          });
-        }
-        
-        // Generate blueprint
-        const result = await generateBlueprintMutation.mutateAsync(request);
-        
-        // Store job ID for status polling
-        setBlueprintJobId(result.job_id);
-        
-        // Move to next step (blueprint view)
-        onNext();
+      // Build request based on mode, always including the use_autonomous flag
+      const request = {
+        spec: state.openApiSpec,
+        mode: state.mode as 'basic' | 'advanced',
+        use_autonomous: state.isAutonomousMode, // Include flag to indicate autonomous mode
+      };
+      
+      if (state.mode === 'advanced') {
+        Object.assign(request, {
+          business_rules: state.businessRules || undefined,
+          test_data: state.testData || undefined,
+          test_flow: state.testFlow || undefined
+        });
       }
+      
+      // Generate blueprint (always using the /generate-blueprint endpoint)
+      const result = await generateBlueprintMutation.mutateAsync(request);
+      
+      // Store job ID for status polling
+      setBlueprintJobId(result.job_id);
+      
+      // Always move to blueprint view next, regardless of autonomous mode
+      onNext();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate blueprint');
       setIsGenerating(false);
@@ -240,7 +218,7 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
               Generating...
             </>
           ) : state.isAutonomousMode ? (
-            'Start Autonomous Generation'
+            'Generate Blueprint (Autonomous)'
           ) : (
             'Generate Blueprint'
           )}
