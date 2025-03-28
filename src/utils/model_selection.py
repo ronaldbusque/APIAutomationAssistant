@@ -50,7 +50,12 @@ class ModelSelectionStrategy:
             "planning": fresh_settings.get("MODEL_PLANNING", "gpt-4o"),
             "coding": fresh_settings.get("MODEL_CODING", "gpt-4o"),
             "triage": fresh_settings.get("MODEL_TRIAGE", "gpt-3.5-turbo"),
-            "default": fresh_settings.get("MODEL_DEFAULT", self.default_model)
+            "default": fresh_settings.get("MODEL_DEFAULT", self.default_model),
+            # Add new autonomous agent model configurations
+            "blueprint_authoring": fresh_settings.get("MODEL_BP_AUTHOR", "gpt-4o"),
+            "blueprint_reviewing": fresh_settings.get("MODEL_BP_REVIEWER", "gpt-4o"),
+            "script_coding": fresh_settings.get("MODEL_SCRIPT_CODER", "gpt-4o"),
+            "script_reviewing": fresh_settings.get("MODEL_SCRIPT_REVIEWER", "gpt-4o"),
         }
         
         # Configure complexity thresholds from settings
@@ -87,7 +92,12 @@ class ModelSelectionStrategy:
                 "code_generation": "coding",
                 "planning": "planning",
                 "triage": "triage",
-                "coding": "coding"
+                "coding": "coding",
+                # Add new task mappings for autonomous agents
+                "blueprint_authoring": "blueprint_authoring",
+                "blueprint_reviewing": "blueprint_reviewing",
+                "script_coding": "script_coding",
+                "script_reviewing": "script_reviewing"
             }
             
             # Standardize the task name

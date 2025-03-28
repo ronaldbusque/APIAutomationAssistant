@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { useGenerateBlueprint } from '../hooks/useApi';
+import { useGenerateBlueprint, useGenerateAutonomous } from '../hooks/useApi';
+import { API_BASE_URL } from '../utils/constants';
+import { Switch } from '@headlessui/react';
 
 interface Props {
   onBack: () => void;
@@ -14,16 +16,24 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
     setBusinessRules,
     setTestData,
     setTestFlow,
-    setBlueprintJobId
+    setBlueprintJobId,
+    setScriptJobId,
+    setIsAutonomousMode,
+    setCurrentStep
   } = useAppContext();
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const generateBlueprintMutation = useGenerateBlueprint();
+  const generateAutonomousMutation = useGenerateAutonomous();
   
   const handleModeChange = (mode: 'basic' | 'advanced') => {
     setMode(mode);
+  };
+  
+  const handleAutonomousModeToggle = (enabled: boolean) => {
+    setIsAutonomousMode(enabled);
   };
   
   const handleGenerate = async () => {
@@ -31,31 +41,58 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
     setError(null);
     
     try {
-      // Build request based on mode
-      const request = {
-        spec: state.openApiSpec,
-        mode: state.mode as 'basic' | 'advanced',
-      };
-      
-      if (state.mode === 'advanced') {
-        Object.assign(request, {
-          business_rules: state.businessRules || undefined,
-          test_data: state.testData || undefined,
-          test_flow: state.testFlow || undefined
-        });
+      if (state.isAutonomousMode) {
+        // *** AUTONOMOUS MODE TRIGGER ***
+        console.log("Starting Autonomous Generation...");
+        const autonomousRequest = {
+          spec: state.openApiSpec,
+          targets: state.targets,
+        };
+
+        // Use autonomous generation mutation
+        const result = await generateAutonomousMutation.mutateAsync(autonomousRequest);
+        
+        // Store the single job ID in both blueprint and script job IDs
+        setBlueprintJobId(result.job_id);
+        setScriptJobId(result.job_id);
+        
+        // Skip BlueprintView, go directly to ScriptOutput to monitor the single job
+        setCurrentStep('scripts');
+      } else {
+        // *** STANDARD MODE TRIGGER ***
+        console.log("Starting Standard Blueprint Generation...");
+        
+        // Build request based on mode
+        const request = {
+          spec: state.openApiSpec,
+          mode: state.mode as 'basic' | 'advanced',
+        };
+        
+        if (state.mode === 'advanced') {
+          Object.assign(request, {
+            business_rules: state.businessRules || undefined,
+            test_data: state.testData || undefined,
+            test_flow: state.testFlow || undefined
+          });
+        }
+        
+        // Generate blueprint
+        const result = await generateBlueprintMutation.mutateAsync(request);
+        
+        // Store job ID for status polling
+        setBlueprintJobId(result.job_id);
+        
+        // Move to next step - Blueprint View for standard mode
+        onNext();
       }
-      
-      // Generate blueprint
-      const result = await generateBlueprintMutation.mutateAsync(request);
-      
-      // Store job ID for status polling
-      setBlueprintJobId(result.job_id);
-      
-      // Move to next step
-      onNext();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate blueprint');
+      setError(err instanceof Error ? err.message : 'Failed to start generation');
       setIsGenerating(false);
+    } finally {
+      // Only set generating false if NOT autonomous, as autonomous has its own monitoring
+      if (!state.isAutonomousMode) {
+        setIsGenerating(false);
+      }
     }
   };
   
@@ -158,6 +195,28 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
         </div>
       )}
       
+      {/* Autonomous Mode Toggle */}
+      <div className="flex items-center justify-between p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+        <div>
+          <span className="font-medium text-gray-900 dark:text-white">Enable Autonomous Mode</span>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Let AI agents iteratively refine the blueprint and scripts.</p>
+        </div>
+        <Switch
+          checked={state.isAutonomousMode}
+          onChange={handleAutonomousModeToggle}
+          className={`${
+            state.isAutonomousMode ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-600'
+          } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800`}
+        >
+          <span className="sr-only">Enable Autonomous Mode</span>
+          <span
+            className={`${
+              state.isAutonomousMode ? 'translate-x-6' : 'translate-x-1'
+            } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+          />
+        </Switch>
+      </div>
+      
       {/* Error Display */}
       {error && (
         <div className="p-4 mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-300">
@@ -181,7 +240,7 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
         
         <button
           onClick={handleGenerate}
-          disabled={isGenerating}
+          disabled={isGenerating || !state.openApiSpec}
           className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
         >
           {isGenerating ? (
@@ -192,6 +251,8 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
               </svg>
               Generating...
             </>
+          ) : state.isAutonomousMode ? (
+            'Start Autonomous Generation'
           ) : (
             'Generate Blueprint'
           )}

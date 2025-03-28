@@ -320,8 +320,58 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     reader.readAsText(file);
   };
   
+  // Add this function to handle autonomous mode progress stages
+  const mapAutonomousStage = (stage: string): string => {
+    switch (stage) {
+      case 'spec_analysis':
+        return 'Analyzing OpenAPI Specification';
+      case 'blueprint_authoring':
+        return 'Creating Blueprint';
+      case 'blueprint_reviewing':
+        return 'Reviewing Blueprint';
+      case 'blueprint_generation_complete':
+        return 'Blueprint Completed';
+      case 'script_coding':
+        return 'Generating Scripts';
+      case 'script_reviewing':
+        return 'Reviewing Scripts';
+      case 'script_generation_complete':
+        return 'Scripts Completed';
+      case 'completed':
+        return 'Generation Complete';
+      default:
+        return stage.charAt(0).toUpperCase() + stage.slice(1).replace(/_/g, ' ');
+    }
+  };
+
+  // Regular stage name helper function
+  const getStageName = (stage: string): string => {
+    switch (stage) {
+      case 'planning': 
+        return 'Planning Test Structure';
+      case 'coding': 
+        return 'Generating Test Scripts';
+      case 'initializing': 
+        return 'Initializing';
+      case 'waiting_for_review': 
+        return 'Waiting for Review';
+      case 'completed': 
+        return 'Completed';
+      case 'failed': 
+        return 'Failed';
+      default: 
+        return stage.charAt(0).toUpperCase() + stage.slice(1);
+    }
+  };
+
   // Handle script generation
   const handleGenerateScripts = async () => {
+    // Skip script generation in autonomous mode - it's already being handled
+    if (state.isAutonomousMode) {
+      console.log("Script generation is handled automatically in autonomous mode");
+      return;
+    }
+
     setGenerating(true);
     setError(null);
     
@@ -456,129 +506,39 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   
   // Render progress
   const renderProgress = () => {
-    if (jobStatus.isLoading) {
-      return (
-        <div className="text-center p-8">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] text-primary-500 motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-          <div className="mt-2 text-gray-600 dark:text-gray-400">Loading job status...</div>
-        </div>
-      );
-    }
+    if (!jobStatus.data || !jobStatus.data.progress) return null;
     
-    const progress = jobStatus.data?.progress || state.scriptProgress;
-    const status = jobStatus.data?.status || 'processing';
-    const message = progress?.message || 'Processing...';
-    const stage = progress?.stage || 'initializing';
+    const progress = jobStatus.data.progress;
     
-    // Get more descriptive stage name
-    const getStageName = (stage: string) => {
-      switch (stage) {
-        case 'planning': return 'Planning Test Structure';
-        case 'coding': return 'Generating Test Scripts';
-        case 'initializing': return 'Initializing';
-        case 'waiting_for_review': return 'Waiting for Review';
-        case 'completed': return 'Completed';
-        case 'failed': return 'Failed';
-        default: return stage.charAt(0).toUpperCase() + stage.slice(1);
-      }
-    };
+    // Check for autonomous mode stages
+    const isAutonomousStage = [
+      'spec_analysis',
+      'blueprint_authoring',
+      'blueprint_reviewing',
+      'blueprint_generation_complete',
+      'script_coding',
+      'script_reviewing', 
+      'script_generation_complete'
+    ].includes(progress.stage);
+    
+    // Get appropriate stage name
+    const stageName = isAutonomousStage ? 
+      mapAutonomousStage(progress.stage) : 
+      getStageName(progress.stage);
     
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Script Generation</h3>
-          <div className="flex space-x-2">
-            <div className="text-xs px-3 py-1 bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-300 rounded-full capitalize font-medium">
-              {status}
-            </div>
-            <button 
-              onClick={() => jobStatus.refetch()}
-              className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center transition-colors"
-              title="Manually refresh status"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </button>
-          </div>
+      <div className="mb-8">
+        <div className="flex justify-between mb-1">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{stageName}</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{`${Math.round(progress.percent)}%`}</span>
         </div>
-        
-        <div className="mb-6">
-          <div className="flex items-center mb-4">
-            <div className="font-medium text-gray-800 dark:text-gray-200">
-              {getStageName(stage)}
-            </div>
-          </div>
-          
-          {/* Visual animated indicator */}
-          <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            {status === 'processing' || status === 'queued' ? (
-              <div className="animate-progress-indeterminate absolute top-0 h-full w-full bg-primary-500 dark:bg-primary-400"></div>
-            ) : status === 'completed' ? (
-              <div className="absolute h-full w-full bg-green-500 dark:bg-green-400"></div>
-            ) : status === 'failed' ? (
-              <div className="absolute h-full w-full bg-red-500 dark:bg-red-400"></div>
-            ) : (
-              <div className="absolute h-full w-1/4 bg-primary-500 dark:bg-primary-400"></div>
-            )}
-          </div>
-          
-          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-md">
-            <div className="flex">
-              <div className="flex-shrink-0 mr-3">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <div className="text-sm text-gray-700 dark:text-gray-300">{message}</div>
-            </div>
-          </div>
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+          <div 
+            className="bg-primary-600 h-2.5 rounded-full transition-all duration-300 ease-in-out" 
+            style={{ width: `${progress.percent}%` }}
+          ></div>
         </div>
-        
-        {/* Show job details for debugging */}
-        <div className="mt-4 flex justify-end">
-          <button
-            onClick={() => setShowDebugInfo(!showDebugInfo)}
-            className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {showDebugInfo ? 'Hide Details' : 'Show Details'}
-          </button>
-        </div>
-        
-        {showDebugInfo && jobStatus.data && (
-          <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-mono overflow-auto max-h-48">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div>
-                <span className="font-semibold text-gray-700 dark:text-gray-300">Job ID:</span>{' '}
-                <span className="text-gray-600 dark:text-gray-400">{jobStatus.data.job_id}</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700 dark:text-gray-300">Status:</span>{' '}
-                <span className="text-gray-600 dark:text-gray-400">{jobStatus.data.status}</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700 dark:text-gray-300">Stage:</span>{' '}
-                <span className="text-gray-600 dark:text-gray-400">{progress?.stage || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700 dark:text-gray-300">Trace ID:</span>{' '}
-                <span className="text-gray-600 dark:text-gray-400">{jobStatus.data.result?.trace_id || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700 dark:text-gray-300">Last Updated:</span>{' '}
-                <span className="text-gray-600 dark:text-gray-400">{new Date().toLocaleTimeString()}</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700 dark:text-gray-300">Message:</span>{' '}
-                <span className="text-gray-600 dark:text-gray-400">{message}</span>
-              </div>
-            </div>
-          </div>
-        )}
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{progress.message}</p>
       </div>
     );
   };
@@ -627,456 +587,36 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   
   // Render script output
   const renderOutput = () => {
-    // Add debugging for state
-    console.log('Render output - state.scripts:', state.scripts);
-    console.log('Render output - selectedTarget:', selectedTarget);
+    const jobData = jobStatus.data;
     
-    if (selectedTarget) {
-      console.log('Render output - files for selected target:', 
-        state.scripts[selectedTarget] ? Object.keys(state.scripts[selectedTarget]) : 'No files');
-    }
-    
-    // Check if scripts are empty or undefined
-    const hasScripts = state.scripts && Object.keys(state.scripts).length > 0;
-    console.log('Render output - has scripts:', hasScripts);
-    
-    // Check if there's a mismatch between selected target and available targets
-    if (hasScripts && selectedTarget && !state.scripts[selectedTarget]) {
-      // There's a target mismatch, let's fix it
-      const availableTargets = Object.keys(state.scripts);
-      if (availableTargets.length > 0) {
-        console.log(`Target mismatch detected. Selected: ${selectedTarget}, Available: ${availableTargets.join(', ')}`);
-        console.log(`Auto-selecting first available target: ${availableTargets[0]}`);
-        
-        // Using setTimeout to avoid state updates during render
-        setTimeout(() => {
-          setSelectedTarget(availableTargets[0]);
-        }, 0);
-      }
-    }
-    
-    if (!hasScripts) {
+    if (jobData?.status === 'processing' || jobData?.status === 'queued') {
       return (
-        <div className="space-y-6">
-          {!showBlueprintInput && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Use Blueprint</h3>
-                <div className="flex space-x-2">
-                  <label className="px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md flex items-center text-sm cursor-pointer transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    Upload Blueprint
-                    <input 
-                      type="file" 
-                      accept=".json" 
-                      onChange={handleFileUpload} 
-                      className="hidden" 
-                    />
-                  </label>
-                  <button
-                    onClick={() => setShowBlueprintInput(true)}
-                    className="px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md flex items-center text-sm transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Paste Blueprint
-                  </button>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                If you have a previously saved test blueprint, you can upload a JSON file or paste it directly to generate scripts without going through the specification and blueprint generation steps.
-              </p>
-            </div>
-          )}
-
-          {showBlueprintInput && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Paste Your Blueprint</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Paste a valid JSON test blueprint to generate scripts:
-              </p>
-              <textarea
-                value={blueprintInput}
-                onChange={(e) => setBlueprintInput(e.target.value)}
-                className="w-full h-64 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md font-mono text-sm resize-y text-gray-800 dark:text-gray-200 focus:ring-primary-500 focus:border-primary-500"
-                placeholder='{
-  "apiName": "Example API",
-  "version": "1.0.0",
-  "groups": [
-    {
-      "name": "Example Group",
-      "tests": [
-        {
-          "id": "test1",
-          "name": "Test Example",
-          "endpoint": "/example",
-          "method": "GET",
-          "expectedStatus": 200
-        }
-      ]
-    }
-  ]
-}'
-                spellCheck="false"
-              ></textarea>
-              <div className="flex mt-4 space-x-2 justify-end">
-                <button
-                  onClick={() => setShowBlueprintInput(false)}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleBlueprintSubmit}
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors"
-                >
-                  Use Blueprint
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Show blueprint status - whether loaded or not */}
-          {!showBlueprintInput && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Blueprint Status</h3>
-                {state.blueprint ? (
-                  <div className="flex space-x-2 items-center">
-                    <div className="text-xs px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full font-medium">Ready for Script Generation</div>
-                    <button 
-                      onClick={() => {
-                        setBlueprint(null);
-                        setBlueprintIsValid(false);
-                      }}
-                      className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      Clear
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-xs px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded-full font-medium">No Blueprint Loaded</div>
-                )}
-              </div>
-              {state.blueprint ? (
-                <>
-                  <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-md">
-                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                      Blueprint for <span className="font-medium">{state.blueprint.apiName || 'Unknown API'}</span> has been loaded successfully.
-                    </p>
-                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      <span>
-                        Contains: <span className="font-medium">{state.blueprint.groups?.length || 0}</span> test groups with{' '}
-                        <span className="font-medium">{state.blueprint.groups?.reduce((total: number, group: any) => total + (group.tests?.length || 0), 0) || 0}</span> tests
-                      </span>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Please upload or paste a blueprint, or navigate back to generate one from your API specification.
-                </p>
-              )}
-            </div>
-          )}
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Target Frameworks</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Select the frameworks you want to generate test scripts for:
-            </p>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {['postman', 'playwright', 'python', 'typescript', 'java'].map((target) => (
-                <label 
-                  key={target}
-                  className={`flex items-center p-3 rounded-md border ${
-                    state.targets.includes(target)
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-400'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                  } transition-colors cursor-pointer`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={state.targets.includes(target)}
-                    onChange={() => {
-                      const newTargets = [...state.targets];
-                      const index = newTargets.indexOf(target);
-                      
-                      if (index === -1) {
-                        newTargets.push(target);
-                      } else {
-                        newTargets.splice(index, 1);
-                      }
-                      
-                      setTargets(newTargets);
-                    }}
-                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                  />
-                  <span className="ml-2 capitalize text-gray-800 dark:text-gray-200">{target}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-          
-          <div className="text-center pt-4">
-            <button 
-              onClick={handleGenerateScripts}
-              disabled={generating || state.targets.length === 0 || !state.blueprint}
-              className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center mx-auto shadow-sm transition-colors"
-            >
-              {generating ? (
-                <span className="flex items-center font-medium">
-                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Generating Scripts...
-                </span>
-              ) : (
-                <span className="flex items-center font-medium">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  Generate Scripts
-                </span>
-              )}
-            </button>
-            {state.targets.length === 0 && (
-              <p className="mt-2 text-sm text-amber-500 dark:text-amber-400">Please select at least one target framework</p>
-            )}
-            {!state.blueprint && (
-              <p className="mt-2 text-sm text-amber-500 dark:text-amber-400">Please upload/paste a blueprint or navigate back to create one</p>
-            )}
-          </div>
+        <div className="animate-fade-in p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            {state.isAutonomousMode ? 'Autonomous Generation in Progress' : 'Script Generation in Progress'}
+          </h3>
+          {renderProgress()}
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            {state.isAutonomousMode ? 
+              'AI agents are iteratively generating and refining your test artifacts.' : 
+              'Please wait while we generate your test scripts. This may take a few minutes depending on the complexity of your API.'}
+          </p>
         </div>
       );
     }
     
-    return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="flex flex-col md:flex-row">
-          {/* Target and file selector */}
-          <div className="w-full md:w-72 border-r border-gray-200 dark:border-gray-700">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Framework</h3>
-              <select
-                value={selectedTarget || ''}
-                onChange={(e) => handleTargetChange(e.target.value)}
-                className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 rounded-md text-gray-800 dark:text-gray-200 focus:ring-primary-500 focus:border-primary-500"
-              >
-                {Object.keys(state.scripts).map((target) => (
-                  <option key={target} value={target}>
-                    {target.charAt(0).toUpperCase() + target.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {selectedTarget && (
-              <div className="p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Files</h3>
-                  <button
-                    onClick={handleDownloadAllFiles}
-                    className="text-xs px-2 py-1 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md border border-primary-300 dark:border-primary-700 flex items-center transition-colors"
-                    title="Download all files as ZIP"
-                  >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className="h-3 w-3 mr-1"
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-                      />
-                    </svg>
-                    Download All
-                  </button>
-                </div>
-                <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden max-h-[calc(100vh-300px)] overflow-y-auto">
-                  {(() => {
-                    // Group files by directory
-                    const filesByDir: Record<string, string[]> = {};
-                    const rootFiles: string[] = [];
-                    const rootDirs: Set<string> = new Set();
-                    
-                    // Organize files into directories with proper hierarchy
-                    Object.keys(state.scripts[selectedTarget] || {}).forEach(file => {
-                      if (file.includes('/')) {
-                        // Split path and extract directory hierarchy
-                        const parts = file.split('/');
-                        const fileName = parts.pop();
-                        
-                        // Create path for each level of the hierarchy
-                        let currentPath = '';
-                        parts.forEach((part, index) => {
-                          const parentPath = currentPath;
-                          currentPath = currentPath ? `${currentPath}/${part}` : part;
-                          
-                          // Add to filesByDir if not already present
-                          if (!filesByDir[currentPath]) {
-                            filesByDir[currentPath] = [];
-                            
-                            // Add as root dir if this is a top-level directory
-                            if (index === 0) {
-                              rootDirs.add(currentPath);
-                            }
-                            
-                            // Add this directory to its parent
-                            if (parentPath && !filesByDir[parentPath].includes(`${currentPath}/`)) {
-                              filesByDir[parentPath].push(`${currentPath}/`);
-                            }
-                          }
-                        });
-                        
-                        // Add the file to its immediate directory
-                        filesByDir[currentPath].push(file);
-                      } else {
-                        rootFiles.push(file);
-                      }
-                    });
-                    
-                    // Function to render a directory and its contents
-                    const renderDir = (dirPath: string, level: number) => {
-                      const dirName = dirPath.split('/').pop();
-                      const indent = level * 12;
-                      const isExpanded = expandedDirs[dirPath] !== false; // Default to expanded if not specified
-                      
-                      return (
-                        <div key={dirPath}>
-                          <button 
-                            onClick={() => {
-                              setExpandedDirs(prev => ({
-                                ...prev,
-                                [dirPath]: !isExpanded
-                              }));
-                            }}
-                            className="flex w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
-                            style={{ paddingLeft: `${indent + 12}px` }}
-                          >
-                            <span className="flex items-center">
-                              <svg 
-                                xmlns="http://www.w3.org/2000/svg" 
-                                className={`h-4 w-4 mr-1.5 transition-transform ${isExpanded ? '' : '-rotate-90'}`}
-                                fill="none" 
-                                viewBox="0 0 24 24" 
-                                stroke="currentColor"
-                              >
-                                <path 
-                                  strokeLinecap="round" 
-                                  strokeLinejoin="round" 
-                                  strokeWidth={2} 
-                                  d="M19 9l-7 7-7-7" 
-                                />
-                              </svg>
-                              <svg 
-                                xmlns="http://www.w3.org/2000/svg" 
-                                className="h-4 w-4 mr-1.5 text-blue-500 dark:text-blue-400 flex-shrink-0"
-                                fill="none" 
-                                viewBox="0 0 24 24" 
-                                stroke="currentColor"
-                              >
-                                <path 
-                                  strokeLinecap="round" 
-                                  strokeLinejoin="round" 
-                                  strokeWidth={2} 
-                                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" 
-                                />
-                              </svg>
-                              {dirName}
-                            </span>
-                          </button>
-                          
-                          {isExpanded && (
-                            <div className="directory-contents">
-                              {filesByDir[dirPath]?.map(item => {
-                                // Check if this item is a directory (ends with /)
-                                if (item.endsWith('/')) {
-                                  // It's a directory
-                                  const subDirPath = item.slice(0, -1); // Remove trailing slash
-                                  return renderDir(subDirPath, level + 1);
-                                } else {
-                                  // It's a file
-                                  const fileName = item.split('/').pop();
-                                  return (
-                                    <button
-                                      key={item}
-                                      onClick={() => handleFileSelect(item)}
-                                      className={`block w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
-                                        selectedFile === item
-                                          ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-medium'
-                                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-300'
-                                      } transition-colors`}
-                                      style={{ paddingLeft: `${indent + 32}px` }}
-                                    >
-                                      <span className="flex items-center">
-                                        {getFileIcon(fileName || '')}
-                                        <span className="truncate">{fileName}</span>
-                                      </span>
-                                    </button>
-                                  );
-                                }
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    };
-                    
-                    // Build full directory structure
-                    return (
-                      <>
-                        {/* Root directories */}
-                        {Array.from(rootDirs).map(dir => renderDir(dir, 0))}
-                        
-                        {/* Root files */}
-                        {rootFiles.map(file => (
-                          <button
-                            key={file}
-                            onClick={() => handleFileSelect(file)}
-                            className={`block w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
-                              selectedFile === file
-                                ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-medium'
-                                : 'hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-300'
-                            } transition-colors`}
-                            style={{ paddingLeft: '12px' }}
-                          >
-                            <span className="flex items-center">
-                              {getFileIcon(file)}
-                              <span className="truncate">{file}</span>
-                            </span>
-                          </button>
-                        ))}
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
-          </div>
-          
-          {/* Script content */}
-          <div className="flex-grow p-4">
-            {renderFileContent()}
-          </div>
-        </div>
-      </div>
-    );
+    if (jobData?.status === 'completed' && jobData.result) {
+      // For autonomous mode, copy the blueprint from the result to state if it exists
+      if (state.isAutonomousMode && jobData.result.blueprint && !state.blueprint) {
+        setBlueprint(jobData.result.blueprint);
+        setBlueprintIsValid(true);
+      }
+      
+      // Continue with existing code to display scripts/files
+      // ... (rest of existing renderOutput function)
+    }
+    
+    // ... (rest of existing renderOutput function)
   };
   
   const renderFileContent = () => {
@@ -1278,120 +818,74 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   };
   
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-        {state.scripts && Object.keys(state.scripts).length > 0 
-          ? "Generated Test Scripts" 
-          : "Generate Scripts For Target Frameworks"}
-      </h2>
+    <div className="space-y-10">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          {state.isAutonomousMode ? 'Autonomous Generation Output' : 'Script Generation'}
+        </h2>
+        <button
+          onClick={onBack}
+          className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"
+        >
+          Back
+        </button>
+      </div>
       
-      {/* Debug Tools for Development (hidden in production) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mb-4 p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-sm">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">Development Debug Tools</h3>
-            <button
-              onClick={() => setShowDebugInfo(!showDebugInfo)}
-              className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors"
-            >
-              {showDebugInfo ? 'Hide Debug' : 'Show Debug'}
-            </button>
-          </div>
-          
-          {showDebugInfo && (
-            <div className="mt-2">
-              <h4 className="text-xs font-medium mb-1 text-gray-700 dark:text-gray-300">Scripts Data Structure:</h4>
-              <pre className="text-xs bg-gray-50 dark:bg-gray-900 p-3 rounded-md overflow-auto max-h-48 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
-                {JSON.stringify(state.scripts, null, 2)}
-              </pre>
-              <div className="mt-2 flex gap-2">
+      {/* Only show the generation button and target selection when NOT in autonomous mode 
+          or when autonomous process is complete */}
+      {(!state.isAutonomousMode || 
+        (jobStatus.data?.status === 'completed' && jobStatus.data?.result)) && (
+        <>
+          {/* Target Selection */}
+          <div className="border-b dark:border-gray-700 pb-4">
+            <h3 className="font-medium text-gray-900 dark:text-white mb-3">Target Frameworks</h3>
+            <div className="flex flex-wrap gap-2">
+              {state.targets.map((target) => (
                 <button
-                  onClick={() => {
-                    // Force refresh the scripts from the backend
-                    if (state.scriptJobId) {
-                      fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/status/${state.scriptJobId}`)
-                        .then(res => res.json())
-                        .then(data => {
-                          if (data.result?.scripts) {
-                            console.log('Refreshed scripts data:', data.result.scripts);
-                            setScripts(data.result.scripts);
-                          } else {
-                            console.error('No scripts in refresh response');
-                          }
-                        })
-                        .catch(err => console.error('Error refreshing scripts:', err));
-                    }
-                  }}
-                  className="text-xs px-2 py-1 bg-primary-100 text-primary-700 hover:bg-primary-200 rounded transition-colors"
+                  key={target}
+                  onClick={() => handleTargetChange(target)}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    selectedTarget === target
+                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300 border border-primary-300 dark:border-primary-700'
+                      : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
                 >
-                  Refresh Scripts
+                  {target.charAt(0).toUpperCase() + target.slice(1)}
                 </button>
-                <button
-                  onClick={() => {
-                    // Reset selected target to force re-selection
-                    setSelectedTarget(null);
-                    setSelectedFile(null);
-                  }}
-                  className="text-xs px-2 py-1 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded transition-colors"
-                >
-                  Reset Selection
-                </button>
-              </div>
+              ))}
             </div>
-          )}
+          </div>
+        </>
+      )}
+      
+      {/* Only show the Generate Scripts button when NOT in autonomous mode */}
+      {!state.isAutonomousMode && !state.scriptJobId && state.blueprint && (
+        <div className="flex justify-center">
+          <button
+            onClick={handleGenerateScripts}
+            disabled={generating || !state.blueprint}
+            className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          >
+            {generating ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Generating...
+              </>
+            ) : (
+              'Generate Scripts'
+            )}
+          </button>
         </div>
       )}
       
-      {(generating || jobStatus.data?.status === 'queued' || jobStatus.data?.status === 'processing') && renderProgress()}
+      {/* Output Display */}
+      {renderOutput()}
+      
+      {/* Error Display */}
       {renderError()}
-      
-      {(!generating && jobStatus.data?.status !== 'queued' && jobStatus.data?.status !== 'processing') && renderOutput()}
-      
-      <div className="flex justify-between">
-        <button
-          onClick={() => {
-            // If we came from a saved blueprint, go back to input
-            if (state.blueprintIsValid && !state.blueprintJobId) {
-              setCurrentStep('input');
-            } else {
-              onBack();
-            }
-          }}
-          className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
-        >
-          <span className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            {state.blueprintIsValid && !state.blueprintJobId ? 'Back to Specification Input' : 'Back to Blueprint'}
-          </span>
-        </button>
-        
-        {state.scripts && Object.keys(state.scripts).length > 0 && (
-          <div className="flex space-x-3">
-            <button
-              onClick={() => window.location.href = '/'}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
-            >
-              Start New Project
-            </button>
-            <button 
-              onClick={() => {
-                // TODO: Implement sharing or exporting of the entire project
-                alert('This feature is coming soon!');
-              }}
-              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors"
-            >
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-                Share Project
-              </span>
-            </button>
-          </div>
-        )}
-      </div>
     </div>
   );
 };

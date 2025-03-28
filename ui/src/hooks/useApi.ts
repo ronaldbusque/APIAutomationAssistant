@@ -1,8 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { GenerateBlueprintRequest, GenerateScriptsRequest, JobStatusResponse } from '../types/app';
-
-// API base URL - point directly to backend server
-const API_BASE_URL = 'http://localhost:8000';
+import { GenerateBlueprintRequest, GenerateScriptsRequest, GenerateAutonomousRequest, JobStatusResponse } from '../types/app';
+import { API_BASE_URL } from '../utils/constants';
 
 // Generate blueprint
 export const useGenerateBlueprint = () => {
@@ -41,6 +39,28 @@ export const useGenerateScripts = () => {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.detail || `Failed to generate scripts: ${response.status}`);
+      }
+      
+      return response.json();
+    },
+  });
+};
+
+// Generate with autonomous mode (blueprint + scripts in one step)
+export const useGenerateAutonomous = () => {
+  return useMutation({
+    mutationFn: async (request: GenerateAutonomousRequest) => {
+      const response = await fetch(`${API_BASE_URL}/generate-autonomous`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to start autonomous generation: ${response.status}`);
       }
       
       return response.json();

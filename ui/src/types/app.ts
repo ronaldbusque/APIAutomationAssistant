@@ -19,6 +19,7 @@ export interface AppState {
   testData: string;
   testFlow: string;
   targets: string[];
+  isAutonomousMode: boolean;
   
   // Jobs and progress
   blueprintJobId: string | null;
@@ -69,6 +70,12 @@ export interface GenerateBlueprintRequest {
 export interface GenerateScriptsRequest {
   blueprint: any;
   targets: string[];
+}
+
+export interface GenerateAutonomousRequest {
+  spec: string;
+  targets: string[];
+  max_iterations?: number;
 }
 
 export interface JobStatusResponse {
