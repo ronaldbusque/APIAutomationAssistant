@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { useGenerateBlueprint, useGenerateAutonomous } from '../hooks/useApi';
-import { API_BASE_URL } from '../utils/constants';
 import { Switch } from '@headlessui/react';
 
 interface Props {
@@ -17,7 +16,6 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
     setTestData,
     setTestFlow,
     setBlueprintJobId,
-    setScriptJobId,
     setIsAutonomousMode,
     setCurrentStep
   } = useAppContext();
@@ -32,34 +30,29 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
     setMode(mode);
   };
   
-  const handleAutonomousModeToggle = (enabled: boolean) => {
-    setIsAutonomousMode(enabled);
-  };
-  
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError(null);
     
     try {
       if (state.isAutonomousMode) {
-        // *** AUTONOMOUS MODE TRIGGER ***
+        // Call the autonomous generation endpoint
         console.log("Starting Autonomous Generation...");
+        
         const autonomousRequest = {
           spec: state.openApiSpec,
           targets: state.targets,
         };
-
-        // Use autonomous generation mutation
+        
         const result = await generateAutonomousMutation.mutateAsync(autonomousRequest);
         
-        // Store the single job ID in both blueprint and script job IDs
+        // Store the job ID (single job for both blueprint and scripts)
         setBlueprintJobId(result.job_id);
-        setScriptJobId(result.job_id);
         
-        // Skip BlueprintView, go directly to ScriptOutput to monitor the single job
+        // Skip blueprint view, go directly to scripts view to see progress
         setCurrentStep('scripts');
       } else {
-        // *** STANDARD MODE TRIGGER ***
+        // Call the standard blueprint generation endpoint
         console.log("Starting Standard Blueprint Generation...");
         
         // Build request based on mode
@@ -82,17 +75,12 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
         // Store job ID for status polling
         setBlueprintJobId(result.job_id);
         
-        // Move to next step - Blueprint View for standard mode
+        // Move to next step (blueprint view)
         onNext();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start generation');
+      setError(err instanceof Error ? err.message : 'Failed to generate blueprint');
       setIsGenerating(false);
-    } finally {
-      // Only set generating false if NOT autonomous, as autonomous has its own monitoring
-      if (!state.isAutonomousMode) {
-        setIsGenerating(false);
-      }
     }
   };
   
@@ -203,7 +191,7 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
         </div>
         <Switch
           checked={state.isAutonomousMode}
-          onChange={handleAutonomousModeToggle}
+          onChange={setIsAutonomousMode}
           className={`${
             state.isAutonomousMode ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-600'
           } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800`}

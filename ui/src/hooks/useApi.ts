@@ -1,6 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { GenerateBlueprintRequest, GenerateScriptsRequest, GenerateAutonomousRequest, JobStatusResponse } from '../types/app';
-import { API_BASE_URL } from '../utils/constants';
+
+// API base URL - point directly to backend server
+const API_BASE_URL = 'http://localhost:8000';
 
 // Generate blueprint
 export const useGenerateBlueprint = () => {
@@ -46,7 +48,7 @@ export const useGenerateScripts = () => {
   });
 };
 
-// Generate with autonomous mode (blueprint + scripts in one step)
+// Generate autonomous (blueprint + scripts in one go)
 export const useGenerateAutonomous = () => {
   return useMutation({
     mutationFn: async (request: GenerateAutonomousRequest) => {
