@@ -20,10 +20,11 @@ from src.agents.autonomous.agents import (
 from src.utils.execution import run_agent_with_retry, RunConfig, RetryConfig
 from src.config.settings import settings
 from agents import RunResult
+from src.blueprint.validation import validate_and_clean_blueprint as validate_blueprint
 
 logger = logging.getLogger(__name__)
 
-# Keyword constants
+# Define keyword constants at the top level
 BLUEPRINT_APPROVED_KEYWORD = "[[BLUEPRINT_APPROVED]]"
 REVISION_NEEDED_KEYWORD = "[[REVISION_NEEDED]]"
 CODE_APPROVED_KEYWORD = "[[CODE_APPROVED]]"
@@ -60,113 +61,165 @@ async def analyze_initial_spec(spec_text: str) -> Tuple[Dict[str, Any], List[str
 
 async def run_autonomous_blueprint_pipeline(
     spec_analysis: Dict[str, Any],
-    progress_callback: Callable[[str, Any, str], Coroutine] = None,
+    progress_callback = None,
     max_iterations: int = None
 ) -> Dict[str, Any]:
     """
-    Run the autonomous blueprint generation pipeline with Author-Reviewer loop.
+    Run autonomous pipeline for blueprint generation
     
     Args:
-        spec_analysis: The result from analyze_initial_spec
-        progress_callback: Async function for progress updates (stage, progress, agent)
-        max_iterations: Maximum iterations for the Author-Reviewer loop
+        spec_analysis: Dictionary containing spec analysis data
+        progress_callback: Optional callback for progress updates
+        max_iterations: Maximum iterations for the pipeline, defaults to AUTONOMOUS_MAX_ITERATIONS
         
     Returns:
-        Generated blueprint dict
-        
-    Raises:
-        BlueprintGenerationError: If blueprint generation fails
+        Dictionary containing the final generated blueprint
     """
+    # Get max iterations from settings if not provided
     if max_iterations is None:
-        max_iterations = settings.get("AUTONOMOUS_MAX_ITERATIONS", 3)
+        from ...config.settings import AUTONOMOUS_MAX_ITERATIONS
+        max_iterations = AUTONOMOUS_MAX_ITERATIONS
     
     logger.info(f"Starting autonomous blueprint pipeline with max {max_iterations} iterations")
     
-    # Create the planner context with spec analysis
+    # Set up context structure to hold spec information and user inputs
     planner_context = PlannerContext(spec_analysis=spec_analysis)
     
-    # Initialize blueprint author agent
+    # Set up agents
     blueprint_author = setup_blueprint_author_agent()
-    
-    # Initialize blueprint reviewer agent
     blueprint_reviewer = setup_blueprint_reviewer_agent()
     
-    # Initialize variables for the loop
+    # Track current state
     blueprint_json = None
-    reviewer_feedback = "No feedback yet. Please create an initial blueprint based on the specification analysis."
     approved = False
+    reviewer_feedback = "No feedback yet. This is the first iteration."
     iteration = 0
     
-    # Author-Reviewer loop
+    # Main iteration loop
     while not approved and iteration < max_iterations:
         iteration += 1
         logger.info(f"Starting blueprint iteration {iteration}/{max_iterations}")
         
-        # Prepare input for blueprint author
+        # --- Author Step ---
+        # Prepare spec analysis summary for the prompt
+        spec_for_prompt = json.dumps(spec_analysis, indent=2)
+        # Limit size if too large
+        MAX_SPEC_PROMPT_LEN = 10000 # Adjust as needed
+        if len(spec_for_prompt) > MAX_SPEC_PROMPT_LEN:
+            spec_for_prompt = spec_for_prompt[:MAX_SPEC_PROMPT_LEN] + "\n... (spec truncated) ..."
+            logger.warning("Spec analysis truncated for Author/Reviewer prompt due to size.")
+
+        # Modify author_input_data
         if blueprint_json:
-            author_input = {
+            author_input_data = {
+                "spec_analysis_summary": spec_for_prompt, # ADDED
                 "reviewer_feedback": reviewer_feedback,
                 "previous_blueprint": blueprint_json
             }
         else:
-            author_input = {
+            author_input_data = {
+                "spec_analysis_summary": spec_for_prompt, # ADDED
                 "reviewer_feedback": reviewer_feedback
             }
+
+        # Log Author Input (limit blueprint length if too long)
+        log_author_input = author_input_data.copy()
+        log_author_input["spec_analysis_summary"] = log_author_input["spec_analysis_summary"][:300] + "..."
+        if "previous_blueprint" in log_author_input:
+            log_author_input["previous_blueprint"] = log_author_input["previous_blueprint"][:300] + "..."
+        logger.debug(f"AUTHOR Input (Iter {iteration}):\n{json.dumps(log_author_input, indent=2)}")
         
-        # Call progress callback if provided
         if progress_callback:
             await progress_callback(
                 "blueprint_authoring", 
-                {"percent": 20 * iteration, "message": f"Creating blueprint (iteration {iteration}/{max_iterations})..."}, 
-                "BlueprintAuthorAgent"
+                {"message": f"Creating API test blueprint (iteration {iteration})"}, 
+                "blueprint_author"
             )
         
-        # TODO: Calculate or estimate blueprint complexity
-        complexity = 0.6
-        
-        # Run blueprint author agent
         try:
-            # Pass context to run_agent_with_retry
+            # TODO: Calculate complexity
+            complexity = 0.6
             run_config = RunConfig(complexity=complexity, task="blueprint_authoring")
-            author_result, author_trace = await run_agent_with_retry(
-                blueprint_author, 
-                author_input, 
+            author_result = await run_agent_with_retry(
+                blueprint_author,
+                author_input_data, # Pass the dict WITH spec analysis
                 run_config=run_config,
                 context=planner_context
             )
-            blueprint_json = author_result.final_output
+            # Properly unpack the tuple result
+            author_run_result, author_trace_id = author_result
+            # Access raw output string from the RunResult object
+            proposed_blueprint_json = author_run_result.final_output
+            if not isinstance(proposed_blueprint_json, str):
+                proposed_blueprint_json = str(proposed_blueprint_json)
             
-            # Basic validation of author output
-            if not blueprint_json or not blueprint_json.strip().startswith("{"):
-                raise BlueprintGenerationError("Invalid blueprint format from author agent")
+            # Log Author Output
+            logger.debug(f"AUTHOR Output (Iter {iteration}):\n{proposed_blueprint_json[:1000]}...")
             
-            logger.info(f"Blueprint author completed successfully (iteration {iteration})")
-            
+            try:
+                # Validate the JSON structure
+                blueprint_dict = json.loads(proposed_blueprint_json)
+                
+                # Validate the blueprint structure
+                validation_result = validate_blueprint(blueprint_dict)
+                if not validation_result["valid"]:
+                    # If validation fails, log issues but continue with the JSON
+                    logger.warning(f"Blueprint validation issues: {validation_result['errors']}")
+                
+                # Use the proposed blueprint for the next iteration
+                blueprint_json = proposed_blueprint_json
+                logger.info(f"Blueprint author proposed valid JSON blueprint (iteration {iteration})")
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"Blueprint author produced invalid JSON (iteration {iteration}): {e}")
+                raise BlueprintGenerationError(f"Blueprint author produced invalid JSON: {e}")
+                
         except Exception as e:
             logger.error(f"Blueprint author failed (iteration {iteration}): {str(e)}")
             raise BlueprintGenerationError(f"Blueprint author failed: {str(e)}") from e
         
-        # Call progress callback if provided
+        # --- Reviewer Step ---
+        # Modify reviewer_input_data
+        reviewer_input_data = {
+            "spec_analysis_summary": spec_for_prompt, # ADDED
+            "blueprint_to_review": blueprint_json
+        }
+        
+        # Log Reviewer Input
+        log_reviewer_input = reviewer_input_data.copy()
+        log_reviewer_input["spec_analysis_summary"] = log_reviewer_input["spec_analysis_summary"][:300] + "..."
+        log_reviewer_input["blueprint_to_review"] = log_reviewer_input["blueprint_to_review"][:300] + "..."
+        logger.debug(f"REVIEWER Input (Iter {iteration}):\n{json.dumps(log_reviewer_input, indent=2)}")
+        
         if progress_callback:
             await progress_callback(
                 "blueprint_reviewing", 
-                {"percent": 20 * iteration + 10, "message": f"Reviewing blueprint (iteration {iteration}/{max_iterations})..."}, 
-                "BlueprintReviewerAgent"
+                {"message": f"Reviewing API test blueprint (iteration {iteration})"}, 
+                "blueprint_reviewer"
             )
         
-        # Run blueprint reviewer agent
         try:
-            # Pass context to run_agent_with_retry
-            run_config = RunConfig(complexity=0.5, task="blueprint_reviewing")
-            reviewer_result, reviewer_trace = await run_agent_with_retry(
-                blueprint_reviewer, 
-                {"blueprint": blueprint_json},
+            # TODO: Calculate complexity
+            complexity = 0.5
+            run_config = RunConfig(complexity=complexity, task="blueprint_reviewing")
+            reviewer_result = await run_agent_with_retry(
+                blueprint_reviewer,
+                reviewer_input_data, # Pass the dict WITH spec analysis
                 run_config=run_config,
                 context=planner_context
             )
+            # Properly unpack the tuple result
+            reviewer_run_result, reviewer_trace_id = reviewer_result
+            # Access raw output string from the RunResult object
+            review_output_raw = reviewer_run_result.final_output
+            if not isinstance(review_output_raw, str):
+                review_output_raw = str(review_output_raw)
+            
+            # Log Reviewer Output
+            logger.debug(f"REVIEWER Output (Iter {iteration}):\n{review_output_raw}")
             
             # Extract feedback and check for approval keyword
-            reviewer_output = reviewer_result.final_output
+            reviewer_output = review_output_raw
             
             # Find the last line to check for keywords
             lines = reviewer_output.strip().split('\n')
@@ -194,153 +247,185 @@ async def run_autonomous_blueprint_pipeline(
     if not approved:
         logger.warning(f"Max iterations ({max_iterations}) reached without blueprint approval")
     
-    # Parse the blueprint JSON
-    try:
-        blueprint = json.loads(blueprint_json)
-        
-        # Call progress callback if provided
-        if progress_callback:
-            await progress_callback(
-                "blueprint_generation_complete", 
-                {"percent": 100, "message": "Blueprint generation complete."}, 
-                "system"
-            )
-        
-        return blueprint
+    # Call progress callback if provided
+    if progress_callback:
+        await progress_callback(
+            "blueprint_complete", 
+            {"percent": 100, "message": "Blueprint generation complete"}, 
+            "system"
+        )
     
+    # Return the final blueprint as a dictionary
+    try:
+        return json.loads(blueprint_json)
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse blueprint JSON: {str(e)}")
-        raise BlueprintGenerationError(f"Invalid blueprint JSON: {str(e)}") from e
+        logger.error(f"Error parsing final blueprint JSON: {e}")
+        raise BlueprintGenerationError(f"Error parsing final blueprint JSON: {e}")
 
 async def run_autonomous_script_pipeline(
     blueprint: Dict[str, Any],
     framework: str,
-    progress_callback: Callable[[str, Any, str], Coroutine] = None,
+    progress_callback = None,
     max_iterations: int = None
 ) -> List[Dict[str, str]]:
     """
-    Run the autonomous script generation pipeline with Coder-Reviewer loop.
+    Run autonomous pipeline for script generation
     
     Args:
-        blueprint: The blueprint dictionary
+        blueprint: Blueprint dictionary
         framework: Target framework (e.g., 'postman', 'playwright')
-        progress_callback: Async function for progress updates (stage, progress, agent)
-        max_iterations: Maximum iterations for the Coder-Reviewer loop
+        progress_callback: Optional callback for progress updates
+        max_iterations: Maximum iterations for the pipeline, defaults to AUTONOMOUS_MAX_ITERATIONS
         
     Returns:
-        List of file objects [{"filename": str, "content": str}, ...]
-        
-    Raises:
-        ScriptGenerationError: If script generation fails
+        List of dictionaries with filename and content pairs
     """
+    # Get max iterations from settings if not provided
     if max_iterations is None:
-        max_iterations = settings.get("AUTONOMOUS_MAX_ITERATIONS", 3)
+        from ...config.settings import AUTONOMOUS_MAX_ITERATIONS
+        max_iterations = AUTONOMOUS_MAX_ITERATIONS
     
     logger.info(f"Starting autonomous script pipeline for {framework} with max {max_iterations} iterations")
     
-    # Initialize script coder agent for the specified framework
+    # Set up agents for the target framework
     script_coder = setup_script_coder_agent(framework)
-    
-    # Initialize script reviewer agent for the specified framework
     script_reviewer = setup_script_reviewer_agent(framework)
     
-    # Initialize variables for the loop
+    # Track current state
+    script_files = []
     script_files_json = None
-    script_files = None
-    reviewer_feedback = "No feedback yet. Please create initial test scripts based on the blueprint."
     approved = False
+    reviewer_feedback = "No feedback yet. This is the first iteration."
     iteration = 0
     
-    # Convert blueprint to JSON string for agent input
-    blueprint_json = json.dumps(blueprint)
+    # Convert blueprint to a JSON string for the prompts
+    blueprint_json_str = json.dumps(blueprint, indent=2)
     
-    # Coder-Reviewer loop
+    # Main iteration loop
     while not approved and iteration < max_iterations:
         iteration += 1
-        logger.info(f"Starting script generation iteration {iteration}/{max_iterations}")
+        logger.info(f"Starting script iteration {iteration}/{max_iterations} for {framework}")
         
-        # Prepare input for script coder
+        # --- Coder Step ---
+        # Modify coder_input_data
         if script_files_json:
-            coder_input = {
+            coder_input_data = {
                 "framework": framework,
-                "blueprint": blueprint_json,
+                "blueprint_json": blueprint_json_str, # Pass blueprint as string
                 "reviewer_feedback": reviewer_feedback,
                 "previous_code_files": script_files_json
             }
         else:
-            coder_input = {
+            coder_input_data = {
                 "framework": framework,
-                "blueprint": blueprint_json,
+                "blueprint_json": blueprint_json_str, # Pass blueprint as string
                 "reviewer_feedback": reviewer_feedback
             }
         
-        # Call progress callback if provided
+        # Log Coder Input (limit blueprint/code)
+        log_coder_input = coder_input_data.copy()
+        log_coder_input["blueprint_json"] = log_coder_input["blueprint_json"][:500] + "..."
+        if "previous_code_files" in log_coder_input:
+            log_coder_input["previous_code_files"] = log_coder_input["previous_code_files"][:500] + "..."
+        logger.debug(f"CODER Input for {framework} (Iter {iteration}):\n{json.dumps(log_coder_input, indent=2)}")
+        
         if progress_callback:
             await progress_callback(
                 "script_coding", 
-                {"percent": 60 + (40/max_iterations) * (iteration-1), "message": f"Creating {framework} scripts (iteration {iteration}/{max_iterations})..."}, 
-                f"ScriptCoderAgent_{framework}"
+                {"message": f"Creating {framework} test scripts (iteration {iteration})"}, 
+                f"script_coder_{framework}"
             )
         
-        # TODO: Calculate or estimate script coding complexity
-        complexity = 0.7
-        
-        # Run script coder agent
         try:
+            # TODO: Calculate complexity
+            complexity = 0.7
             run_config = RunConfig(complexity=complexity, task="script_coding")
-            coder_result, coder_trace = await run_agent_with_retry(
-                script_coder, 
-                coder_input, 
+            coder_result = await run_agent_with_retry(
+                script_coder,
+                coder_input_data, # Pass dict WITH blueprint
                 run_config=run_config
             )
-            script_files_json = coder_result.final_output
+            # Properly unpack the tuple result
+            coder_run_result, coder_trace_id = coder_result
+            # Access raw output string from the RunResult object
+            proposed_script_files_json = coder_run_result.final_output
+            if not isinstance(proposed_script_files_json, str):
+                proposed_script_files_json = str(proposed_script_files_json)
             
-            # Parse and validate script files output
+            # Log Coder Output
+            logger.debug(f"CODER Output for {framework} (Iter {iteration}):\n{proposed_script_files_json[:1000]}...")
+            
             try:
-                script_files = json.loads(script_files_json)
-                if not isinstance(script_files, list):
-                    raise ScriptGenerationError("Script coder did not return a list of files")
+                # Validate JSON structure
+                script_files_list = json.loads(proposed_script_files_json)
                 
-                # Validate structure of each file object
-                for file in script_files:
-                    if not isinstance(file, dict) or "filename" not in file or "content" not in file:
-                        raise ScriptGenerationError("Invalid file object in script coder output")
+                # Basic validation of structure
+                if not isinstance(script_files_list, list):
+                    raise ScriptGenerationError(f"Invalid script files format: expected list, got {type(script_files_list)}")
                 
-                logger.info(f"Script coder completed successfully with {len(script_files)} files (iteration {iteration})")
+                # Check each file has filename and content
+                for i, file_obj in enumerate(script_files_list):
+                    if not isinstance(file_obj, dict):
+                        raise ScriptGenerationError(f"Invalid file object at index {i}: expected dict, got {type(file_obj)}")
+                    
+                    if "filename" not in file_obj or "content" not in file_obj:
+                        raise ScriptGenerationError(f"Invalid file object at index {i}: missing required keys (filename, content)")
+                
+                # Use the proposed script files JSON for the next iteration
+                script_files_json = proposed_script_files_json
+                script_files = script_files_list
+                logger.info(f"Script coder proposed valid files for {framework} (iteration {iteration}): {len(script_files)} files")
                 
             except json.JSONDecodeError as e:
-                raise ScriptGenerationError(f"Failed to parse script files JSON: {str(e)}") from e
-            
+                logger.error(f"Script coder produced invalid JSON for {framework} (iteration {iteration}): {e}")
+                raise ScriptGenerationError(f"Script coder produced invalid JSON: {e}")
+                
         except Exception as e:
-            logger.error(f"Script coder failed (iteration {iteration}): {str(e)}")
+            logger.error(f"Script coder failed for {framework} (iteration {iteration}): {str(e)}")
             raise ScriptGenerationError(f"Script coder failed: {str(e)}") from e
         
-        # Call progress callback if provided
+        # --- Reviewer Step ---
+        # Modify reviewer_input_data
+        reviewer_input_data = {
+            "framework": framework,
+            "blueprint_json": blueprint_json_str, # Pass blueprint string
+            "generated_script_files_json": script_files_json # Pass current scripts string
+        }
+        
+        # Log Reviewer Input (limit blueprint/code)
+        log_reviewer_input = reviewer_input_data.copy()
+        log_reviewer_input["blueprint_json"] = log_reviewer_input["blueprint_json"][:500] + "..."
+        log_reviewer_input["generated_script_files_json"] = log_reviewer_input["generated_script_files_json"][:500] + "..."
+        logger.debug(f"REVIEWER Input for {framework} (Iter {iteration}):\n{json.dumps(log_reviewer_input, indent=2)}")
+        
         if progress_callback:
             await progress_callback(
                 "script_reviewing", 
-                {"percent": 60 + (40/max_iterations) * (iteration-0.5), "message": f"Reviewing {framework} scripts (iteration {iteration}/{max_iterations})..."}, 
-                f"ScriptReviewerAgent_{framework}"
+                {"message": f"Reviewing {framework} test scripts (iteration {iteration})"}, 
+                f"script_reviewer_{framework}"
             )
         
-        # Run script reviewer agent
         try:
-            # Prepare input for script reviewer
-            reviewer_input = {
-                "framework": framework,
-                "blueprint": blueprint_json,
-                "code_files": script_files_json
-            }
-            
-            run_config = RunConfig(complexity=0.6, task="script_reviewing")
-            reviewer_result, reviewer_trace = await run_agent_with_retry(
-                script_reviewer, 
-                reviewer_input,
+            # TODO: Calculate complexity
+            complexity = 0.6
+            run_config = RunConfig(complexity=complexity, task="script_reviewing")
+            reviewer_result = await run_agent_with_retry(
+                script_reviewer,
+                reviewer_input_data, # Pass dict WITH blueprint AND code
                 run_config=run_config
             )
+            # Properly unpack the tuple result
+            reviewer_run_result, reviewer_trace_id = reviewer_result
+            # Access raw output string from the RunResult object
+            review_output_raw = reviewer_run_result.final_output
+            if not isinstance(review_output_raw, str):
+                review_output_raw = str(review_output_raw)
+            
+            # Log Reviewer Output
+            logger.debug(f"REVIEWER Output for {framework} (Iter {iteration}):\n{review_output_raw}")
             
             # Extract feedback and check for approval keyword
-            reviewer_output = reviewer_result.final_output
+            reviewer_output = review_output_raw
             
             # Find the last line to check for keywords
             lines = reviewer_output.strip().split('\n')
@@ -361,7 +446,7 @@ async def run_autonomous_script_pipeline(
                 logger.warning(f"No recognized keyword found in reviewer output (iteration {iteration})")
             
         except Exception as e:
-            logger.error(f"Script reviewer failed (iteration {iteration}): {str(e)}")
+            logger.error(f"Script reviewer failed for {framework} (iteration {iteration}): {str(e)}")
             raise ScriptGenerationError(f"Script reviewer failed: {str(e)}") from e
     
     # After the loop, check if scripts were approved

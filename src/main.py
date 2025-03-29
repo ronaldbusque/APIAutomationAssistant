@@ -37,49 +37,33 @@ from .utils.openai_setup import setup_openai_client
 
 # Configure logging
 def configure_logging():
-    """Configure application logging."""
+    """Configure application logging (Simplified - remove StatusPollFilter)."""
     log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    
-    # Create the logger
+
     logger = logging.getLogger()
     logger.setLevel(getattr(logging, log_level))
-    
-    # Remove any existing handlers
+
+    # Remove existing handlers to prevent duplicates if re-run
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
-    
-    # Create console handler - using utf-8 encoding to handle unicode characters
+
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(getattr(logging, log_level))
     console_handler.setFormatter(logging.Formatter(log_format))
-    
-    # Create a filter to exclude status poll messages
-    class StatusPollFilter(logging.Filter):
-        def filter(self, record):
-            if record.getMessage().find("GET /status/") >= 0 and record.getMessage().find("200 OK") >= 0:
-                return False
-            return True
-    
-    # Apply the filter to the console handler
-    console_handler.addFilter(StatusPollFilter())
-    
-    # Add handlers
     logger.addHandler(console_handler)
-    
-    # Also create a file handler if LOG_FILE is specified
+
     log_file = os.environ.get("LOG_FILE")
     if log_file:
         try:
             file_handler = logging.FileHandler(log_file, encoding='utf-8')
             file_handler.setLevel(getattr(logging, log_level))
             file_handler.setFormatter(logging.Formatter(log_format))
-            file_handler.addFilter(StatusPollFilter())
             logger.addHandler(file_handler)
         except Exception as e:
             print(f"Error setting up file logging: {e}")
-    
-    logger.info(f"Logging configured with level {log_level} and utf-8 encoding")
+
+    logger.info(f"Logging configured with level {log_level}")
     return logger
 
 # Initialize logger
@@ -98,6 +82,30 @@ app = FastAPI(
     description="AI-powered API test generation from OpenAPI specifications",
     version="1.0.0"
 )
+
+# --- ADD MIDDLEWARE ---
+@app.middleware("http")
+async def suppress_noisy_logs_middleware(request: Request, call_next):
+    """Middleware to prevent logging for specific paths if needed."""
+    # You can customize this logic
+    path = request.url.path
+    if path.startswith("/status/") or path == "/health":
+         # Skip logging for these frequent polls by handling directly
+         # For /health, just return ok
+         if path == "/health":
+             return JSONResponse({"status": "healthy"})
+         # For /status/, we still need to call the actual endpoint
+         # but prevent standard access logging. We can't easily stop
+         # uvicorn's default access logger here without complex setup.
+         # The best approach is often to configure uvicorn directly
+         # to use a log format that excludes these, or filter post-hoc.
+         # For now, we just proceed but the logger config change below
+         # should handle it better.
+         pass # Let the request proceed normally
+
+    response = await call_next(request)
+    return response
+# --- END MIDDLEWARE ---
 
 # Add CORS middleware
 app.add_middleware(
@@ -173,51 +181,14 @@ async def shutdown():
 def main():
     """Run the application with uvicorn."""
     import uvicorn
-    from uvicorn.config import LOGGING_CONFIG
     
     # Get configuration from environment variables
     host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", "8000"))
     reload = os.environ.get("RELOAD", "false").lower() == "true"
     
-    # Configure uvicorn logging to handle Unicode and filter status requests
-    LOGGING_CONFIG["formatters"]["default"]["fmt"] = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    LOGGING_CONFIG["formatters"]["access"]["fmt"] = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    
-    # Define a custom filter function that will be used to filter access logs
-    class StatusEndpointFilter(logging.Filter):
-        def filter(self, record):
-            try:
-                # Check the message directly as a string
-                message = str(record.msg)
-                if "/status/" in message:
-                    return False
-            except Exception:
-                # If any error occurs during filtering, just pass it through
-                pass
-            return True
-    
-    # Create custom log config with modified settings
-    log_config = LOGGING_CONFIG.copy()
-    log_config["filters"] = {
-        "status_filter": {
-            "()": StatusEndpointFilter
-        }
-    }
-    
-    # Set very high log level for access logs
-    log_config["loggers"]["uvicorn.access"] = {
-        "level": "WARNING",  # Only log warnings and above
-        "propagate": False,
-        "handlers": ["custom_access"],
-    }
-    
-    # Apply our custom filter to all handlers
-    for handler_name in log_config["handlers"]:
-        log_config["handlers"][handler_name]["filters"] = ["status_filter"]
-    
-    # Run the application with the custom log config
-    uvicorn.run("src.main:app", host=host, port=port, reload=reload, log_config=log_config)
+    # Run uvicorn, letting FastAPI/configure_logging handle app logs
+    uvicorn.run("src.main:app", host=host, port=port, reload=reload)
 
 if __name__ == "__main__":
     main() 
