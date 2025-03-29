@@ -31,7 +31,7 @@ CODE_APPROVED_KEYWORD = "[[CODE_APPROVED]]"
 
 async def analyze_initial_spec(spec_text: str) -> Tuple[Dict[str, Any], List[str]]:
     """
-    Parses spec, returns analysis dict {endpoints, schemas, raw_spec_for_context} and warnings.
+    Parses spec, returns analysis dict including 'prompt_summary' and warnings list.
     
     Args:
         spec_text: The raw OpenAPI spec text
@@ -45,12 +45,37 @@ async def analyze_initial_spec(spec_text: str) -> Tuple[Dict[str, Any], List[str
     logger.info("Analyzing initial OpenAPI spec...")
     try:
         parsed_spec, warnings = await validate_openapi_spec(spec_text)
+        
+        # --- Create Prompt Summary ---
+        prompt_summary = {
+            "api_info": parsed_spec.get("info", {}),
+            "servers": parsed_spec.get("servers", []),
+            "security": parsed_spec.get("security", []),
+            "paths": {},
+            "schemas": list(parsed_spec.get("components", {}).get("schemas", {}).keys())
+        }
+        for path, methods in parsed_spec.get("paths", {}).items():
+            prompt_summary["paths"][path] = {}
+            for method, details in methods.items():
+                # Include essential info for prompt context
+                prompt_summary["paths"][path][method] = {
+                    "summary": details.get("summary", "No summary"),
+                    "operationId": details.get("operationId"),
+                    # You could add more here if needed, like key param names/types,
+                    # or $refs for request/response bodies, but keep it concise.
+                }
+        # --- End Prompt Summary Creation ---
+        
         analysis_result = {
+            "prompt_summary": prompt_summary, # Summary for LLM prompts
             "endpoints": list(parsed_spec.get("paths", {}).keys()),
             "schemas": list(parsed_spec.get("components", {}).get("schemas", {}).keys()),
-            "raw_spec_for_context": parsed_spec
+            "raw_spec_for_context": parsed_spec # Full spec for local use
         }
-        logger.info(f"Spec analysis complete. Found {len(analysis_result['endpoints'])} endpoints, {len(analysis_result['schemas'])} schemas.")
+        
+        summary_str_len = len(json.dumps(prompt_summary))
+        logger.info(f"Spec analysis complete. Found {len(analysis_result['endpoints'])} endpoints, {len(analysis_result['schemas'])} schemas. Summary length: {summary_str_len} chars.")
+        
         return analysis_result, warnings
     except SpecValidationError as e:
         logger.error(f"Initial spec validation failed: {e}")
@@ -62,7 +87,8 @@ async def analyze_initial_spec(spec_text: str) -> Tuple[Dict[str, Any], List[str
 async def run_autonomous_blueprint_pipeline(
     spec_analysis: Dict[str, Any],
     progress_callback = None,
-    max_iterations: int = None
+    max_iterations: int = None,
+    mode: str = "basic"
 ) -> Dict[str, Any]:
     """
     Run autonomous pipeline for blueprint generation
@@ -71,6 +97,7 @@ async def run_autonomous_blueprint_pipeline(
         spec_analysis: Dictionary containing spec analysis data
         progress_callback: Optional callback for progress updates
         max_iterations: Maximum iterations for the pipeline, defaults to AUTONOMOUS_MAX_ITERATIONS
+        mode: Blueprint generation mode (basic or advanced)
         
     Returns:
         Dictionary containing the final generated blueprint
@@ -80,7 +107,7 @@ async def run_autonomous_blueprint_pipeline(
         from ...config.settings import AUTONOMOUS_MAX_ITERATIONS
         max_iterations = AUTONOMOUS_MAX_ITERATIONS
     
-    logger.info(f"Starting autonomous blueprint pipeline with max {max_iterations} iterations")
+    logger.info(f"Starting autonomous blueprint pipeline with max {max_iterations} iterations, mode: {mode}")
     
     # Set up context structure to hold spec information and user inputs
     planner_context = PlannerContext(spec_analysis=spec_analysis)
@@ -95,30 +122,25 @@ async def run_autonomous_blueprint_pipeline(
     reviewer_feedback = "No feedback yet. This is the first iteration."
     iteration = 0
     
+    # Extract summary for prompts
+    spec_summary_for_prompt = json.dumps(spec_analysis.get("prompt_summary", {}), indent=2)
+    
     # Main iteration loop
     while not approved and iteration < max_iterations:
         iteration += 1
         logger.info(f"Starting blueprint iteration {iteration}/{max_iterations}")
         
         # --- Author Step ---
-        # Prepare spec analysis summary for the prompt
-        spec_for_prompt = json.dumps(spec_analysis, indent=2)
-        # Limit size if too large
-        MAX_SPEC_PROMPT_LEN = 10000 # Adjust as needed
-        if len(spec_for_prompt) > MAX_SPEC_PROMPT_LEN:
-            spec_for_prompt = spec_for_prompt[:MAX_SPEC_PROMPT_LEN] + "\n... (spec truncated) ..."
-            logger.warning("Spec analysis truncated for Author/Reviewer prompt due to size.")
-
         # Modify author_input_data
         if blueprint_json:
             author_input_data = {
-                "spec_analysis_summary": spec_for_prompt, # ADDED
+                "spec_analysis_summary": spec_summary_for_prompt, # Use SUMMARY string
                 "reviewer_feedback": reviewer_feedback,
                 "previous_blueprint": blueprint_json
             }
         else:
             author_input_data = {
-                "spec_analysis_summary": spec_for_prompt, # ADDED
+                "spec_analysis_summary": spec_summary_for_prompt, # Use SUMMARY string
                 "reviewer_feedback": reviewer_feedback
             }
 
@@ -153,18 +175,18 @@ async def run_autonomous_blueprint_pipeline(
             if not isinstance(proposed_blueprint_json, str):
                 proposed_blueprint_json = str(proposed_blueprint_json)
             
-            # Log Author Output
-            logger.debug(f"AUTHOR Output (Iter {iteration}):\n{proposed_blueprint_json[:1000]}...")
+            # Log Author Output with trace ID
+            logger.debug(f"AUTHOR Output (Iter {iteration}, Trace: {author_trace_id}):\n{proposed_blueprint_json[:1000]}...")
             
             try:
                 # Validate the JSON structure
                 blueprint_dict = json.loads(proposed_blueprint_json)
                 
-                # Validate the blueprint structure
-                validation_result = validate_blueprint(blueprint_dict)
-                if not validation_result["valid"]:
-                    # If validation fails, log issues but continue with the JSON
-                    logger.warning(f"Blueprint validation issues: {validation_result['errors']}")
+                # Validate the blueprint structure (await the async function)
+                # Note: validate_and_clean_blueprint returns a tuple (dict, warnings)
+                cleaned_blueprint_dict, validation_warnings = await validate_blueprint(blueprint_dict)
+                if validation_warnings:
+                    logger.warning(f"Blueprint validation issues (iteration {iteration}): {validation_warnings}")
                 
                 # Use the proposed blueprint for the next iteration
                 blueprint_json = proposed_blueprint_json
@@ -172,7 +194,12 @@ async def run_autonomous_blueprint_pipeline(
                 
             except json.JSONDecodeError as e:
                 logger.error(f"Blueprint author produced invalid JSON (iteration {iteration}): {e}")
-                raise BlueprintGenerationError(f"Blueprint author produced invalid JSON: {e}")
+                # Provide feedback for next iteration
+                reviewer_feedback = f"[[REVISION_NEEDED]]\nYour previous output was not valid JSON. Please output only a single, valid JSON string representing the blueprint. Error: {e}"
+                # If last iteration, raise error, otherwise continue
+                if iteration == max_iterations:
+                    raise BlueprintGenerationError(f"Author failed to produce valid JSON after {max_iterations} iterations.") from e
+                continue # Skip reviewer for this iteration
                 
         except Exception as e:
             logger.error(f"Blueprint author failed (iteration {iteration}): {str(e)}")
@@ -181,7 +208,7 @@ async def run_autonomous_blueprint_pipeline(
         # --- Reviewer Step ---
         # Modify reviewer_input_data
         reviewer_input_data = {
-            "spec_analysis_summary": spec_for_prompt, # ADDED
+            "spec_analysis_summary": spec_summary_for_prompt, # Use SUMMARY string
             "blueprint_to_review": blueprint_json
         }
         
@@ -215,8 +242,8 @@ async def run_autonomous_blueprint_pipeline(
             if not isinstance(review_output_raw, str):
                 review_output_raw = str(review_output_raw)
             
-            # Log Reviewer Output
-            logger.debug(f"REVIEWER Output (Iter {iteration}):\n{review_output_raw}")
+            # Log Reviewer Output with trace ID
+            logger.debug(f"REVIEWER Output (Iter {iteration}, Trace: {reviewer_trace_id}):\n{review_output_raw}")
             
             # Extract feedback and check for approval keyword
             reviewer_output = review_output_raw
@@ -255,9 +282,26 @@ async def run_autonomous_blueprint_pipeline(
             "system"
         )
     
-    # Return the final blueprint as a dictionary
+    # Return the final blueprint as a dictionary, with additional metadata
     try:
-        return json.loads(blueprint_json)
+        final_blueprint_dict = json.loads(blueprint_json)
+        
+        # Add additional metadata
+        api_info = spec_analysis.get("prompt_summary", {}).get("api_info", {})
+        servers = spec_analysis.get("prompt_summary", {}).get("servers", [])
+        
+        # Add description if available
+        if "description" in api_info:
+            final_blueprint_dict["description"] = api_info.get("description")
+        
+        # Add baseUrl if available from servers
+        if servers and isinstance(servers, list) and len(servers) > 0 and "url" in servers[0]:
+            final_blueprint_dict["baseUrl"] = servers[0].get("url")
+        
+        # Add mode
+        final_blueprint_dict["mode"] = mode
+        
+        return final_blueprint_dict
     except json.JSONDecodeError as e:
         logger.error(f"Error parsing final blueprint JSON: {e}")
         raise BlueprintGenerationError(f"Error parsing final blueprint JSON: {e}")
@@ -352,8 +396,8 @@ async def run_autonomous_script_pipeline(
             if not isinstance(proposed_script_files_json, str):
                 proposed_script_files_json = str(proposed_script_files_json)
             
-            # Log Coder Output
-            logger.debug(f"CODER Output for {framework} (Iter {iteration}):\n{proposed_script_files_json[:1000]}...")
+            # Log Coder Output with trace ID
+            logger.debug(f"CODER Output for {framework} (Iter {iteration}, Trace: {coder_trace_id}):\n{proposed_script_files_json[:1000]}...")
             
             try:
                 # Validate JSON structure
@@ -378,7 +422,12 @@ async def run_autonomous_script_pipeline(
                 
             except json.JSONDecodeError as e:
                 logger.error(f"Script coder produced invalid JSON for {framework} (iteration {iteration}): {e}")
-                raise ScriptGenerationError(f"Script coder produced invalid JSON: {e}")
+                # Provide feedback for next iteration
+                reviewer_feedback = f"[[REVISION_NEEDED]]\nYour previous output was not valid JSON. Please output only a valid JSON array of file objects. Error: {e}"
+                # If last iteration, raise error, otherwise continue
+                if iteration == max_iterations:
+                    raise ScriptGenerationError(f"Script coder failed to produce valid JSON after {max_iterations} iterations.") from e
+                continue # Skip reviewer for this iteration
                 
         except Exception as e:
             logger.error(f"Script coder failed for {framework} (iteration {iteration}): {str(e)}")
@@ -421,8 +470,8 @@ async def run_autonomous_script_pipeline(
             if not isinstance(review_output_raw, str):
                 review_output_raw = str(review_output_raw)
             
-            # Log Reviewer Output
-            logger.debug(f"REVIEWER Output for {framework} (Iter {iteration}):\n{review_output_raw}")
+            # Log Reviewer Output with trace ID
+            logger.debug(f"REVIEWER Output for {framework} (Iter {iteration}, Trace: {reviewer_trace_id}):\n{review_output_raw}")
             
             # Extract feedback and check for approval keyword
             reviewer_output = review_output_raw

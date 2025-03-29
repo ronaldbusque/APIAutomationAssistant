@@ -225,7 +225,8 @@ async def generate_blueprint_background(
             blueprint = await run_autonomous_blueprint_pipeline(
                 spec_analysis=spec_analysis,
                 progress_callback=progress_callback_wrapper,
-                max_iterations=max_iterations
+                max_iterations=max_iterations,
+                mode=request.mode
             )
             
             trace_id = f"autonomous_bp_{job_id}"
@@ -770,18 +771,6 @@ def create_api_router(app: FastAPI = None):
     if app is None:
         from fastapi import APIRouter
         app = APIRouter()
-    
-    # Add middleware to suppress logging for status endpoints
-    @app.middleware("http")
-    async def suppress_status_logging(request: Request, call_next):
-        path = request.url.path
-        if path.startswith("/status/"):
-            # Set attribute to indicate this request should not be logged
-            # (uvicorn's access logger checks for this attribute if configured)
-            request.state.access_log = False
-        
-        response = await call_next(request)
-        return response
     
     @app.post("/generate-blueprint", response_model=Dict[str, str])
     async def generate_blueprint(request: GenerateBlueprintRequest, background_tasks: BackgroundTasks):
