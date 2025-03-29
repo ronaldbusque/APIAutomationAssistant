@@ -5,7 +5,7 @@ This module defines the data models used to represent test blueprints
 generated from OpenAPI specifications.
 """
 
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Literal
 from enum import Enum
 from pydantic import BaseModel, Field, model_validator, AliasChoices
 import logging
@@ -25,6 +25,75 @@ class DataFormat(str, Enum):
     FORM = "form"
     TEXT = "text"
     BINARY = "binary"
+
+# New assertion models
+class JsonPathAssertion(BaseModel):
+    """Model for JSON path assertions against response body."""
+    type: Literal["jsonPath"] = "jsonPath"
+    path: str = Field(..., description="JSONPath expression (e.g., $.data.id)")
+    operator: Literal["equals", "notEquals", "contains", "exists", "notExists", "greaterThan", "lessThan"] = "equals"
+    expectedValue: Optional[Any] = Field(None, description="Value to compare against (for relevant operators)")
+
+class HeaderAssertion(BaseModel):
+    """Model for assertions against response headers."""
+    type: Literal["header"] = "header"
+    headerName: str = Field(..., description="Name of the HTTP header")
+    operator: Literal["equals", "contains", "exists", "notExists"] = "equals"
+    expectedValue: Optional[str] = Field(None, description="Value to compare against")
+
+class StatusCodeAssertion(BaseModel):
+    """Model for status code assertions."""
+    type: Literal["statusCode"] = "statusCode"
+    expectedStatus: int = Field(..., description="Expected HTTP status code")
+
+class ResponseTimeAssertion(BaseModel):
+    """Model for response time assertions."""
+    type: Literal["responseTime"] = "responseTime"
+    maxMs: int = Field(..., description="Maximum acceptable response time in milliseconds")
+
+class SchemaValidationAssertion(BaseModel):
+    """Model for JSON schema validation assertions."""
+    type: Literal["schemaValidation"] = "schemaValidation"
+    enabled: bool = True
+
+# Union type for all assertion types
+AssertionType = Union[str, JsonPathAssertion, HeaderAssertion, StatusCodeAssertion, ResponseTimeAssertion, SchemaValidationAssertion]
+
+# Authentication models
+class ApiKeyAuthConfig(BaseModel):
+    """Model for API key authentication."""
+    type: Literal["apiKey"] = "apiKey"
+    keyName: str = Field(..., description="Name of the API key parameter/header")
+    in_: Literal["header", "query"] = Field(..., description="Location of the API key", alias="in")
+    valueFromEnv: str = Field(..., description="Environment variable name containing the key (e.g., 'API_KEY')")
+    
+    model_config = {
+        "populate_by_name": True  # Enable mapping of 'in' to 'in_'
+    }
+
+class BearerAuthConfig(BaseModel):
+    """Model for Bearer token authentication."""
+    type: Literal["bearer"] = "bearer"
+    tokenFromEnv: str = Field(..., description="Environment variable name containing the bearer token (e.g., 'AUTH_TOKEN')")
+
+# Union type for authentication configs
+AuthDetails = Union[ApiKeyAuthConfig, BearerAuthConfig]
+
+# Environment model
+class EnvironmentConfig(BaseModel):
+    """Model for environment configuration."""
+    baseUrl: str
+    variables: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+# Setup and teardown hooks
+class HookStep(BaseModel):
+    """Model for setup/teardown hook steps."""
+    name: str = Field(..., description="Name/description of the step")
+    endpoint: str
+    method: Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
+    headers: Optional[Dict[str, str]] = None
+    body: Optional[Dict[str, Any]] = None
+    saveResponseAs: Optional[str] = Field(None, description="Variable name to save the full response body under")
 
 class HeaderParam(BaseModel):
     """Model for HTTP header parameters."""
@@ -49,7 +118,8 @@ class Parameter(BaseModel):
     model_config = {
         "json_schema_extra": {
             "required": ["name", "value", "in"]
-        }
+        },
+        "populate_by_name": True  # Enable mapping of 'in' to 'in_'
     }
 
 class Test(BaseModel):
@@ -62,9 +132,9 @@ class Test(BaseModel):
     headers: Optional[List[HeaderParam]] = Field(None, description="Request headers")
     parameters: Optional[Union[List[Parameter], Dict[str, Any]]] = Field(None, description="Request parameters")
     body: Optional[Dict[str, Any]] = Field(None, description="Request body")
-    expectedStatus: int = Field(..., description="Expected HTTP status code")
+    expectedStatus: Optional[int] = Field(None, description="Expected HTTP status code (deprecated by StatusCodeAssertion, kept for backward compat)")
     expectedSchema: Optional[Dict[str, Any]] = Field(None, description="Expected response schema")
-    assertions: Optional[List[str]] = Field(None, description="Additional assertions to make")
+    assertions: Optional[List[AssertionType]] = Field(None, description="List of structured assertions or simple strings")
     dependencies: Optional[List[str]] = Field(None, description="IDs of tests this test depends on")
     businessRules: Optional[List[str]] = Field(None, description="Business rules to test")
     dataFormat: Optional[DataFormat] = Field(None, description="Format of request/response data")
@@ -81,9 +151,29 @@ class Test(BaseModel):
     
     model_config = {
         "json_schema_extra": {
-            "required": ["id", "name", "endpoint", "method", "expectedStatus"]
+            "required": ["id", "name", "endpoint", "method"]
         }
     }
+
+    @model_validator(mode='before')
+    def migrate_expected_status(cls, values):
+        """
+        Ensure expectedStatus is included in assertions list if present.
+        This supports backward compatibility.
+        """
+        if 'expectedStatus' in values and values['expectedStatus'] is not None:
+            if 'assertions' not in values or values['assertions'] is None:
+                values['assertions'] = []
+            # Avoid duplicates if already present as structured assertion
+            has_status_assertion = any(
+                (isinstance(a, dict) and a.get('type') == 'statusCode') or 
+                (isinstance(a, StatusCodeAssertion)) 
+                for a in values.get('assertions', [])
+            )
+            if not has_status_assertion:
+                status_assertion = StatusCodeAssertion(expectedStatus=values['expectedStatus'])
+                values['assertions'].append(status_assertion)
+        return values
 
     @model_validator(mode='after')
     def validate_test(self) -> 'Test':
@@ -211,6 +301,8 @@ class TestGroup(BaseModel):
     description: Optional[str] = Field(None, description="Group description")
     tests: List[Test] = Field(..., description="Tests in this group")
     tags: Optional[List[str]] = Field(None, description="Tags for categorizing the group")
+    setupSteps: Optional[List[HookStep]] = Field(None, description="Steps to run before tests in this group")
+    teardownSteps: Optional[List[HookStep]] = Field(None, description="Steps to run after tests in this group")
     
     model_config = {
         "json_schema_extra": {
@@ -247,6 +339,8 @@ class Blueprint(BaseModel):
     version: str = Field(..., description="Version of the API being tested")
     description: Optional[str] = Field(None, description="Description of the test suite")
     baseUrl: Optional[str] = Field(None, description="Base URL of the API")
+    environments: Optional[Dict[str, EnvironmentConfig]] = Field(None, description="Dictionary of environment configurations (e.g., {'dev': {...}, 'prod': {...}})")
+    auth: Optional[AuthDetails] = Field(None, description="Default authentication method for the API")
     mode: Optional[TestMode] = Field(TestMode.BASIC, description="Testing mode (basic or advanced)")
     groups: List[TestGroup] = Field(..., description="Test groups")
     globalHeaders: Optional[List[HeaderParam]] = Field(None, description="Headers to apply to all tests")

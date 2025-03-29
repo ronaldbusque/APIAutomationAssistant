@@ -43,9 +43,39 @@ def setup_blueprint_author_agent() -> Agent:
 {
   "apiName": "Name from the spec",
   "version": "Version from spec",
+  "baseUrl": "Base URL from the spec",
+  "environments": {
+    "production": {
+      "baseUrl": "https://api.example.com/v1",
+      "variables": {
+        "apiKey": "{{PROD_API_KEY}}"
+      }
+    },
+    "development": {
+      "baseUrl": "https://dev-api.example.com/v1",
+      "variables": {
+        "apiKey": "{{DEV_API_KEY}}"
+      }
+    }
+  },
+  "auth": {
+    "type": "apiKey",
+    "keyName": "X-API-Key",
+    "in": "header",
+    "valueFromEnv": "API_KEY"
+  },
   "groups": [
     {
       "name": "Logical Grouping Name (e.g., Users, Orders)",
+      "setupSteps": [
+        {
+          "name": "Create test user",
+          "endpoint": "/users",
+          "method": "POST",
+          "body": {"name": "Test User", "email": "{{$randomEmail}}"},
+          "saveResponseAs": "testUser"
+        }
+      ],
       "tests": [
         {
           "id": "unique-test-id",
@@ -53,34 +83,115 @@ def setup_blueprint_author_agent() -> Agent:
           "endpoint": "/path/{with}/placeholders",
           "method": "HTTP_METHOD",
           "description": "What the test verifies",
-          "preconditions": "Any prerequisites",
-          "request": {
-            "pathParams": {"param1": "value1"},
-            "queryParams": {"param2": "value2"},
-            "headers": {"Content-Type": "application/json"},
-            "body": {"key": "exampleValue"}
-          },
-          "expectedResponse": {
-            "statusCode": 200,
-            "headers": {"Content-Type": "application/json"},
-            "body": {"keyToValidate": "expectedValue"}
-          },
-          "assertions": [
-            "Specific checks to perform",
-            "e.g., 'Response contains user ID'"
+          "headers": {"Content-Type": "application/json"},
+          "parameters": [
+            {
+              "name": "param1",
+              "value": "value1",
+              "in": "path"
+            },
+            {
+              "name": "param2",
+              "value": "value2",
+              "in": "query"
+            }
           ],
-          "testData": {
-            "variables": {"username": "test_user"},
-            "datasets": [{}, {}]
+          "body": {"key": "exampleValue"},
+          "assertions": [
+            {
+              "type": "statusCode",
+              "expectedStatus": 200
+            },
+            {
+              "type": "jsonPath",
+              "path": "$.id",
+              "operator": "exists"
+            },
+            {
+              "type": "header",
+              "headerName": "Content-Type",
+              "operator": "equals",
+              "expectedValue": "application/json"
+            },
+            {
+              "type": "responseTime",
+              "maxMs": 5000
+            },
+            {
+              "type": "schemaValidation",
+              "enabled": true
+            }
+          ],
+          "variableExtraction": {
+            "userId": "$.id"
           },
-          "dependencies": ["id-of-prerequisite-test"],
-          "priority": "high"
+          "dependencies": ["id-of-prerequisite-test"]
+        },
+        {
+          "id": "negative-test-id",
+          "name": "Negative Test Name - Required Field Missing",
+          "endpoint": "/path",
+          "method": "POST",
+          "description": "Verifies API rejects requests missing required fields",
+          "body": {"incomplete": "data"},
+          "assertions": [
+            {
+              "type": "statusCode",
+              "expectedStatus": 400
+            },
+            {
+              "type": "jsonPath",
+              "path": "$.error",
+              "operator": "contains",
+              "expectedValue": "required field"
+            }
+          ]
+        }
+      ],
+      "teardownSteps": [
+        {
+          "name": "Delete test user",
+          "endpoint": "/users/{{testUser.id}}",
+          "method": "DELETE"
         }
       ]
     }
   ]
 }
 ```
+
+**Testing Guidelines:**
+
+1. **Structured Assertions:** Generate detailed structured assertions based on response definitions:
+   - Use `StatusCodeAssertion` for expected HTTP status codes
+   - Use `JsonPathAssertion` to validate specific response fields
+   - Use `HeaderAssertion` to verify response headers
+   - Use `ResponseTimeAssertion` for performance checks
+   - Use `SchemaValidationAssertion` when response schemas are defined
+
+2. **Environments:** Extract server URLs from the spec's servers section:
+   - Populate the `environments` dictionary with entries for different environments
+   - Set the `baseUrl` and define placeholder environment `variables`
+
+3. **Authentication:** Analyze securitySchemes and security sections:
+   - Populate the `auth` field with the appropriate structure
+   - Use environment variable references for sensitive values
+
+4. **Dynamic Data:** For request bodies or parameters requiring dynamic input:
+   - Use placeholder syntax like `{{$randomEmail}}`, `{{$randomUUID}}`, `{{$guid}}`, `{{$timestamp}}`
+
+5. **Setup/Teardown:** Identify logical setup requirements:
+   - Use `setupSteps` for creating prerequisite resources
+   - Use `teardownSteps` for cleaning up created resources
+   - Use `saveResponseAs` to store response data for later use
+
+6. **Negative Tests (MANDATORY):** For comprehensive coverage, include:
+   - Tests for missing required fields
+   - Tests with invalid data types
+   - Tests for exceeding limits (min/max values)
+   - Tests for unique constraint violations
+   - Tests for invalid authentication/authorization
+   - Tests for expected error status codes and messages
 
 **CRITICAL OUTPUT FORMAT:**
 - Your response MUST contain ONLY a valid JSON object matching the structure above.
@@ -117,12 +228,15 @@ def setup_blueprint_reviewer_agent() -> Agent:
     - **Accuracy:** Endpoints, methods, parameters, and response codes match the spec.
     - **Completeness:** All required fields are populated with meaningful values.
 3.  **Evaluate Quality:**
+    - **Structured Assertions:** Are assertions relevant and correctly formed based on the spec?
+    - **Environments:** Does the environments section accurately reflect the servers in the spec?
+    - **Authentication:** Does the auth section correctly represent the security requirements from the spec?
+    - **Dynamic Data:** Are dynamic data placeholders ({{$...}}) used appropriately?
+    - **Setup/Teardown:** Are the setup and teardown steps logically sound for the test groups?
+    - **Negative Tests:** Critically evaluate negative test coverage. Ensure tests for missing required fields, invalid types, and expected error codes are present for relevant input-accepting endpoints.
     - **Logical Grouping:** Tests are grouped appropriately.
     - **Naming:** Test IDs and names are clear, consistent, and descriptive.
-    - **Assertions:** Assertions are specific and cover important scenarios.
-    - **Test Data:** Appropriate test variables and datasets.
     - **Dependencies:** Dependencies are logical and necessary.
-    - **Priority:** Priority levels are appropriate.
 4.  **Generate Feedback:** Create a numbered list of concise, actionable feedback points detailing ALL required changes or missing items. If no changes are needed, state that clearly.
 5.  **Append Keyword:** After your feedback (or approval statement), add a **new line** containing **ONLY** one of the following keywords:
     - `[[BLUEPRINT_APPROVED]]` (if NO changes are needed)
@@ -156,20 +270,30 @@ def setup_script_coder_agent(framework: str) -> Agent:
     if framework == "playwright":
         extra_instructions = """
 - **File Structure:** Organize tests under a `tests/` directory (e.g., `tests/api/users.spec.ts`). Place fixtures in `tests/fixtures/` and utility code in `tests/utils/`.
-- **Required Files:** Ensure your output includes:
-    - Test files (`*.spec.ts`).
-    - A basic Playwright config file (`playwright.config.ts`).
-    - Example fixture file (`tests/fixtures/fixtures.ts`).
-    - An environment variable template (`.env.example`).
-    - A simple `README.md` explaining setup and run commands.
+- **Assertions:** Generate Playwright `expect(response).toXXX()` calls. Use `expect(response.json()).toMatchSchema(schema)` or integrate `ajv` for schema validation. Check headers and response times.
+- **Environments:** Generate `.env` files (e.g., `.env.dev`, `.env.prod`). Use `dotenv` library in scripts to load variables.
+- **Authentication:** Implement logic to add auth headers based on environment variables.
+- **Dynamic Data:** Import faker-js or similar for generating dynamic test data.
+- **Setup/Teardown:** Implement `test.beforeAll`/`test.afterAll` hooks for setup/teardown steps.
+- **Required Files:**
+    - Test files (`*.spec.ts`)
+    - A basic Playwright config file (`playwright.config.ts`)
+    - Example fixture file (`tests/fixtures/fixtures.ts`)
+    - An environment variable template (`.env.example`)
+    - A simple `README.md` explaining setup and run commands
 """
     elif framework == "postman":
         extra_instructions = """
-- **Required Files:** Ensure your output includes:
-    - The main Postman collection JSON (`collection.json`).
-    - Example environment files (e.g., `environments/development.json`, `environments/production.json`).
-    - Example data file if data-driven tests are present (`data/test_data.csv`).
-    - A simple `README.md` explaining how to import and run the collection.
+- **Assertions:** Translate structured assertions into Postman `pm.test(...)` scripts using `pm.response` methods.
+- **Environments:** Generate separate environment files based on the `environments` dictionary.
+- **Authentication:** Configure Collection/Folder/Request level authentication based on the `auth` field.
+- **Dynamic Data:** Map `{{$...}}` placeholders to Postman's dynamic variables.
+- **Setup/Teardown:** Implement pre-request and test scripts for setup/teardown steps.
+- **Required Files:**
+    - The main Postman collection JSON (`collection.json`)
+    - Example environment files (e.g., `environments/development.json`, `environments/production.json`)
+    - Example data file if data-driven tests are present (`data/test_data.csv`)
+    - A simple `README.md` explaining how to import and run the collection
 """
     # Add more frameworks as needed
 
@@ -202,7 +326,7 @@ def setup_script_coder_agent(framework: str) -> Agent:
 
 def setup_script_reviewer_agent(framework: str) -> Agent:
     """
-    Set up the Script Reviewer Agent that validates the test scripts for a given framework.
+    Set up the Script Reviewer Agent that validates and reviews test scripts.
     
     Args:
         framework: Target framework (e.g., 'postman', 'playwright')
@@ -213,49 +337,31 @@ def setup_script_reviewer_agent(framework: str) -> Agent:
     model_name = model_strategy.select_model("script_reviewing", complexity=0.6)
     logger.info(f"Setting up Script Reviewer Agent for {framework} with model: {model_name}")
     
-    # Define framework-specific review criteria
-    extra_instructions = ""
-    if framework == "playwright":
-        extra_instructions = """
-    - **Framework-Specific Requirements:**
-        - Test files correctly use Playwright's test structure, fixtures, and API.
-        - Test files are organized in appropriate directories.
-        - Config file is properly set up with necessary options.
-        - Environment variables are properly managed.
-        - All required files are present (tests, config, fixtures, README).
-"""
-    elif framework == "postman":
-        extra_instructions = """
-    - **Framework-Specific Requirements:**
-        - Collection JSON is valid and properly structured.
-        - Environment files are correctly defined with all necessary variables.
-        - Collection includes appropriate pre-request scripts and test scripts.
-        - All required files are present (collection, environments, README).
-"""
-    # Add more frameworks as needed
-
     return Agent(
         name=f"ScriptReviewerAgent_{framework}",
         model=model_name,
-        instructions=f"""You are an expert test automation engineer who reviews {framework} API test scripts for quality and accuracy.
+        instructions=f"""You are an expert test automation engineer who reviews {framework} API test scripts for quality, completeness, and correctness.
 
 **Input Parameters (Provided in the prompt):**
 1.  **Framework:** {framework} (already selected for you)
-2.  **Blueprint JSON:** The JSON string representation of the complete test blueprint.
-3.  **Generated Script Files JSON:** An array of file objects (`{{"filename": ..., "content": ...}}`) to review.
+2.  **Blueprint JSON:** The JSON string representation of the test blueprint that was used to generate the scripts.
+3.  **Code Files to Review:** JSON array of file objects (`{{"filename": ..., "content": ...}}`) that you need to review.
 
 **Your Task:**
-1.  **Validate Structure:** Check if the provided code files follow proper {framework} structure and best practices.
-2.  **Compare with Blueprint:** Verify against the provided **Blueprint JSON** that:
-    - **Coverage:** All test cases from the blueprint are implemented.
-    - **Accuracy:** The tests correctly implement the endpoints, methods, parameters, and assertions.
-    - **Completeness:** The tests include proper setup, teardown, and error handling.
-3.  **Code Quality:** Evaluate the code for:
-    - **Readability:** Well-structured code with clear variable names and comments.
-    - **Maintainability:** DRY principles, reusable components, and configuration.
-    - **Robustness:** Proper error handling and test isolation.{extra_instructions}
-4.  **Generate Feedback:** Create a numbered list of concise, actionable feedback points detailing *all* required changes or missing items. If no changes are needed, state that clearly.
-5.  **Append Keyword:** After your feedback (or approval statement), add a **new line** containing **ONLY** one of the following keywords:
+1.  **Verify Blueprint Implementation:** Compare the code files against the blueprint to ensure:
+    - **Completeness:** All test cases in the blueprint are implemented.
+    - **Accuracy:** Tests match the specifications in the blueprint (endpoints, methods, assertions, etc.).
+    - **Structure:** Files are organized according to best practices for {framework}.
+2.  **Evaluate Technical Quality:**
+    - **Assertions:** All structured assertions from the blueprint are correctly implemented
+    - **Environments:** Environment configurations are properly implemented
+    - **Authentication:** Auth mechanisms from the blueprint are correctly implemented
+    - **Setup/Teardown:** Setup and teardown steps are correctly implemented  
+    - **Code Quality:** Code is well-structured, readable, and follows best practices.
+    - **Error Handling:** Appropriate error handling and validation is implemented.
+    - **Maintainability:** Code is modular, reusable, and well-commented.
+3.  **Generate Feedback:** Create a numbered list of concise, actionable feedback points detailing ALL required changes. If no changes are needed, state that clearly.
+4.  **Append Keyword:** After your feedback (or approval statement), add a **new line** containing **ONLY** one of the following keywords:
     - `[[CODE_APPROVED]]` (if NO changes are needed)
     - `[[REVISION_NEEDED]]` (if ANY changes are needed based on your feedback)
 
