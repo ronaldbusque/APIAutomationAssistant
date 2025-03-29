@@ -79,3 +79,4 @@ src/simple_task_test.py
 ui/src/components/ApiTest.tsx
 ui/ux_plan.md
 fixes/
+app.log
