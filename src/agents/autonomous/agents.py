@@ -156,6 +156,17 @@ def setup_blueprint_author_agent() -> Agent:
         }
       ]
     }
+  ],
+  "testFlows": [
+    {
+      "name": "Example End-to-End Flow",
+      "description": "Illustrates creating, retrieving, and deleting a resource.",
+      "steps": [
+        { "testId": "id-of-prerequisite-test", "description": "Step 1: Create" },
+        { "testId": "id-of-dependent-test", "description": "Step 2: Read/Update" },
+        { "testId": "id-of-cleanup-test", "description": "Step 3: Delete" }
+      ]
+    }
   ]
 }
 ```
@@ -185,7 +196,12 @@ def setup_blueprint_author_agent() -> Agent:
    - Use `teardownSteps` for cleaning up created resources
    - Use `saveResponseAs` to store response data for later use
 
-6. **Negative Tests (MANDATORY):** For comprehensive coverage, include:
+6. **Test Flows (OPTIONAL):** Analyze the `dependencies` field within your tests:
+   - If clear end-to-end scenarios or common user journeys emerge from these dependencies (e.g., a sequence like Create -> Get -> Update -> Delete), you **may optionally** define these as `testFlows`
+   - Each flow requires a `name`, `description`, and `steps` with each step containing a `testId` that **exactly matches** the `id` of a test generated in the `groups`
+   - If no clear or meaningful flows are apparent from the dependencies, **omit the `testFlows` array entirely**
+
+7. **Negative Tests (MANDATORY):** For comprehensive coverage, include:
    - Tests for missing required fields
    - Tests with invalid data types
    - Tests for exceeding limits (min/max values)
@@ -233,6 +249,9 @@ def setup_blueprint_reviewer_agent() -> Agent:
     - **Authentication:** Does the auth section correctly represent the security requirements from the spec?
     - **Dynamic Data:** Are dynamic data placeholders ({{$...}}) used appropriately?
     - **Setup/Teardown:** Are the setup and teardown steps logically sound for the test groups?
+    - **Test Flows:**
+        - If `testFlows` *are* present: Verify the flow logic is reasonable (e.g., dependencies seem respected), all `testId`s referenced in `steps` exist within the blueprint's `tests`, and names/descriptions are clear. If flows are invalid or illogical, require revision (`[[REVISION_NEEDED]]`).
+        - If `testFlows` *are not* present: Briefly analyze the `dependencies` within the `tests`. If clear multi-step dependencies exist suggesting logical end-to-end flows (e.g., create ID used in get ID used in delete ID), **recommend adding a specific, relevant `testFlow` in your feedback and require revision** (`[[REVISION_NEEDED]]`). If dependencies do not clearly suggest obvious flows, it is acceptable to have no `testFlows`.
     - **Negative Tests:** Critically evaluate negative test coverage. Ensure tests for missing required fields, invalid types, and expected error codes are present for relevant input-accepting endpoints.
     - **Logical Grouping:** Tests are grouped appropriately.
     - **Naming:** Test IDs and names are clear, consistent, and descriptive.
@@ -279,7 +298,18 @@ def setup_script_coder_agent(framework: str) -> Agent:
     - Test files (`*.spec.ts`)
     - A basic Playwright config file (`playwright.config.ts`)
     - Example fixture file (`tests/fixtures/fixtures.ts`)
-    - An environment variable template (`.env.example`)
+    - An environment variable template (`.env.example`). The `content` for this specific file **MUST** be static text containing example variable assignments derived from the blueprint's `environments` and `auth` sections (e.g., showing `BASE_URL=` and `API_KEY=`). **DO NOT** attempt to execute code or use runtime values like `process.env` when generating the *content string* for this file. Example content format:
+      ```dotenv
+      # Environment variables
+      BASE_URL=https://dev-api.example.com/v1
+      
+      # Authentication variables
+      API_KEY=your_dev_api_key_here
+      BEARER_TOKEN=your_bearer_token_here
+      
+      # Use the exact variable names from the environments and auth sections
+      # and provide placeholder example values for each
+      ```
     - A simple `README.md` explaining setup and run commands
 """
     elif framework == "postman":
@@ -360,6 +390,7 @@ def setup_script_reviewer_agent(framework: str) -> Agent:
     - **Code Quality:** Code is well-structured, readable, and follows best practices.
     - **Error Handling:** Appropriate error handling and validation is implemented.
     - **Maintainability:** Code is modular, reusable, and well-commented.
+    - **Validate Config/Example Files:** Review the content of non-code files like `.env.example` and `README.md`. Ensure `.env.example` contains **only static example variable assignments** (e.g., `VAR_NAME=example_value`) and does **NOT** contain execution errors (like 'process is not defined') or dynamic code. Check `README.md` for accuracy. If content is incorrect or missing, require revision (`[[REVISION_NEEDED]]`).
 3.  **Generate Feedback:** Create a numbered list of concise, actionable feedback points detailing ALL required changes. If no changes are needed, state that clearly.
 4.  **Append Keyword:** After your feedback (or approval statement), add a **new line** containing **ONLY** one of the following keywords:
     - `[[CODE_APPROVED]]` (if NO changes are needed)
@@ -373,4 +404,4 @@ def setup_script_reviewer_agent(framework: str) -> Agent:
 """,
         output_type=str,
         tools=[],
-    ) 
+    )

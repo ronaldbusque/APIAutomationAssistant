@@ -9,7 +9,7 @@ import json
 from ..blueprint.models import (
     Blueprint, TestGroup, Test, JsonPathAssertion, HeaderAssertion, 
     StatusCodeAssertion, ResponseTimeAssertion, SchemaValidationAssertion,
-    ApiKeyAuthConfig, BearerAuthConfig, EnvironmentConfig, HookStep
+    ApiKeyAuthConfig, BearerAuthConfig, EnvironmentConfig, HookStep, TestFlow, TestFlowStep
 )
 
 def test_json_path_assertion():
@@ -267,4 +267,66 @@ def test_complete_blueprint_serialization():
     assert new_blueprint.apiName == "Complete Test API"
     assert new_blueprint.environments["production"].baseUrl == "https://api.example.com/v1"
     assert new_blueprint.groups[0].tests[0].assertions[0].expectedStatus == 200
-    assert new_blueprint.groups[0].setupSteps[0].saveResponseAs == "testUser" 
+    assert new_blueprint.groups[0].setupSteps[0].saveResponseAs == "testUser"
+
+def test_test_flow():
+    """Test TestFlow model."""
+    flow = TestFlow(
+        name="End-to-End Flow",
+        description="Complete user journey",
+        steps=[
+            TestFlowStep(testId="create-user", description="Step 1: Create user"),
+            TestFlowStep(testId="get-user", description="Step 2: Get user details"),
+            TestFlowStep(testId="update-user", description="Step 3: Update user"),
+            TestFlowStep(testId="delete-user", description="Step 4: Delete user")
+        ]
+    )
+    assert flow.name == "End-to-End Flow"
+    assert flow.description == "Complete user journey"
+    assert len(flow.steps) == 4
+    assert flow.steps[0].testId == "create-user"
+    assert flow.steps[1].description == "Step 2: Get user details"
+
+def test_blueprint_with_test_flows():
+    """Test Blueprint model with test flows."""
+    blueprint = Blueprint(
+        apiName="Test API",
+        version="1.0.0",
+        groups=[
+            TestGroup(
+                name="User Tests",
+                tests=[
+                    Test(id="create-user", name="Create User", endpoint="/users", method="POST"),
+                    Test(id="get-user", name="Get User", endpoint="/users/{id}", method="GET"),
+                    Test(id="update-user", name="Update User", endpoint="/users/{id}", method="PUT"),
+                    Test(id="delete-user", name="Delete User", endpoint="/users/{id}", method="DELETE")
+                ]
+            )
+        ],
+        testFlows=[
+            TestFlow(
+                name="End-to-End Flow",
+                description="Complete user journey",
+                steps=[
+                    TestFlowStep(testId="create-user", description="Step 1: Create user"),
+                    TestFlowStep(testId="get-user", description="Step 2: Get user details"),
+                    TestFlowStep(testId="update-user", description="Step 3: Update user"),
+                    TestFlowStep(testId="delete-user", description="Step 4: Delete user")
+                ]
+            )
+        ]
+    )
+    assert blueprint.apiName == "Test API"
+    assert len(blueprint.groups) == 1
+    assert len(blueprint.testFlows) == 1
+    assert blueprint.testFlows[0].name == "End-to-End Flow"
+    assert len(blueprint.testFlows[0].steps) == 4
+    
+    # Test serialization and deserialization
+    json_str = blueprint.model_dump_json()
+    json_dict = json.loads(json_str)
+    new_blueprint = Blueprint.model_validate(json_dict)
+    
+    assert new_blueprint.testFlows[0].name == "End-to-End Flow"
+    assert len(new_blueprint.testFlows[0].steps) == 4
+    assert new_blueprint.testFlows[0].steps[0].testId == "create-user" 
