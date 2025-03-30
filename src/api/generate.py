@@ -14,8 +14,6 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocke
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from ..agents.test_generation import process_openapi_spec, generate_test_scripts
-from ..blueprint.validation import validate_and_clean_blueprint as validate_blueprint
 from ..errors.exceptions import (
     APITestGenerationError, SpecValidationError, 
     BlueprintGenerationError, ScriptGenerationError
@@ -33,17 +31,17 @@ logger = logging.getLogger(__name__)
 class GenerateBlueprintRequest(BaseModel):
     """Request model for blueprint generation."""
     spec: str = Field(..., description="OpenAPI spec (YAML or JSON format)")
-    mode: str = Field("basic", description="Mode ('basic' or 'advanced')")
-    business_rules: Optional[str] = Field(None, description="Business rules (for advanced mode)")
-    test_data: Optional[str] = Field(None, description="Test data setup (for advanced mode)")
-    test_flow: Optional[str] = Field(None, description="Test flow (for advanced mode)")
-    use_autonomous: bool = Field(False, description="Use autonomous agent loop for generation")
+    business_rules: Optional[str] = Field(None, description="Optional: Business rules to consider during generation")
+    test_data: Optional[str] = Field(None, description="Optional: Test data setup considerations")
+    test_flow: Optional[str] = Field(None, description="Optional: High-level desired test flow overview/sequence")
+    max_iterations: Optional[int] = Field(3, description="Max refinement iterations for blueprint (default: 3)", ge=1, le=10)
     
     class Config:
         json_schema_extra = {
             "example": {
                 "spec": "openapi: 3.0.0\ninfo:\n  title: Example API\n  version: 1.0.0\npaths:\n  /users:\n    get:\n      summary: Get users\n      responses:\n        '200':\n          description: Successful response",
-                "mode": "basic"
+                "max_iterations": 2,
+                "business_rules": "Users under 18 should not be allowed to create premium orders."
             }
         }
 
@@ -51,7 +49,7 @@ class GenerateScriptsRequest(BaseModel):
     """Request model for script generation."""
     blueprint: Dict[str, Any] = Field(..., description="Test blueprint to generate scripts from")
     targets: List[str] = Field(..., description="Target frameworks (e.g., ['postman', 'playwright'])")
-    use_autonomous: bool = Field(False, description="Use autonomous agent loop for generation")
+    max_iterations: Optional[int] = Field(None, description="Max refinement iterations for script generation (default: 3)", ge=1, le=10)
     
     class Config:
         json_schema_extra = {
@@ -74,21 +72,8 @@ class GenerateScriptsRequest(BaseModel):
                         }
                     ]
                 },
-                "targets": ["postman", "playwright"]
-            }
-        }
-
-class GenerateAutonomousRequest(BaseModel):
-    """Request model for autonomous generation."""
-    spec: str = Field(..., description="OpenAPI spec (YAML or JSON format)")
-    targets: List[str] = Field(..., description="Target frameworks (e.g., ['postman', 'playwright'])")
-    max_iterations: Optional[int] = Field(None, description="Maximum iterations per pipeline (default: 3)")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "spec": "openapi: 3.0.0\ninfo:\n  title: Example API\n  version: 1.0.0\npaths:\n  /users:\n    get:\n      summary: Get users\n      responses:\n        '200':\n          description: Successful response",
-                "targets": ["postman", "playwright"]
+                "targets": ["postman", "playwright"],
+                "max_iterations": 3
             }
         }
 
@@ -108,7 +93,11 @@ websocket_connections = {}
 
 async def generate_blueprint_background(
     job_id: str,
-    request: GenerateBlueprintRequest
+    request: GenerateBlueprintRequest,
+    max_blueprint_iterations: Optional[int] = None,
+    business_rules: Optional[str] = None,
+    test_data: Optional[str] = None,
+    test_flow: Optional[str] = None
 ):
     """
     Background task for blueprint generation.
@@ -116,6 +105,10 @@ async def generate_blueprint_background(
     Args:
         job_id: Job ID
         request: Blueprint generation request
+        max_blueprint_iterations: Maximum iterations for blueprint generation
+        business_rules: Business rules to consider during generation
+        test_data: Test data setup considerations
+        test_flow: High-level desired test flow overview/sequence
     """
     try:
         # Update job status
@@ -140,7 +133,7 @@ async def generate_blueprint_background(
             except Exception as ws_error:
                 logger.error(f"WebSocket error: {str(ws_error)}")
         
-        # Set up progress callback wrapper for both standard and autonomous mode
+        # Set up progress callback wrapper
         async def progress_callback_wrapper(stage, progress, agent):
             # Extract trace_id if available
             trace_id = None
@@ -152,40 +145,23 @@ async def generate_blueprint_background(
             
             # Determine percentage based on stage and content
             percent = 0
-            # For autonomous mode, stages will be different
-            if request.use_autonomous:
-                if stage == "spec_analysis":
-                    percent = 10
-                    message = f"Analyzing spec: {message}"
-                elif stage == "blueprint_authoring":
-                    old_percent = job_progress[job_id].get("percent", 10)
-                    percent = min(50, old_percent + 5)
-                    message = f"Authoring blueprint: {message}"
-                elif stage == "blueprint_reviewing":
-                    old_percent = job_progress[job_id].get("percent", 50)
-                    percent = min(90, old_percent + 5)
-                    message = f"Reviewing blueprint: {message}"
-                elif stage == "blueprint_complete":
-                    percent = 100
-                    message = "Blueprint generation complete!"
-                
-                # For reporting to the UI, use a consistent stage name
-                reported_stage = "planning"
-            else:
-                # Standard mode stages
-                if stage == "initializing":
-                    percent = 10
-                    message = "Setting up blueprint generation environment..."
-                elif stage == "planning":
-                    # Increment percent gradually during planning stage
-                    old_percent = job_progress[job_id].get("percent", 10)
-                    # Ensure we're always making forward progress but not jumping to 100%
-                    percent = min(90, old_percent + 5)
-                    
-                    if not message.startswith("Planning"):
-                        message = f"Analyzing API endpoints: {message}"
-                
-                reported_stage = stage
+            if stage == "spec_analysis":
+                percent = 10
+                message = f"Analyzing spec: {message}"
+            elif stage == "blueprint_authoring":
+                old_percent = job_progress[job_id].get("percent", 10)
+                percent = min(50, old_percent + 5)
+                message = f"Authoring blueprint: {message}"
+            elif stage == "blueprint_reviewing":
+                old_percent = job_progress[job_id].get("percent", 50)
+                percent = min(90, old_percent + 5)
+                message = f"Reviewing blueprint: {message}"
+            elif stage == "blueprint_complete":
+                percent = 100
+                message = "Blueprint generation complete!"
+            
+            # For reporting to the UI, use a consistent stage name
+            reported_stage = "planning"
             
             # Update progress
             job_progress[job_id] = {
@@ -194,7 +170,7 @@ async def generate_blueprint_background(
                 "message": message,
                 "agent": agent,
                 "trace_id": trace_id,
-                "autonomous_stage": stage if request.use_autonomous else None
+                "autonomous_stage": stage
             }
             
             # Send progress to WebSocket if connected
@@ -210,105 +186,104 @@ async def generate_blueprint_background(
                 except Exception as ws_error:
                     logger.error(f"WebSocket error: {str(ws_error)}")
         
-        # Generate blueprint based on mode
-        if request.use_autonomous:
-            logger.info(f"Starting AUTONOMOUS blueprint generation for job {job_id}")
-            
-            # First analyze the spec
-            await progress_callback_wrapper("spec_analysis", {"percent": 5, "message": "Analyzing specification..."}, "System")
-            spec_analysis, spec_warnings = await analyze_initial_spec(request.spec)
-            
-            # Start the autonomous pipeline
-            await progress_callback_wrapper("blueprint_authoring", {"percent": 10, "message": "Starting generation loop..."}, "System")
-            from ..config.settings import settings
-            max_iterations = settings.get("AUTONOMOUS_MAX_ITERATIONS", 3)
-            blueprint = await run_autonomous_blueprint_pipeline(
-                spec_analysis=spec_analysis,
-                progress_callback=progress_callback_wrapper,
-                max_iterations=max_iterations
-            )
-            
-            trace_id = f"autonomous_bp_{job_id}"
-            logger.info(f"Autonomous blueprint generation complete for job {job_id}")
-        else:
-            # Standard blueprint generation
-            logger.info(f"Starting STANDARD blueprint generation for job {job_id}")
-            blueprint, trace_id = await process_openapi_spec(
-                request.spec,
-                request.mode,
-                request.business_rules,
-                request.test_data,
-                request.test_flow,
-                progress_callback_wrapper
-            )
-            logger.info(f"Standard blueprint generation complete for job {job_id}")
+        # Generate blueprint using autonomous pipeline
+        logger.info(f"Starting blueprint generation for job {job_id}")
+        
+        # First analyze the spec
+        await progress_callback_wrapper("spec_analysis", {"percent": 5, "message": "Analyzing specification..."}, "System")
+        spec_analysis, spec_warnings = await analyze_initial_spec(request.spec)
+        
+        # Start the autonomous pipeline
+        await progress_callback_wrapper("blueprint_authoring", {"percent": 10, "message": "Starting generation loop..."}, "System")
+        from ..config.settings import settings
+        
+        # Use max_iterations from request or settings
+        iterations_to_use = max_blueprint_iterations or request.max_iterations or settings.get("AUTONOMOUS_MAX_ITERATIONS", 3)
+        
+        # Log debug info for advanced context
+        logger.debug(f"Received business rules: {'Yes' if business_rules else 'No'}")
+        logger.debug(f"Received test data guidance: {'Yes' if test_data else 'No'}")
+        logger.debug(f"Received test flow guidance: {'Yes' if test_flow else 'No'}")
+        
+        blueprint_dict = await run_autonomous_blueprint_pipeline(
+            spec_analysis=spec_analysis,
+            progress_callback=progress_callback_wrapper,
+            max_iterations=iterations_to_use,
+            # Pass the advanced context arguments
+            business_rules=business_rules,
+            test_data=test_data,
+            test_flow=test_flow
+        )
+        
+        trace_id = f"autonomous_bp_{job_id}"
+        logger.info(f"Blueprint generation complete for job {job_id}")
         
         # Store result
         job_results[job_id] = {
-            "blueprint": blueprint,
-            "trace_id": trace_id
+            "blueprint": blueprint_dict.get("blueprint"),
+            "trace_id": trace_id,
+            "final_status": {
+                "approved": blueprint_dict.get("approved"),
+                "max_iterations_reached": blueprint_dict.get("max_iterations_reached"),
+                "final_feedback": blueprint_dict.get("final_feedback")
+            }
         }
         
         # Update job status
         active_jobs[job_id] = "completed"
+        
+        # Send final progress update
         job_progress[job_id] = {
-            "stage": "completed",
+            "stage": "planning",
             "percent": 100,
-            "message": "Blueprint generation successfully completed. Ready for review!",
-            "agent": "system"
+            "message": "Blueprint generation complete!",
+            "agent": "system",
+            "trace_id": trace_id
         }
         
-        # Send completion to WebSocket if connected
+        # Send final progress update via WebSocket if connected
         if job_id in websocket_connections:
             try:
                 await websocket_connections[job_id].send_json({
-                    "type": "completed",
+                    "type": "progress",
+                    "job_id": job_id,
+                    "progress": job_progress[job_id]
+                })
+                
+                # Also send a result update
+                await websocket_connections[job_id].send_json({
+                    "type": "result",
                     "job_id": job_id,
                     "result": job_results[job_id]
                 })
             except Exception as ws_error:
                 logger.error(f"WebSocket error: {str(ws_error)}")
-            
-    except Exception as e:
-        # Log the error
-        logger.error(f"Job {job_id} failed: {str(e)}")
-        
-        # Update job status
+    
+    except SpecValidationError as e:
+        logger.error(f"Spec validation error for job {job_id}: {str(e)}")
         active_jobs[job_id] = "failed"
-        job_progress[job_id] = {
-            "stage": "failed",
-            "percent": 0,
-            "message": f"Error: {str(e)}"
-        }
-        
-        # Store error
-        job_results[job_id] = {
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "trace_id": getattr(e, "trace_id", None)
-        }
-        
-        # Send error to WebSocket if connected
-        if job_id in websocket_connections:
-            try:
-                await websocket_connections[job_id].send_json({
-                    "type": "error",
-                    "job_id": job_id,
-                    "error": str(e)
-                })
-            except Exception as ws_error:
-                logger.error(f"WebSocket error: {str(ws_error)}")
+        job_results[job_id] = {"error": f"Spec validation error: {str(e)}"}
+    except BlueprintGenerationError as e:
+        logger.error(f"Blueprint generation error for job {job_id}: {str(e)}")
+        active_jobs[job_id] = "failed"
+        job_results[job_id] = {"error": f"Blueprint generation error: {str(e)}"}
+    except Exception as e:
+        logger.error(f"Unexpected error for job {job_id}: {str(e)}", exc_info=True)
+        active_jobs[job_id] = "failed"
+        job_results[job_id] = {"error": f"Unexpected error: {str(e)}"}
 
 async def generate_scripts_background(
     job_id: str,
-    request: GenerateScriptsRequest
+    request: GenerateScriptsRequest,
+    max_script_iterations: Optional[int] = None
 ):
     """
     Background task for script generation.
     
     Args:
         job_id: Job ID
-        request: Script generation request
+        request: Scripts generation request
+        max_script_iterations: Maximum iterations for script generation
     """
     try:
         # Update job status
@@ -318,7 +293,7 @@ async def generate_scripts_background(
         job_progress[job_id] = {
             "stage": "initializing",
             "percent": 0,
-            "message": "Starting script generation for your API endpoints...",
+            "message": "Preparing to generate test scripts...",
             "agent": "system"
         }
         
@@ -333,7 +308,7 @@ async def generate_scripts_background(
             except Exception as ws_error:
                 logger.error(f"WebSocket error: {str(ws_error)}")
         
-        # Set up progress callback wrapper for both standard and autonomous mode
+        # Set up progress callback wrapper
         async def progress_callback_wrapper(stage, progress, agent):
             # Extract trace_id if available
             trace_id = None
@@ -342,55 +317,27 @@ async def generate_scripts_background(
             
             # Create a more descriptive message
             message = progress.get("message", "Processing") if isinstance(progress, dict) else str(progress)[:150]
-            target = progress.get("target", "unknown") if isinstance(progress, dict) else "unknown"
             
-            # For autonomous mode, stages will be different
-            if request.use_autonomous:
-                # Determine percentage based on stage and number of targets
-                percent = 0
-                if stage == "script_target_start":
-                    percent = progress.get("percent", 0)
-                    message = f"Starting script generation for {target}: {message}"
-                elif stage == "script_coding":
-                    # Get previous percent or start at 10% for this target
-                    old_percent = job_progress[job_id].get("percent", 10)
-                    # Ensure we're making forward progress
-                    percent = min(80, old_percent + 3)
-                    message = f"Generating {target} scripts: {message}"
-                elif stage == "script_reviewing":
-                    old_percent = job_progress[job_id].get("percent", 80)
-                    percent = min(95, old_percent + 2)
-                    message = f"Reviewing {target} scripts: {message}"
-                elif stage == "script_target_complete":
-                    percent = progress.get("percent", 100)
-                    message = f"Completed scripts for {target}"
-                
-                # For reporting to the UI, use a consistent stage name
-                reported_stage = "coding"
+            # Determine percentage based on stage and content
+            percent = 0
+            if stage == "script_coding":
+                old_percent = job_progress[job_id].get("percent", 10)
+                percent = min(50, old_percent + 5)
+                message = f"Generating code: {message}"
+            elif stage == "script_reviewing":
+                old_percent = job_progress[job_id].get("percent", 50)
+                percent = min(90, old_percent + 5)
+                message = f"Reviewing code: {message}"
+            elif stage == "script_complete":
+                percent = 100
+                message = "Code generation complete!"
             else:
-                # Standard mode stages
-                percent = 0
-                if stage == "initializing":
-                    percent = 10
-                    message = "Setting up test generation environment..."
-                elif stage == "planning":
-                    # During planning stage (40% of progress)
-                    old_percent = job_progress[job_id].get("percent", 10)
-                    # Ensure we're making forward progress but not jumping too far
-                    percent = min(40, old_percent + 5)
-                    
-                    if not message.startswith("Planning"):
-                        message = f"Planning test structure: {message}"
-                elif stage == "coding":
-                    # During coding stage (41-90% of progress)
-                    old_percent = job_progress[job_id].get("percent", 40)
-                    # Ensure we're making forward progress
-                    percent = min(90, max(41, old_percent + 5))
-                    
-                    if not message.startswith("Generating"):
-                        message = f"Generating test code: {message}"
-                
-                reported_stage = stage
+                # For other stages, just increment
+                old_percent = job_progress[job_id].get("percent", 0)
+                percent = min(95, old_percent + 5)
+            
+            # For reporting to the UI, use a consistent stage name
+            reported_stage = "coding"
             
             # Update progress
             job_progress[job_id] = {
@@ -399,8 +346,8 @@ async def generate_scripts_background(
                 "message": message,
                 "agent": agent,
                 "trace_id": trace_id,
-                "autonomous_stage": stage if request.use_autonomous else None,
-                "target": target
+                "autonomous_stage": stage,
+                "target": getattr(progress, "target", None)
             }
             
             # Send progress to WebSocket if connected
@@ -416,180 +363,75 @@ async def generate_scripts_background(
                 except Exception as ws_error:
                     logger.error(f"WebSocket error: {str(ws_error)}")
         
-        # Generate scripts based on mode
-        if request.use_autonomous:
-            logger.info(f"Starting AUTONOMOUS script generation for job {job_id}")
-            
-            # Process each target framework using the autonomous pipeline
-            generated_scripts_data = {}
-            total_targets = len(request.targets)
-            
-            for i, target in enumerate(request.targets):
-                logger.info(f"Running autonomous script pipeline for target: {target} ({i+1}/{total_targets})")
-                await progress_callback_wrapper("script_target_start", 
-                                               {"percent": int(i/total_targets * 100), 
-                                                "message": f"Starting {target}",
-                                                "target": target}, 
-                                               "System")
-                try:
-                    from ..config.settings import settings
-                    max_iterations = settings.get("AUTONOMOUS_MAX_ITERATIONS", 3)
-                    
-                    script_files_list = await run_autonomous_script_pipeline(
-                        blueprint=request.blueprint,
-                        framework=target,
-                        progress_callback=progress_callback_wrapper,
-                        max_iterations=max_iterations
-                    )
-                    
-                    # Convert list format to dictionary format
-                    generated_scripts_data[target] = {}
-                    for file_dict in script_files_list:
-                        if isinstance(file_dict, dict) and "filename" in file_dict and "content" in file_dict:
-                            generated_scripts_data[target][file_dict["filename"]] = file_dict["content"]
-                    
-                    logger.info(f"Autonomous script generation for target {target} successful: {len(generated_scripts_data[target])} files")
-                    await progress_callback_wrapper("script_target_complete", 
-                                                  {"percent": int((i+1)/total_targets * 100), 
-                                                   "message": f"Completed {target}",
-                                                   "target": target}, 
-                                                  "System")
-                except Exception as script_err:
-                    logger.error(f"Autonomous script generation failed for target {target}: {script_err}", exc_info=True)
-                    generated_scripts_data[target] = {
-                        "error.txt": f"Failed to generate scripts for {target}: {str(script_err)}"
-                    }
-                    # Continue with next target
-            
-            scripts = generated_scripts_data
-            trace_id = f"autonomous_scripts_{job_id}"
-            logger.info(f"Autonomous script generation phase finished for job {job_id}")
-        else:
-            # Standard script generation
-            logger.info(f"Starting STANDARD script generation for job {job_id}")
-            
-            # Generate scripts - use try/except to ensure we always get some output
+        # Generate scripts for each target using the autonomous pipeline
+        logger.info(f"Starting script generation for job {job_id}")
+        
+        # Use max_iterations from request or settings
+        from ..config.settings import settings
+        iterations_to_use = max_script_iterations or request.max_iterations or settings.get("AUTONOMOUS_MAX_ITERATIONS", 3)
+        
+        # Store results for each target
+        results = {}
+        trace_ids = {}
+        
+        # Check if blueprint is valid
+        import json
+        if isinstance(request.blueprint, str):
             try:
-                scripts, trace_id = await generate_test_scripts(
-                    request.blueprint,
-                    request.targets,
-                    progress_callback_wrapper
+                blueprint_dict = json.loads(request.blueprint)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid blueprint JSON: {str(e)}")
+        else:
+            blueprint_dict = request.blueprint
+        
+        # Process each target
+        for target in request.targets:
+            logger.info(f"Generating scripts for target {target}")
+            
+            try:
+                # Update progress for this target
+                await progress_callback_wrapper("initializing", {
+                    "message": f"Initializing script generation for {target}",
+                    "target": target
+                }, "system")
+                
+                # Run the autonomous script pipeline
+                script_files = await run_autonomous_script_pipeline(
+                    blueprint=blueprint_dict,
+                    framework=target,
+                    progress_callback=progress_callback_wrapper,
+                    max_iterations=iterations_to_use
                 )
                 
-                # Log success
-                logger.info(f"Script generation completed successfully for job {job_id}")
+                # Store result for this target
+                trace_id = f"autonomous_script_{job_id}_{target}"
+                results[target] = script_files
+                trace_ids[target] = trace_id
                 
-            except Exception as gen_error:
-                logger.error(f"Error during script generation for job {job_id}: {str(gen_error)}")
-                
-                # Try to generate minimal scripts as fallback
-                logger.info(f"Attempting to generate minimal scripts as fallback for job {job_id}")
-                
-                # Create minimal outputs for each target
-                scripts = {}
-                for target in request.targets:
-                    scripts[target] = {
-                        f"minimal_{target}_tests.txt": f"// Minimal tests for {target}\n// Error occurred: {str(gen_error)}\n\n// Original blueprint API name: {request.blueprint.get('apiName', 'Unknown')}"
-                    }
-                
-                # Generate a trace ID for tracking
-                trace_id = f"error-{uuid.uuid4()}"
+                logger.info(f"Script generation for target {target} complete: {len(script_files)} files generated")
+            except Exception as e:
+                logger.error(f"Error generating scripts for target {target}: {str(e)}")
+                results[target] = {"error": str(e)}
+                trace_ids[target] = f"error_{job_id}_{target}"
         
-        # Log script structure before storing
-        logger.info(f"Scripts generated with types: {list(scripts.keys())}")
-        for script_type, files in scripts.items():
-            logger.info(f"Script type {script_type} contains {len(files)} files:")
-            for filename in files.keys():
-                file_size = len(files[filename]) if isinstance(files[filename], str) else 'Non-string content'
-                logger.info(f"  - {filename} (size: {file_size})")
-        
-        # Store result
+        # Store overall results
         job_results[job_id] = {
-            "blueprint": request.blueprint,
-            "scripts": scripts,
-            "trace_id": trace_id
+            "scripts": results,
+            "trace_ids": trace_ids
         }
-        
-        # Log result structure sent to client
-        logger.info(f"Result keys: {list(job_results[job_id].keys())}")
-        logger.info(f"Scripts result structure: {json.dumps({k: list(v.keys()) for k, v in scripts.items()})}")
         
         # Update job status
         active_jobs[job_id] = "completed"
+        
+        # Send final progress update
         job_progress[job_id] = {
-            "stage": "completed",
+            "stage": "coding",
             "percent": 100,
-            "message": "Script generation successfully completed. Your test scripts are ready!",
-            "agent": "system",
-            "trace_id": trace_id
-        }
-        
-        # Send completion to WebSocket if connected
-        if job_id in websocket_connections:
-            try:
-                await websocket_connections[job_id].send_json({
-                    "type": "completed",
-                    "job_id": job_id,
-                    "result": job_results[job_id]
-                })
-            except Exception as ws_error:
-                logger.error(f"WebSocket error: {str(ws_error)}")
-            
-    except Exception as e:
-        # Log the error
-        logger.error(f"Job {job_id} failed: {str(e)}")
-        
-        # Update job status
-        active_jobs[job_id] = "failed"
-        job_progress[job_id] = {
-            "stage": "failed",
-            "percent": 0,
-            "message": f"Error: {str(e)}"
-        }
-        
-        # Store error
-        job_results[job_id] = {
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "trace_id": getattr(e, "trace_id", None),
-            "blueprint": request.blueprint  # Include the blueprint for reference
-        }
-        
-        # Send error to WebSocket if connected
-        if job_id in websocket_connections:
-            try:
-                await websocket_connections[job_id].send_json({
-                    "type": "error",
-                    "job_id": job_id,
-                    "error": str(e)
-                })
-            except Exception as ws_error:
-                logger.error(f"WebSocket error: {str(ws_error)}")
-
-async def run_autonomous_pipeline_background(
-    job_id: str,
-    request: GenerateAutonomousRequest
-):
-    """
-    Background task for autonomous generation pipeline.
-    
-    Args:
-        job_id: Job ID
-        request: Autonomous generation request
-    """
-    try:
-        # Update job status
-        active_jobs[job_id] = "processing"
-        
-        # Initialize progress
-        job_progress[job_id] = {
-            "stage": "spec_analysis",
-            "percent": 0,
-            "message": "Analyzing OpenAPI specification...",
+            "message": "Script generation complete!",
             "agent": "system"
         }
         
-        # Send initial progress update via WebSocket if connected
+        # Send final progress update via WebSocket if connected
         if job_id in websocket_connections:
             try:
                 await websocket_connections[job_id].send_json({
@@ -597,189 +439,40 @@ async def run_autonomous_pipeline_background(
                     "job_id": job_id,
                     "progress": job_progress[job_id]
                 })
-            except Exception as ws_error:
-                logger.error(f"WebSocket error: {str(ws_error)}")
-        
-        # Set up progress callback with more granular updates
-        async def progress_callback(stage, progress, agent):
-            # Extract trace_id if available
-            trace_id = None
-            if isinstance(progress, dict) and "trace_id" in progress:
-                trace_id = progress.get("trace_id")
-            
-            # Create a more descriptive message
-            message = progress.get("message", "Processing") if isinstance(progress, dict) else str(progress)[:150]
-            percent = progress.get("percent", 0) if isinstance(progress, dict) else 0
-            
-            # Create stage-specific messages
-            if stage == "spec_analysis":
-                if percent < 10:
-                    percent = 10
-                message = f"Analyzing OpenAPI specification: {message}"
-            elif stage == "blueprint_authoring":
-                message = f"Creating API test blueprint: {message}"
-            elif stage == "blueprint_reviewing":
-                message = f"Reviewing API test blueprint: {message}"
-            elif stage == "blueprint_generation_complete":
-                message = "Blueprint generation complete. Beginning script generation."
-                percent = 50  # Blueprint is 50% of the process
-            elif stage == "script_coding":
-                message = f"Creating test scripts: {message}"
-            elif stage == "script_reviewing":
-                message = f"Reviewing test scripts: {message}"
-            elif stage == "script_generation_complete":
-                message = f"Script generation complete: {message}"
-                percent = 100
-            
-            # Update progress
-            job_progress[job_id] = {
-                "stage": stage,
-                "percent": percent,
-                "message": message,
-                "agent": agent,
-                "trace_id": trace_id
-            }
-            
-            # Send progress to WebSocket if connected
-            if job_id in websocket_connections:
-                try:
-                    await websocket_connections[job_id].send_json({
-                        "type": "progress",
-                        "job_id": job_id,
-                        "progress": job_progress[job_id]
-                    })
-                    # Add a small delay to prevent message flooding
-                    await asyncio.sleep(0.1)
-                except Exception as ws_error:
-                    logger.error(f"WebSocket error: {str(ws_error)}")
-        
-        # Step 1: Analyze the OpenAPI spec
-        try:
-            spec_analysis, warnings = await analyze_initial_spec(request.spec)
-            
-            # Log any warnings
-            if warnings:
-                logger.warning(f"Spec validation warnings for job {job_id}: {warnings}")
                 
-            logger.info(f"Spec analysis complete for job {job_id}. Found {len(spec_analysis['endpoints'])} endpoints.")
-        except Exception as e:
-            logger.error(f"Spec analysis failed for job {job_id}: {str(e)}")
-            raise SpecValidationError(f"Failed to analyze spec: {str(e)}")
-        
-        # Step 2: Generate blueprint with autonomous pipeline
-        try:
-            max_iterations = request.max_iterations or None  # Use default from settings if None
-            blueprint = await run_autonomous_blueprint_pipeline(
-                spec_analysis,
-                progress_callback,
-                max_iterations
-            )
-            logger.info(f"Blueprint generation complete for job {job_id}")
-        except Exception as e:
-            logger.error(f"Blueprint generation failed for job {job_id}: {str(e)}")
-            raise BlueprintGenerationError(f"Autonomous blueprint generation failed: {str(e)}")
-        
-        # Final results container
-        script_results = {}
-        
-        # Step 3: Generate scripts for each target framework
-        for framework in request.targets:
-            try:
-                logger.info(f"Starting script generation for {framework} in job {job_id}")
-                script_files = await run_autonomous_script_pipeline(
-                    blueprint,
-                    framework,
-                    progress_callback,
-                    max_iterations
-                )
-                
-                # Store script files by framework
-                script_results[framework] = script_files
-                logger.info(f"Script generation for {framework} complete in job {job_id}: {len(script_files)} files")
-                
-            except Exception as e:
-                logger.error(f"Script generation for {framework} failed in job {job_id}: {str(e)}")
-                script_results[framework] = {"error": str(e)}
-                # Continue with other frameworks instead of failing the entire job
-        
-        # Store results
-        job_results[job_id] = {
-            "blueprint": blueprint,
-            "scripts": script_results
-        }
-        
-        # Update job status
-        active_jobs[job_id] = "completed"
-        job_progress[job_id] = {
-            "stage": "completed",
-            "percent": 100,
-            "message": "Autonomous generation pipeline successfully completed.",
-            "agent": "system"
-        }
-        
-        # Send completion to WebSocket if connected
-        if job_id in websocket_connections:
-            try:
+                # Also send a result update
                 await websocket_connections[job_id].send_json({
-                    "type": "completed",
+                    "type": "result",
                     "job_id": job_id,
                     "result": job_results[job_id]
                 })
             except Exception as ws_error:
                 logger.error(f"WebSocket error: {str(ws_error)}")
-            
+    
     except Exception as e:
-        # Log the error
-        logger.exception(f"Autonomous pipeline job {job_id} failed: {str(e)}")
-        
-        # Update job status
+        logger.error(f"Script generation error for job {job_id}: {str(e)}", exc_info=True)
         active_jobs[job_id] = "failed"
-        job_progress[job_id] = {
-            "stage": "failed",
-            "percent": 0,
-            "message": f"Error: {str(e)}"
-        }
-        
-        # Store error
-        job_results[job_id] = {
-            "error": str(e),
-            "error_type": type(e).__name__
-        }
-        
-        # Send error to WebSocket if connected
-        if job_id in websocket_connections:
-            try:
-                await websocket_connections[job_id].send_json({
-                    "type": "error",
-                    "job_id": job_id,
-                    "error": str(e)
-                })
-            except Exception as ws_error:
-                logger.error(f"WebSocket error: {str(ws_error)}")
+        job_results[job_id] = {"error": f"Script generation error: {str(e)}"}
 
 def create_api_router(app: FastAPI = None):
     """
-    Create the API router for test generation.
+    Create API router and add all routes.
     
     Args:
-        app: Optional FastAPI app to add routes to
+        app: FastAPI application
         
     Returns:
-        FastAPI router or app with routes added
+        Created API router
     """
     if app is None:
         from fastapi import APIRouter
-        app = APIRouter()
+        router = APIRouter()
+    else:
+        router = app
     
-    # Add middleware to suppress logging for status endpoints
     @app.middleware("http")
     async def suppress_status_logging(request: Request, call_next):
-        path = request.url.path
-        if path.startswith("/status/"):
-            # Set attribute to indicate this request should not be logged
-            # (uvicorn's access logger checks for this attribute if configured)
-            request.state.access_log = False
-        
+        """Middleware to prevent logging for status poll endpoints."""
         response = await call_next(request)
         return response
     
@@ -795,22 +488,19 @@ def create_api_router(app: FastAPI = None):
         Returns:
             Dictionary with job ID
         """
-        # Validate request
-        if not request.spec:
-            raise HTTPException(status_code=400, detail="OpenAPI spec is required")
-        
-        # Create job ID
         job_id = str(uuid.uuid4())
-        
-        # Add job to active jobs
         active_jobs[job_id] = "queued"
         
-        # Create run context
-        context = create_run_context({"source": "api", "operation": "blueprint"})
-        logger.info(f"Starting blueprint generation job {job_id} with context: {context}")
-        
         # Start background task
-        background_tasks.add_task(generate_blueprint_background, job_id, request)
+        background_tasks.add_task(
+            generate_blueprint_background,
+            job_id=job_id,
+            request=request,
+            max_blueprint_iterations=request.max_iterations,
+            business_rules=request.business_rules,
+            test_data=request.test_data,
+            test_flow=request.test_flow
+        )
         
         return {"job_id": job_id}
     
@@ -826,57 +516,16 @@ def create_api_router(app: FastAPI = None):
         Returns:
             Dictionary with job ID
         """
-        # Validate request
-        if not request.blueprint:
-            raise HTTPException(status_code=400, detail="Blueprint is required")
-        if not request.targets:
-            raise HTTPException(status_code=400, detail="At least one target is required")
-        
-        # Create job ID
         job_id = str(uuid.uuid4())
-        
-        # Add job to active jobs
         active_jobs[job_id] = "queued"
         
-        # Create run context
-        context = create_run_context({"source": "api", "operation": "scripts"})
-        logger.info(f"Starting script generation job {job_id} with context: {context}")
-        
         # Start background task
-        background_tasks.add_task(generate_scripts_background, job_id, request)
-        
-        return {"job_id": job_id}
-    
-    @app.post("/generate-autonomous", response_model=Dict[str, str])
-    async def generate_autonomous(request: GenerateAutonomousRequest, background_tasks: BackgroundTasks):
-        """
-        Generate test blueprint and scripts using autonomous agent loops.
-        
-        Args:
-            request: Autonomous generation request
-            background_tasks: FastAPI background tasks
-            
-        Returns:
-            Dictionary with job ID
-        """
-        # Validate request
-        if not request.spec:
-            raise HTTPException(status_code=400, detail="OpenAPI spec is required")
-        if not request.targets:
-            raise HTTPException(status_code=400, detail="At least one target is required")
-        
-        # Create job ID
-        job_id = str(uuid.uuid4())
-        
-        # Add job to active jobs
-        active_jobs[job_id] = "queued"
-        
-        # Create run context
-        context = create_run_context({"source": "api", "operation": "autonomous"})
-        logger.info(f"Starting autonomous generation job {job_id} with context: {context}")
-        
-        # Start background task
-        background_tasks.add_task(run_autonomous_pipeline_background, job_id, request)
+        background_tasks.add_task(
+            generate_scripts_background,
+            job_id=job_id,
+            request=request,
+            max_script_iterations=request.max_iterations
+        )
         
         return {"job_id": job_id}
     
@@ -1033,4 +682,4 @@ def create_api_router(app: FastAPI = None):
             # Return the file content
             return target_scripts[filename]
     
-    return app 
+    return router 

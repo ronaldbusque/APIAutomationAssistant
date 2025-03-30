@@ -18,7 +18,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     setBlueprint, 
     setBlueprintIsValid,
     setCurrentStep,
-    setIsAutonomousMode
+    setMaxIterations
   } = useAppContext();
   
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
@@ -322,18 +322,20 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     reader.readAsText(file);
   };
   
-  // Handle script generation
+  // Function to handle script generation
   const handleGenerateScripts = async () => {
     setGenerating(true);
     setError(null);
     
     try {
+      // Build the request
       const request = {
         blueprint: state.blueprint,
         targets: state.targets,
-        use_autonomous: state.isAutonomousMode // Add the autonomous mode flag
+        max_iterations: state.maxIterations
       };
       
+      // Call the API to generate scripts
       const result = await generateScriptsMutation.mutateAsync(request);
       setScriptJobId(result.job_id);
     } catch (err) {
@@ -527,11 +529,9 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
             <div className="font-medium text-gray-800 dark:text-gray-200">
               {getStageName(stage, progress?.autonomous_stage)}
             </div>
-            {state.isAutonomousMode && (
-              <div className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs rounded-full">
-                Autonomous Mode
-              </div>
-            )}
+            <div className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs rounded-full">
+              Autonomous Pipeline
+            </div>
           </div>
           
           {/* Visual animated indicator */}
@@ -851,27 +851,33 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
             </div>
           </div>
           
-          {/* Autonomous Mode Toggle */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="font-medium text-gray-900 dark:text-white">Enable Autonomous Mode</span>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Let AI agents iteratively refine the scripts.</p>
+            <div className="flex flex-col">
+              <div className="mb-4">
+                <span className="font-medium text-gray-900 dark:text-white">Generation Options</span>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Configure how your test scripts are generated.</p>
               </div>
-              <Switch
-                checked={state.isAutonomousMode}
-                onChange={setIsAutonomousMode}
-                className={`${
-                  state.isAutonomousMode ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-600'
-                } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800`}
-              >
-                <span className="sr-only">Enable Autonomous Mode</span>
-                <span
-                  className={`${
-                    state.isAutonomousMode ? 'translate-x-6' : 'translate-x-1'
-                  } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-                />
-              </Switch>
+              
+              <div className="mt-2">
+                <label htmlFor="script-max-iterations" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Maximum Refinement Iterations
+                </label>
+                <div className="flex items-center">
+                  <input
+                    id="script-max-iterations"
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={state.maxIterations}
+                    onChange={(e) => setMaxIterations(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                  />
+                  <span className="ml-3 text-gray-900 dark:text-white font-medium">{state.maxIterations}</span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Higher values may produce better results but take longer to complete. The AI will automatically refine the scripts, improving quality with each iteration.
+                </p>
+              </div>
             </div>
           </div>
           
@@ -894,7 +900,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                  {state.isAutonomousMode ? 'Generate Scripts (Autonomous)' : 'Generate Scripts'}
+                  Generate Scripts
                 </span>
               )}
             </button>

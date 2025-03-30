@@ -16,7 +16,7 @@ const initialState: AppState = {
   testData: '',
   testFlow: '',
   targets: ['postman', 'playwright'],
-  isAutonomousMode: false,
+  maxIterations: 3,
   blueprintJobId: null,
   blueprintProgress: {
     stage: '',
@@ -52,7 +52,7 @@ interface AppContextType {
   setTestData: (data: string) => void;
   setTestFlow: (flow: string) => void;
   setTargets: (targets: string[]) => void;
-  setIsAutonomousMode: (enabled: boolean) => void;
+  setMaxIterations: (iterations: number) => void;
   setBlueprintJobId: (id: string | null) => void;
   setBlueprintProgress: (progress: AppState['blueprintProgress']) => void;
   setBlueprint: (blueprint: any) => void;
@@ -107,8 +107,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setState(prev => ({ ...prev, targets }));
   };
 
-  const setIsAutonomousMode = (enabled: boolean) => {
-    setState(prev => ({ ...prev, isAutonomousMode: enabled }));
+  const setMaxIterations = (iterations: number) => {
+    setState(prev => ({ ...prev, maxIterations: iterations }));
   };
 
   const setBlueprintJobId = (id: string | null) => {
@@ -157,7 +157,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setTestData,
     setTestFlow,
     setTargets,
-    setIsAutonomousMode,
+    setMaxIterations,
     setBlueprintJobId,
     setBlueprintProgress,
     setBlueprint,

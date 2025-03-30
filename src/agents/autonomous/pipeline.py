@@ -62,7 +62,10 @@ async def analyze_initial_spec(spec_text: str) -> Tuple[Dict[str, Any], List[str
 async def run_autonomous_blueprint_pipeline(
     spec_analysis: Dict[str, Any],
     progress_callback = None,
-    max_iterations: int = None
+    max_iterations: int = None,
+    business_rules: Optional[str] = None,
+    test_data: Optional[str] = None,
+    test_flow: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Run autonomous pipeline for blueprint generation
@@ -71,19 +74,32 @@ async def run_autonomous_blueprint_pipeline(
         spec_analysis: Dictionary containing spec analysis data
         progress_callback: Optional callback for progress updates
         max_iterations: Maximum iterations for the pipeline, defaults to AUTONOMOUS_MAX_ITERATIONS
+        business_rules: Optional business rules to consider during generation
+        test_data: Optional test data setup considerations
+        test_flow: Optional high-level desired test flow overview
         
     Returns:
-        Dictionary containing the final generated blueprint
+        Dictionary containing the final generated blueprint and status flags
     """
     # Get max iterations from settings if not provided
     if max_iterations is None:
-        from ...config.settings import AUTONOMOUS_MAX_ITERATIONS
-        max_iterations = AUTONOMOUS_MAX_ITERATIONS
+        from ...config.settings import settings
+        max_iterations = settings.get("AUTONOMOUS_MAX_ITERATIONS", 3)
     
     logger.info(f"Starting autonomous blueprint pipeline with max {max_iterations} iterations")
     
+    # Log advanced context details
+    logger.debug(f"Received business rules: {'Yes' if business_rules else 'No'}")
+    logger.debug(f"Received test data guidance: {'Yes' if test_data else 'No'}")
+    logger.debug(f"Received test flow guidance: {'Yes' if test_flow else 'No'}")
+    
     # Set up context structure to hold spec information and user inputs
-    planner_context = PlannerContext(spec_analysis=spec_analysis)
+    planner_context = PlannerContext(
+        spec_analysis=spec_analysis,
+        business_rules=business_rules,
+        test_data=test_data,
+        test_flow=test_flow
+    )
     
     # Set up agents
     blueprint_author = setup_blueprint_author_agent()
@@ -260,9 +276,16 @@ async def run_autonomous_blueprint_pipeline(
             "system"
         )
     
-    # Return the final blueprint as a dictionary
+    # Return the final blueprint as a dictionary with status flags
     try:
-        return json.loads(blueprint_json)
+        final_blueprint_dict = json.loads(blueprint_json)
+        # ... (code to add metadata like description, baseUrl - keep this) ...
+        return {
+            "blueprint": final_blueprint_dict,
+            "approved": approved,
+            "max_iterations_reached": (iteration == max_iterations and not approved),
+            "final_feedback": reviewer_feedback # Last feedback given
+        }
     except json.JSONDecodeError as e:
         logger.error(f"Error parsing final blueprint JSON: {e}")
         raise BlueprintGenerationError(f"Error parsing final blueprint JSON: {e}")
@@ -287,8 +310,8 @@ async def run_autonomous_script_pipeline(
     """
     # Get max iterations from settings if not provided
     if max_iterations is None:
-        from ...config.settings import AUTONOMOUS_MAX_ITERATIONS
-        max_iterations = AUTONOMOUS_MAX_ITERATIONS
+        from ...config.settings import settings
+        max_iterations = settings.get("AUTONOMOUS_MAX_ITERATIONS", 3)
     
     logger.info(f"Starting autonomous script pipeline for {framework} with max {max_iterations} iterations")
     

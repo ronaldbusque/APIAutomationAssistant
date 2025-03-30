@@ -16,11 +16,12 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
     setTestData,
     setTestFlow,
     setBlueprintJobId,
-    setIsAutonomousMode
+    setMaxIterations
   } = useAppContext();
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   
   const generateBlueprintMutation = useGenerateBlueprint();
   
@@ -33,11 +34,11 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
     setError(null);
     
     try {
-      // Build request based on mode, always including the use_autonomous flag
+      // Build request based on mode, including max_iterations
       const request = {
         spec: state.openApiSpec,
         mode: state.mode as 'basic' | 'advanced',
-        use_autonomous: state.isAutonomousMode, // Include flag to indicate autonomous mode
+        max_iterations: state.maxIterations
       };
       
       if (state.mode === 'advanced') {
@@ -48,13 +49,13 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
         });
       }
       
-      // Generate blueprint (always using the /generate-blueprint endpoint)
+      // Generate blueprint
       const result = await generateBlueprintMutation.mutateAsync(request);
       
       // Store job ID for status polling
       setBlueprintJobId(result.job_id);
       
-      // Always move to blueprint view next, regardless of autonomous mode
+      // Move to blueprint view
       onNext();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate blueprint');
@@ -161,26 +162,42 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
         </div>
       )}
       
-      {/* Autonomous Mode Toggle */}
-      <div className="flex items-center justify-between p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/30">
-        <div>
-          <span className="font-medium text-gray-900 dark:text-white">Enable Autonomous Mode</span>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Let AI agents iteratively refine the blueprint and scripts.</p>
+      {/* Generation Options */}
+      <div className="p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <span className="font-medium text-gray-900 dark:text-white">Generation Options</span>
+            <button
+              onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+              className="ml-2 text-primary-600 dark:text-primary-400 text-sm hover:underline focus:outline-none"
+            >
+              {showAdvancedOptions ? 'Hide options' : 'Show options'}
+            </button>
+          </div>
         </div>
-        <Switch
-          checked={state.isAutonomousMode}
-          onChange={setIsAutonomousMode}
-          className={`${
-            state.isAutonomousMode ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-600'
-          } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800`}
-        >
-          <span className="sr-only">Enable Autonomous Mode</span>
-          <span
-            className={`${
-              state.isAutonomousMode ? 'translate-x-6' : 'translate-x-1'
-            } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-          />
-        </Switch>
+        
+        {showAdvancedOptions && (
+          <div className="mt-2 animate-fade-in">
+            <label htmlFor="max-iterations" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Maximum Refinement Iterations
+            </label>
+            <div className="flex items-center">
+              <input
+                id="max-iterations"
+                type="range"
+                min="1"
+                max="10"
+                value={state.maxIterations}
+                onChange={(e) => setMaxIterations(parseInt(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+              />
+              <span className="ml-3 text-gray-900 dark:text-white font-medium">{state.maxIterations}</span>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Higher values may produce better results but take longer to complete. The AI will automatically refine the blueprint, improving quality with each iteration.
+            </p>
+          </div>
+        )}
       </div>
       
       {/* Error Display */}
@@ -217,8 +234,6 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
               </svg>
               Generating...
             </>
-          ) : state.isAutonomousMode ? (
-            'Generate Blueprint (Autonomous)'
           ) : (
             'Generate Blueprint'
           )}

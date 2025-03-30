@@ -19,7 +19,7 @@ export interface AppState {
   testData: string;
   testFlow: string;
   targets: string[];
-  isAutonomousMode: boolean;
+  maxIterations: number;
   
   // Jobs and progress
   blueprintJobId: string | null;
@@ -67,18 +67,11 @@ export interface AppState {
 export interface GenerateBlueprintRequest {
   spec: string;
   mode: 'basic' | 'advanced';
-  business_rules?: string;
-  test_data?: string;
-  test_flow?: string;
+  max_iterations?: number;
 }
 
 export interface GenerateScriptsRequest {
   blueprint: any;
-  targets: string[];
-}
-
-export interface GenerateAutonomousRequest {
-  spec: string;
   targets: string[];
   max_iterations?: number;
 }

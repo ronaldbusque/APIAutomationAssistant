@@ -8,7 +8,7 @@ env_path = Path(__file__).parent.parent / '.env'
 if env_path.exists():
     print(f"Loading environment variables from: {env_path}")
     load_dotenv(dotenv_path=env_path, override=True)
-    print(f"Model settings from .env: PLANNING={os.environ.get('MODEL_PLANNING')}, CODING={os.environ.get('MODEL_CODING')}, TRIAGE={os.environ.get('MODEL_TRIAGE')}")
+    print(f"Model settings from .env: MODEL_BP_AUTHOR={os.environ.get('MODEL_BP_AUTHOR')}, MODEL_BP_REVIEWER={os.environ.get('MODEL_BP_REVIEWER')}, MODEL_SCRIPT_CODER={os.environ.get('MODEL_SCRIPT_CODER')}")
 else:
     print(f"Warning: .env file not found at {env_path}")
 
@@ -21,26 +21,37 @@ It sets up logging, initializes the FastAPI application, and includes all routes
 
 import logging
 import sys
-from typing import Dict, Any
+import json
+import asyncio
+import logging.config
+from typing import List, Optional, Dict, Any, Union
+from pathlib import Path
+from uuid import UUID
 
-from fastapi import FastAPI, Request, Response
-from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request, status, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, ValidationError
 
-from .api.generate import create_api_router
-from .errors.exceptions import APITestGenerationError
+# Add the src directory to the path to enable absolute imports
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Import application-specific modules
+from src.config.settings import settings, BASE_CONFIG
+from src.api import generate
+from src.errors.exceptions import APITestGenerationError
 from .utils.model_selection import ModelSelectionStrategy
-from .agents.setup import setup_all_agents
 from .utils.openai_setup import setup_openai_client
 
 # Configure logging
 def configure_logging():
-    """Configure application logging (Simplified - remove StatusPollFilter)."""
-    log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+    """Configure application logging."""
+    log_level = settings.get("LOG_LEVEL", "INFO").upper()
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
+    # Get the root logger
     logger = logging.getLogger()
     logger.setLevel(getattr(logging, log_level))
 
@@ -48,21 +59,30 @@ def configure_logging():
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
+    # Add console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(getattr(logging, log_level))
     console_handler.setFormatter(logging.Formatter(log_format))
     logger.addHandler(console_handler)
 
-    log_file = os.environ.get("LOG_FILE")
+    # Add file handler if LOG_FILE is specified
+    log_file = settings.get("LOG_FILE")
     if log_file:
         try:
             file_handler = logging.FileHandler(log_file, encoding='utf-8')
             file_handler.setLevel(getattr(logging, log_level))
             file_handler.setFormatter(logging.Formatter(log_format))
             logger.addHandler(file_handler)
+            
+            # We can log this now since we've added at least one handler
+            logger.info(f"File logging configured at: {log_file}")
         except Exception as e:
             print(f"Error setting up file logging: {e}")
-
+    
+    # Configure library loggers to prevent excessive messages
+    logging.getLogger("uvicorn").setLevel(logging.INFO)
+    logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+    
     logger.info(f"Logging configured with level {log_level}")
     return logger
 
@@ -76,119 +96,85 @@ except Exception as e:
     logger.error(f"Failed to initialize OpenAI client: {str(e)}")
     sys.exit(1)
 
-# Create FastAPI application
+# Initialize the FastAPI application
 app = FastAPI(
-    title="API Test Automation Assistant",
-    description="AI-powered API test generation from OpenAPI specifications",
+    title="API Automation Assistant",
+    description="Generate API tests from OpenAPI specifications or other sources",
     version="1.0.0"
 )
 
-# --- ADD MIDDLEWARE ---
-@app.middleware("http")
-async def suppress_noisy_logs_middleware(request: Request, call_next):
-    """Middleware to prevent logging for specific paths if needed."""
-    # You can customize this logic
-    path = request.url.path
-    if path.startswith("/status/") or path == "/health":
-         # Skip logging for these frequent polls by handling directly
-         # For /health, just return ok
-         if path == "/health":
-             return JSONResponse({"status": "healthy"})
-         # For /status/, we still need to call the actual endpoint
-         # but prevent standard access logging. We can't easily stop
-         # uvicorn's default access logger here without complex setup.
-         # The best approach is often to configure uvicorn directly
-         # to use a log format that excludes these, or filter post-hoc.
-         # For now, we just proceed but the logger config change below
-         # should handle it better.
-         pass # Let the request proceed normally
-
-    response = await call_next(request)
-    return response
-# --- END MIDDLEWARE ---
-
-# Add CORS middleware
+# Set up CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with your frontend domain
+    allow_origins=["*"],  # For development - restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Custom exception handler
+# Middleware to suppress noisy logs
+@app.middleware("http")
+async def suppress_health_logs(request: Request, call_next):
+    """Suppress log messages for health check endpoints."""
+    response = await call_next(request)
+    return response
+
+# Custom exception handler for APITestGenerationError
 @app.exception_handler(APITestGenerationError)
-async def api_exception_handler(request: Request, exc: APITestGenerationError):
-    """Custom exception handler for API generation errors."""
-    logger.error(f"API exception: {exc.message}")
+async def test_generation_exception_handler(request: Request, exc: APITestGenerationError):
+    """Handle custom API test generation errors with meaningful error messages."""
+    logger.error(f"API test generation error: {exc}")
     return JSONResponse(
-        status_code=400,
-        content={
-            "error": exc.message,
-            "details": exc.details,
-            "trace_id": exc.trace_id
-        }
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc)},
     )
 
-@app.get("/")
-async def root():
-    """Root endpoint that returns application information."""
+# Create API router and include it in the app
+router = generate.create_api_router(app)
+
+# Health check endpoint
+@app.get("/health", tags=["Monitoring"])
+async def health_check():
+    """Basic health check endpoint."""
+    return {"status": "ok"}
+
+# System info endpoint (returns config - remove sensitive data in production)
+@app.get("/system/info", tags=["Monitoring"])
+async def system_info():
+    """Returns system configuration (non-sensitive info only)."""
+    # Filter out sensitive information
+    safe_config = {k: v for k, v in BASE_CONFIG.items() if "KEY" not in k and "SECRET" not in k}
+    return {"config": safe_config}
+
+# Version info endpoint
+@app.get("/version", tags=["Monitoring"])
+async def version():
+    """Returns API version information."""
     return {
-        "app": "API Test Automation Assistant",
-        "version": "1.0.0",
-        "description": "AI-powered API test generation from OpenAPI specifications"
+        "version": app.version,
+        "name": app.title
     }
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy"}
+# Mount static files for UI (if directory exists)
+ui_path = Path("ui/dist")
+if ui_path.exists():
+    app.mount("/", StaticFiles(directory=str(ui_path), html=True), name="ui")
+    logger.info(f"Mounted UI static files from {ui_path}")
 
-# Initialize model selection strategy
-model_strategy = ModelSelectionStrategy()
-logger.info(f"Model selection strategy initialized")
-
-# Initialize agents
-try:
-    agents = setup_all_agents()
-    logger.info(f"Agents initialized successfully")
-except Exception as e:
-    logger.error(f"Error initializing agents: {str(e)}")
-    agents = None
-
-# Add API routes
-api_router = create_api_router(app)
-
-@app.on_event("startup")
-async def startup():
-    """Application startup event handler."""
-    logger.info("Application starting up")
-    
-    # Add any startup tasks here
-    
-    logger.info("Application startup complete")
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Application shutdown event handler."""
-    logger.info("Application shutting down")
-    
-    # Add any cleanup tasks here
-    
-    logger.info("Application shutdown complete")
-
-# Main function to run the application
-def main():
-    """Run the application with uvicorn."""
-    import uvicorn
-    
-    # Get configuration from environment variables
-    host = os.environ.get("HOST", "0.0.0.0")
-    port = int(os.environ.get("PORT", "8000"))
-    reload = os.environ.get("RELOAD", "false").lower() == "true"
-    
-    # Run uvicorn, letting FastAPI/configure_logging handle app logs
-    uvicorn.run("src.main:app", host=host, port=port, reload=reload)
-
+# Start standalone server if executed directly
 if __name__ == "__main__":
-    main() 
+    # Get host and port from settings
+    host = settings.get("HOST", "0.0.0.0")
+    port = int(settings.get("PORT", 8000))
+    
+    # Log startup message
+    logger.info(f"Starting API Automation Assistant on http://{host}:{port}")
+    
+    # Run the server
+    uvicorn.run(
+        "src.main:app",
+        host=host,
+        port=port,
+        reload=settings.get("ENVIRONMENT") == "development",
+        log_level=settings.get("LOG_LEVEL", "info").lower(),
+    ) 

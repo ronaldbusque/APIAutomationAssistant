@@ -146,8 +146,12 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
   
   // Handle continue to script generation
   const handleContinue = async () => {
-    // Simply navigate to the next step (ScriptOutput)
-    // Script generation will be initiated from ScriptOutput component instead
+    if (!state.blueprintIsValid || !state.blueprint) {
+      return;
+    }
+    
+    // Simply move to the next step
+    // Script generation will be handled in the ScriptOutput component
     onNext();
   };
   

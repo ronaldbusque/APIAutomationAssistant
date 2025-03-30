@@ -22,9 +22,6 @@ BASE_CONFIG = {
     "LOG_FILE": None,
     
     # Model selection settings
-    "MODEL_PLANNING": "o3-mini",
-    "MODEL_CODING": "gpt-4o-mini",
-    "MODEL_TRIAGE": "gpt-4o-mini",
     "MODEL_DEFAULT": "gpt-4o-mini",
     "MODEL_BP_AUTHOR": "gpt-4o",
     "MODEL_BP_REVIEWER": "gpt-4o",
