@@ -287,23 +287,54 @@ def setup_script_coder_agent(framework: str) -> Agent:
 - **Authentication:** Implement logic to add auth headers based on environment variables.
 - **Dynamic Data:** Import faker-js or similar for generating dynamic test data.
 - **Setup/Teardown:** Implement `test.beforeAll`/`test.afterAll` hooks for setup/teardown steps.
-- **Required Files:**
-    - Test files (`*.spec.ts`)
-    - A basic Playwright config file (`playwright.config.ts`)
-    - Example fixture file (`tests/fixtures/fixtures.ts`)
-    - An environment variable template (`.env.example`). The `content` for this specific file **MUST** be static text containing example variable assignments derived from the blueprint's `environments` and `auth` sections (e.g., showing `BASE_URL=` and `API_KEY=`). **DO NOT** attempt to execute code or use runtime values like `process.env` when generating the *content string* for this file. Example content format:
-      ```dotenv
-      # Environment variables
-      BASE_URL=https://dev-api.example.com/v1
-      
-      # Authentication variables
-      API_KEY=your_dev_api_key_here
-      BEARER_TOKEN=your_bearer_token_here
-      
-      # Use the exact variable names from the environments and auth sections
-      # and provide placeholder example values for each
-      ```
-    - A simple `README.md` explaining setup and run commands
+- **Required Files & Content Types:** Your JSON output array MUST include objects for the following files, generated according to these content rules:
+    - **Test Files (`tests/**/*.spec.ts`):**
+        - Generate valid Playwright/TypeScript test code based on the blueprint's `tests`.
+        - Implement assertions, setup/teardown hooks (`test.beforeAll`, etc.), and variable extraction as specified.
+        - Use `faker-js` for dynamic data placeholders like `{{$randomUUID}}`.
+        - **CRITICAL:** When referencing environment variables (like `API_KEY` or `BASE_URL` from the blueprint's `auth` or `environments`), you MUST generate the *literal code* `process.env.VARIABLE_NAME`. **DO NOT** attempt to execute or evaluate `process.env` during generation. This code will only run later in a Node.js environment.
+    - **Playwright Config (`playwright.config.ts`):**
+        - Generate a standard Playwright configuration file.
+        - Set `testDir: './tests'`.
+        - Configure `use.baseURL` using `process.env.BASE_URL` (write the literal code `process.env.BASE_URL`).
+        - Configure `use.extraHTTPHeaders` to include the API key header (e.g., `'X-API-Key': process.env.API_KEY`), writing the *literal code* `process.env.API_KEY`.
+        - **CRITICAL:** Again, generate the *literal text* `process.env.VAR_NAME` for environment variables. Do not evaluate them.
+    - **Example Fixture (`tests/fixtures/fixtures.ts`):**
+        - Generate **ONLY** the following static boilerplate content for this file:
+          ```typescript
+          // Fixtures and helper functions
+
+          import { test as base } from '@playwright/test';
+
+          // Example: A fixture to set up a test user in the system before tests run
+          export const test = base.extend({
+            // Define shared fixtures here if needed
+            // e.g., userData: async ({}, use) => {
+            //   const data = { id: 1, name: 'John Doe', email: 'john@example.com', age: 30 };
+            //   await use(data);
+            // }
+          });
+
+          // Helper function for common assertions or setup logic can go here
+          ```
+        - **DO NOT** include any dynamic content, environment variables, or execution logic in the content string for *this specific file*.
+    - **Environment Example (`.env.example`):**
+        - Generate **ONLY** static text content showing example variable assignments derived from the blueprint's `environments` and `auth` sections.
+        - Use the exact variable names specified in the blueprint (e.g., `API_KEY`).
+        - Provide placeholder example values.
+        - **Example Static Content:**
+          ```dotenv
+          # Environment variables
+          BASE_URL=https://dev-api.example-store.com/v1
+
+          # Authentication variables
+          API_KEY=your_dev_api_key_here
+          # Add other auth vars like BEARER_TOKEN if present in blueprint
+          ```
+        - **CRITICAL:** The content string for this file must be *exactly* like the example format above – static text only. **DO NOT** execute or evaluate anything.
+    - **README (`README.md`):**
+        - Generate simple, static Markdown content explaining basic setup (install, create `.env`, run `npx playwright test`).
+        - **DO NOT** include dynamic content or execution logic.
 """
     elif framework == "postman":
         extra_instructions = """
@@ -383,7 +414,13 @@ def setup_script_reviewer_agent(framework: str) -> Agent:
     - **Code Quality:** Code is well-structured, readable, and follows best practices.
     - **Error Handling:** Appropriate error handling and validation is implemented.
     - **Maintainability:** Code is modular, reusable, and well-commented.
-    - **Validate Config/Example Files:** Review the content of non-code files like `.env.example` and `README.md`. Ensure `.env.example` contains **only static example variable assignments** (e.g., `VAR_NAME=example_value`) and does **NOT** contain execution errors (like 'process is not defined') or dynamic code. Check `README.md` for accuracy. If content is incorrect or missing, require revision (`[[REVISION_NEEDED]]`).
+    - **Validate File Content Types & Accuracy:**
+        - **`tests/**/*.spec.ts`:** Verify the code implements tests from the blueprint accurately. Check that environment variables are referenced *literally* as `process.env.VAR_NAME` and not evaluated or replaced with errors. Ensure necessary imports (`test`, `expect`, `faker`, helpers) are present.
+        - **`playwright.config.ts`:** Verify it's a valid Playwright config. Check that `baseURL` and `extraHTTPHeaders` reference environment variables *literally* as `process.env.VAR_NAME`.
+        - **`tests/fixtures/fixtures.ts`:** Verify its content **exactly matches** the standard boilerplate fixture code (import `test as base`, export `test = base.extend`, comments). It should **NOT** contain errors, `process.env`, or dynamic logic.
+        - **`.env.example`:** Verify its content is **purely static text** showing example assignments like `VAR_NAME=example_value`, derived correctly from the blueprint's `environments` and `auth`. It must **NOT** contain execution errors (like 'process is not defined') or dynamic code.
+        - **`README.md`:** Verify it contains accurate, static setup and run instructions.
+        - **General:** Ensure no file contains the literal error string "process is not defined". If any file has incorrect content type or errors, require revision (`[[REVISION_NEEDED]]`).
 3.  **Generate Feedback:** Create a numbered list of concise, actionable feedback points detailing ALL required changes. If no changes are needed, state that clearly.
 4.  **Append Keyword:** After your feedback (or approval statement), add a **new line** containing **ONLY** one of the following keywords:
     - `[[CODE_APPROVED]]` (if NO changes are needed)

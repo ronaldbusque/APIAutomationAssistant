@@ -1129,21 +1129,22 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
         
         {/* Scrollable Code Area */}
         {/* Use flex-1 to take remaining space, explicit scrolling */}
-        <div className="flex-1 overflow-y-scroll overflow-x-scroll min-h-0 syntax-highlighter-container relative">
+        <div className="flex-1 overflow-x-scroll overflow-y-scroll min-h-0 relative">
           <SyntaxHighlighter
             language={language}
             style={isDarkMode ? oneDark : oneLight}
-            customStyle={{ // (Same styles as before) 
+            customStyle={{
               margin: 0,
               padding: '1rem',
               minWidth: 'max-content', // For horizontal scroll
               fontSize: '0.875rem',
               lineHeight: '1.5',
               backgroundColor: isDarkMode ? '#111827' : '#f9fafb',
+              // No overflow property here to avoid conflicts
             }}
-            wrapLongLines={false}
+            wrapLongLines={false} // MUST be false for horizontal scroll
             showLineNumbers={true}
-            lineNumberStyle={{ // (Same styles as before)
+            lineNumberStyle={{
               minWidth: '2.5em',
               paddingRight: '1em',
               textAlign: 'right',

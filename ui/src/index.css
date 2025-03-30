@@ -145,9 +145,9 @@
   @apply relative w-full h-full overflow-hidden;
 }
 
-.syntax-highlighter-container > * {
+/* .syntax-highlighter-container > * {
   @apply w-full h-full overflow-auto;
-}
+} */
 
 /* Monaco Editor Overrides */
 .monaco-editor .margin,
