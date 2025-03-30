@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 interface Props {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 const Layout: React.FC<Props> = ({ children }) => {

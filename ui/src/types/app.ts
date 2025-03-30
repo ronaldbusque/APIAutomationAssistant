@@ -18,7 +18,7 @@ export interface AppState {
   businessRules: string;
   testData: string;
   testFlow: string;
-  targets: string[];
+  target: string | null;
   maxIterations: number;
   
   // Jobs and progress

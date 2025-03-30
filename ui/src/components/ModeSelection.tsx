@@ -21,7 +21,6 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   
   const generateBlueprintMutation = useGenerateBlueprint();
   
@@ -34,28 +33,22 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
     setError(null);
     
     try {
-      // Build request based on mode, including max_iterations
-      const request = {
+      const request: any = {
         spec: state.openApiSpec,
         mode: state.mode as 'basic' | 'advanced',
         max_iterations: state.maxIterations
       };
       
       if (state.mode === 'advanced') {
-        Object.assign(request, {
-          business_rules: state.businessRules || undefined,
-          test_data: state.testData || undefined,
-          test_flow: state.testFlow || undefined
-        });
+        if (state.businessRules) request.business_rules = state.businessRules;
+        if (state.testData) request.test_data = state.testData;
+        if (state.testFlow) request.test_flow = state.testFlow;
       }
       
-      // Generate blueprint
       const result = await generateBlueprintMutation.mutateAsync(request);
       
-      // Store job ID for status polling
       setBlueprintJobId(result.job_id);
       
-      // Move to blueprint view
       onNext();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate blueprint');
@@ -111,7 +104,6 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
           <h3 className="font-medium text-base text-gray-900 dark:text-white mb-2">
             Advanced Configuration
           </h3>
-          
           <div>
             <label htmlFor="business-rules" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Business Rules
@@ -164,40 +156,26 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
       
       {/* Generation Options */}
       <div className="p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/30">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <span className="font-medium text-gray-900 dark:text-white">Generation Options</span>
-            <button
-              onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-              className="ml-2 text-primary-600 dark:text-primary-400 text-sm hover:underline focus:outline-none"
-            >
-              {showAdvancedOptions ? 'Hide options' : 'Show options'}
-            </button>
+        <div className="mt-2">
+           <label htmlFor="max-iterations" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">
+            Maximum Refinement Iterations
+          </label>
+          <div className="flex items-center">
+            <input
+              id="max-iterations"
+              type="range"
+              min="1"
+              max="10"
+              value={state.maxIterations}
+              onChange={(e) => setMaxIterations(parseInt(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+            />
+            <span className="ml-3 text-gray-900 dark:text-white font-medium">{state.maxIterations}</span>
           </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Higher values may produce better results but take longer to complete. The AI will automatically refine the blueprint, improving quality with each iteration.
+          </p>
         </div>
-        
-        {showAdvancedOptions && (
-          <div className="mt-2 animate-fade-in">
-            <label htmlFor="max-iterations" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Maximum Refinement Iterations
-            </label>
-            <div className="flex items-center">
-              <input
-                id="max-iterations"
-                type="range"
-                min="1"
-                max="10"
-                value={state.maxIterations}
-                onChange={(e) => setMaxIterations(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-              />
-              <span className="ml-3 text-gray-900 dark:text-white font-medium">{state.maxIterations}</span>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Higher values may produce better results but take longer to complete. The AI will automatically refine the blueprint, improving quality with each iteration.
-            </p>
-          </div>
-        )}
       </div>
       
       {/* Error Display */}

@@ -14,20 +14,19 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     state, 
     setScriptJobId, 
     setScripts, 
-    setTargets, 
     setBlueprint, 
     setBlueprintIsValid,
     setCurrentStep,
-    setMaxIterations
+    setMaxIterations,
+    setTarget // Add setTarget here
   } = useAppContext();
   
-  const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [blueprintInput, setBlueprintInput] = useState<string>('');
   const [showBlueprintInput, setShowBlueprintInput] = useState<boolean>(false);
-  const [showDebugInfo, setShowDebugInfo] = useState<boolean>(false);
+  const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
   
   const generateScriptsMutation = useGenerateScripts();
   const jobStatus = useJobStatus(state.scriptJobId);
@@ -86,13 +85,6 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     };
   }, [state.scriptJobId, connect]);
   
-  // Set initial selected target
-  useEffect(() => {
-    if (state.targets.length > 0 && !selectedTarget) {
-      setSelectedTarget(state.targets[0]);
-    }
-  }, [state.targets, selectedTarget]);
-  
   // Update scripts when job completes
   useEffect(() => {
     // Skip if no data or we're still loading
@@ -124,45 +116,21 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
         console.log('Setting scripts data in state:', scriptsData);
         setScripts(scriptsData);
         
-        // Get available targets from the response
+        // Get available targets from the response (should only be one)
         const availableTargets = Object.keys(scriptsData);
-        console.log('Available targets in response:', availableTargets);
         
-        // Always select a target that exists in the response
+        // Select the first file of the single target if available
         if (availableTargets.length > 0) {
-          // First check if currently selected target exists in the response
-          const targetExists = selectedTarget && availableTargets.includes(selectedTarget);
-          
-          if (!targetExists) {
-            // If not, select the first available target
-            const newTarget = availableTargets[0];
-            console.log(`Selected target "${selectedTarget}" not found in response. Setting target to ${newTarget}`);
-            setSelectedTarget(newTarget);
-            
-            // Set the first file as selected if available for this target
-            if (scriptsData[newTarget]) {
-              const fileNames = Object.keys(scriptsData[newTarget]);
-              if (fileNames.length > 0) {
-                console.log(`Setting selected file to ${fileNames[0]}`);
-                setSelectedFile(fileNames[0]);
-              }
-            }
-          } else {
-            // Target exists, but we might need to update the selected file
-            console.log(`Selected target "${selectedTarget}" exists in response`);
-            
-            // Check if current file still exists, otherwise select first available file
-            if (selectedFile && !scriptsData[selectedTarget][selectedFile]) {
-              const fileNames = Object.keys(scriptsData[selectedTarget]);
-              if (fileNames.length > 0) {
-                console.log(`Selected file "${selectedFile}" not found. Setting to ${fileNames[0]}`);
-                setSelectedFile(fileNames[0]);
-              }
+          const currentTarget = availableTargets[0]; // Should match state.target
+          if (scriptsData[currentTarget]) {
+            const fileNames = Object.keys(scriptsData[currentTarget]);
+            if (fileNames.length > 0 && !selectedFile) { // Only set if no file is selected
+              setSelectedFile(fileNames[0]);
             }
           }
         }
       } else {
-        console.error('No valid scripts data found in response');
+        console.error('No valid scripts data found in the server response');
         setError('No valid scripts data found in the server response');
       }
       
@@ -172,7 +140,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
       setError(jobStatus.data.error || 'Script generation failed.');
       setGenerating(false);
     }
-  }, [jobStatus.data, jobStatus.isLoading, setScripts, selectedTarget, setSelectedTarget, selectedFile]);
+  }, [jobStatus.data, jobStatus.isLoading, setScripts, selectedFile, state.target]);
   
   // Process scripts data from API response
   const processScriptsData = (result: any) => {
@@ -327,15 +295,19 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     setGenerating(true);
     setError(null);
     
+    if (!state.target) { // Check if a target is selected
+        setError('Please select a target framework before generating scripts.');
+        setGenerating(false);
+        return;
+    }
+
     try {
-      // Build the request
       const request = {
         blueprint: state.blueprint,
-        targets: state.targets,
+        targets: [state.target], // Send the single target in an array
         max_iterations: state.maxIterations
       };
       
-      // Call the API to generate scripts
       const result = await generateScriptsMutation.mutateAsync(request);
       setScriptJobId(result.job_id);
     } catch (err) {
@@ -344,29 +316,24 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     }
   };
   
-  // Handle target change
-  const handleTargetChange = (target: string) => {
-    setSelectedTarget(target);
-    setSelectedFile(null);
-  };
-  
   // Handle file selection
   const handleFileSelect = async (file: string) => {
     setSelectedFile(file);
     
     // If we have a file list without content, try to fetch the content
-    if (selectedTarget && 
-        state.scripts[selectedTarget] && 
-        state.scripts[selectedTarget][file] && 
-        (state.scripts[selectedTarget][file].startsWith('// Content for') || 
-         state.scripts[selectedTarget][file].length < 100)
+    if (state.target && 
+        state.scripts[state.target] && 
+        state.scripts[state.target][file] && 
+        (state.scripts[state.target][file].startsWith('// Content for') || 
+         state.scripts[state.target][file].length < 100)
        ) {
-      await fetchFileContent(selectedTarget, file);
+      await fetchFileContent(state.target, file);
     }
   };
   
   // Fetch file content if needed
   const fetchFileContent = async (target: string, filename: string) => {
+    // Use target argument directly
     if (!state.scriptJobId) return;
     
     try {
@@ -403,15 +370,15 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   
   // Handle copy to clipboard
   const handleCopy = () => {
-    if (selectedTarget && selectedFile && state.scripts[selectedTarget]?.[selectedFile]) {
-      navigator.clipboard.writeText(state.scripts[selectedTarget][selectedFile]);
+    if (state.target && selectedFile && state.scripts[state.target]?.[selectedFile]) {
+      navigator.clipboard.writeText(state.scripts[state.target][selectedFile]);
     }
   };
   
   // Handle download
   const handleDownload = () => {
-    if (selectedTarget && selectedFile && state.scripts[selectedTarget]?.[selectedFile]) {
-      const content = state.scripts[selectedTarget][selectedFile];
+    if (state.target && selectedFile && state.scripts[state.target]?.[selectedFile]) {
+      const content = state.scripts[state.target][selectedFile];
       const blob = new Blob([content], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       
@@ -427,7 +394,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   
   // Handle downloading all files as ZIP
   const handleDownloadAllFiles = async () => {
-    if (!selectedTarget || !state.scripts[selectedTarget]) return;
+    if (!state.target || !state.scripts[state.target]) return;
     
     try {
       // Dynamically import JSZip (with type assertion to avoid TypeScript errors)
@@ -436,7 +403,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
       const zip = new JSZip();
       
       // Add all files to the ZIP
-      const files = state.scripts[selectedTarget];
+      const files = state.scripts[state.target];
       for (const [filename, content] of Object.entries(files)) {
         // Create directory structure in the ZIP
         zip.file(filename, content);
@@ -448,7 +415,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
       
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${selectedTarget}_scripts.zip`;
+      a.download = `${state.target}_scripts.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -562,17 +529,17 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
         {/* Show job details for debugging */}
         <div className="mt-4 flex justify-end">
           <button
-            onClick={() => setShowDebugInfo(!showDebugInfo)}
+            onClick={() => setShowBlueprintInput(!showBlueprintInput)}
             className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            {showDebugInfo ? 'Hide Details' : 'Show Details'}
+            {showBlueprintInput ? 'Hide Details' : 'Show Details'}
           </button>
         </div>
         
-        {showDebugInfo && jobStatus.data && (
+        {showBlueprintInput && jobStatus.data && (
           <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-mono overflow-auto max-h-48">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <div>
@@ -626,16 +593,16 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
         {jobStatus.data && (
           <div className="mt-4 border-t border-red-200 dark:border-red-800 pt-3">
             <button
-              onClick={() => setShowDebugInfo(!showDebugInfo)}
+              onClick={() => setShowErrorDetails(!showErrorDetails)}
               className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              {showDebugInfo ? 'Hide Debug Info' : 'Show Debug Info'}
+              {showErrorDetails ? 'Hide Error Details' : 'Show Error Details'}
             </button>
             
-            {showDebugInfo && (
+            {showErrorDetails && (
               <div className="mt-3 overflow-auto max-h-64 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-mono">
                 <pre className="text-gray-700 dark:text-gray-300">
                   {JSON.stringify(jobStatus.data, null, 2)}
@@ -652,31 +619,16 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   const renderOutput = () => {
     // Add debugging for state
     console.log('Render output - state.scripts:', state.scripts);
-    console.log('Render output - selectedTarget:', selectedTarget);
+    console.log('Render output - selectedTarget:', state.target);
     
-    if (selectedTarget) {
+    if (state.target) {
       console.log('Render output - files for selected target:', 
-        state.scripts[selectedTarget] ? Object.keys(state.scripts[selectedTarget]) : 'No files');
+        state.scripts[state.target] ? Object.keys(state.scripts[state.target]) : 'No files');
     }
     
     // Check if scripts are empty or undefined
     const hasScripts = state.scripts && Object.keys(state.scripts).length > 0;
     console.log('Render output - has scripts:', hasScripts);
-    
-    // Check if there's a mismatch between selected target and available targets
-    if (hasScripts && selectedTarget && !state.scripts[selectedTarget]) {
-      // There's a target mismatch, let's fix it
-      const availableTargets = Object.keys(state.scripts);
-      if (availableTargets.length > 0) {
-        console.log(`Target mismatch detected. Selected: ${selectedTarget}, Available: ${availableTargets.join(', ')}`);
-        console.log(`Auto-selecting first available target: ${availableTargets[0]}`);
-        
-        // Using setTimeout to avoid state updates during render
-        setTimeout(() => {
-          setSelectedTarget(availableTargets[0]);
-        }, 0);
-      }
-    }
     
     if (!hasScripts) {
       return (
@@ -812,38 +764,31 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
             </div>
           )}
 
+          {/* ADD Target Framework Selection Here */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Target Frameworks</h3>
+            <label className="block text-lg font-medium text-gray-900 dark:text-white mb-4">
+              Target Framework
+            </label>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Select the frameworks you want to generate test scripts for:
+              Select the framework you want to generate test scripts for:
             </p>
-            
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {['postman', 'playwright', 'python', 'typescript', 'java'].map((target) => (
                 <label 
                   key={target}
-                  className={`flex items-center p-3 rounded-md border ${
-                    state.targets.includes(target)
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-400'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                  } transition-colors cursor-pointer`}
+                  className={`flex items-center p-3 rounded-md border transition-colors cursor-pointer ${ 
+                    state.target === target 
+                      ? 'border-primary-500 bg-primary-50 dark:bg-gray-700 dark:border-primary-400 ring-1 ring-primary-500 dark:ring-primary-400' 
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500' 
+                  }`}
                 >
                   <input
-                    type="checkbox"
-                    checked={state.targets.includes(target)}
-                    onChange={() => {
-                      const newTargets = [...state.targets];
-                      const index = newTargets.indexOf(target);
-                      
-                      if (index === -1) {
-                        newTargets.push(target);
-                      } else {
-                        newTargets.splice(index, 1);
-                      }
-                      
-                      setTargets(newTargets);
-                    }}
-                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    type="radio"
+                    name="target-framework-script"
+                    value={target}
+                    checked={state.target === target}
+                    onChange={() => setTarget(target)}
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:checked:bg-primary-600 dark:focus:ring-offset-gray-800"
                   />
                   <span className="ml-2 capitalize text-gray-800 dark:text-gray-200">{target}</span>
                 </label>
@@ -884,7 +829,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
           <div className="text-center pt-4">
             <button 
               onClick={handleGenerateScripts}
-              disabled={generating || state.targets.length === 0 || !state.blueprint}
+              disabled={generating || !state.target || !state.blueprint} // Check for state.target instead of state.targets.length
               className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center mx-auto shadow-sm transition-colors"
             >
               {generating ? (
@@ -904,8 +849,9 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
                 </span>
               )}
             </button>
-            {state.targets.length === 0 && (
-              <p className="mt-2 text-sm text-amber-500 dark:text-amber-400">Please select at least one target framework</p>
+            {/* Update error messages */}
+            {!state.target && (
+              <p className="mt-2 text-sm text-amber-500 dark:text-amber-400">Please go back and select a target framework</p>
             )}
             {!state.blueprint && (
               <p className="mt-2 text-sm text-amber-500 dark:text-amber-400">Please upload/paste a blueprint or navigate back to create one</p>
@@ -916,52 +862,33 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     }
     
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="flex flex-col md:flex-row">
-          {/* Target and file selector */}
-          <div className="w-full md:w-72 border-r border-gray-200 dark:border-gray-700">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Framework</h3>
-              <select
-                value={selectedTarget || ''}
-                onChange={(e) => handleTargetChange(e.target.value)}
-                className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 rounded-md text-gray-800 dark:text-gray-200 focus:ring-primary-500 focus:border-primary-500"
-              >
-                {Object.keys(state.scripts).map((target) => (
-                  <option key={target} value={target}>
-                    {target.charAt(0).toUpperCase() + target.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {selectedTarget && (
-              <div className="p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Files</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        {/* Define height for the flex container */}
+        <div className="flex flex-col md:flex-row h-[calc(100vh-280px)]"> 
+          {/* Target and file selector Column */}
+          {/* Make this column scrollable independently */}
+          <div className="w-full md:w-72 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto">
+            {state.target && (
+              // Remove padding from here, add within sections if needed
+              <div className="flex-1">
+                {/* Make header sticky */}
+                <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Files for <span className="capitalize font-semibold">{state.target}</span>
+                  </h3>
                   <button
                     onClick={handleDownloadAllFiles}
                     className="text-xs px-2 py-1 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md border border-primary-300 dark:border-primary-700 flex items-center transition-colors"
                     title="Download all files as ZIP"
                   >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className="h-3 w-3 mr-1"
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-                      />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                     Download All
                   </button>
                 </div>
-                <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden max-h-[calc(100vh-300px)] overflow-y-auto">
+                {/* Remove border, overflow, max-h from here. Container above handles scroll */}
+                <div className="file-list-container p-4">
                   {(() => {
                     // Group files by directory
                     const filesByDir: Record<string, string[]> = {};
@@ -969,7 +896,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
                     const rootDirs: Set<string> = new Set();
                     
                     // Organize files into directories with proper hierarchy
-                    Object.keys(state.scripts[selectedTarget] || {}).forEach(file => {
+                    Object.keys(state.scripts[state.target] || {}).forEach(file => {
                       if (file.includes('/')) {
                         // Split path and extract directory hierarchy
                         const parts = file.split('/');
@@ -1123,9 +1050,11 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
             )}
           </div>
           
-          {/* Script content */}
-          <div className="flex-grow p-4">
-            {renderFileContent()}
+          {/* Script content Column */}
+          {/* Remove padding p-4, flex-grow handles sizing */}
+          <div className="flex-grow min-w-0">
+            {/* renderFileContent will now provide its own padding */}
+            {renderFileContent()} 
           </div>
         </div>
       </div>
@@ -1133,28 +1062,15 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   };
   
   const renderFileContent = () => {
-    if (!selectedTarget || !selectedFile || !state.scripts[selectedTarget]?.[selectedFile]) {
+    if (!state.target || !selectedFile || !state.scripts[state.target]?.[selectedFile]) {
       return (
-        <div className="h-[calc(100vh-320px)] flex items-center justify-center border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900">
-          <div className="text-center p-8">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <div className="text-gray-500 dark:text-gray-400 mb-2 font-medium">
-              {selectedTarget ? 'Select a file to view' : 'Select a target first'}
-            </div>
-            <p className="text-sm text-gray-500 dark:text-gray-500">
-              {selectedTarget 
-                ? 'Choose a file from the left panel to view its content'
-                : 'Choose a target framework from the dropdown menu above'
-              }
-            </p>
-          </div>
+        // ... Placeholder - ensure it has some padding or alignment if needed ...
+        <div className="p-4 h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+          Select a file to view its content.
         </div>
       );
     }
 
-    // Get the language for syntax highlighting based on file extension
     const getLanguage = () => {
       if (selectedFile?.endsWith('.ts')) return 'typescript';
       if (selectedFile?.endsWith('.js')) return 'javascript';
@@ -1168,30 +1084,27 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
       return 'text';
     };
 
-    const content = state.scripts[selectedTarget][selectedFile];
+    const content = state.scripts[state.target][selectedFile];
     const language = getLanguage();
     const isDarkMode = document.documentElement.classList.contains('dark');
 
     return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="font-medium text-gray-800 dark:text-gray-200 flex items-center">
-            <span className="mr-2">{selectedFile}</span>
-            {selectedFile.endsWith('.ts') && (
-              <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full">TypeScript</span>
-            )}
-            {selectedFile.endsWith('.js') && (
-              <span className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded-full">JavaScript</span>
-            )}
-            {selectedFile.endsWith('.py') && (
-              <span className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full">Python</span>
-            )}
-            {selectedFile.endsWith('.json') && (
-              <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-full">JSON</span>
-            )}
+      // Main container for file content section
+      // Use h-full to fill the parent's height (from flex-grow min-w-0)
+      <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+        {/* Fixed Header for Filename and Buttons */}
+        <div className="flex justify-between items-center p-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
+           <h3 className="font-medium text-gray-800 dark:text-gray-200 flex items-center truncate pr-2">
+             <span className="mr-1.5 flex-shrink-0">{getFileIcon(selectedFile)}</span>
+             <span className="truncate" title={selectedFile}>{selectedFile}</span>
+             {language !== 'text' && language !== 'markdown' && (
+               <span className="ml-2 text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full capitalize flex-shrink-0">
+                 {language}
+               </span>
+             )}
           </h3>
-          
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 flex-shrink-0">
+            {/* Copy Button */}
             <button
               onClick={handleCopy}
               className="px-3 py-1 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md border border-gray-300 dark:border-gray-600 text-sm flex items-center transition-colors"
@@ -1201,6 +1114,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
               </svg>
               Copy
             </button>
+            {/* Download Button */}
             <button
               onClick={handleDownload}
               className="px-3 py-1 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md border border-primary-300 dark:border-primary-700 text-sm flex items-center transition-colors"
@@ -1213,31 +1127,32 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
           </div>
         </div>
         
-        <div className="w-full h-[calc(100vh-320px)] border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden syntax-highlighter-container">
+        {/* Scrollable Code Area */}
+        {/* Use flex-1 to take remaining space, explicit scrolling */}
+        <div className="flex-1 overflow-y-scroll overflow-x-scroll min-h-0 syntax-highlighter-container relative">
           <SyntaxHighlighter
             language={language}
             style={isDarkMode ? oneDark : oneLight}
-            customStyle={{
+            customStyle={{ // (Same styles as before) 
               margin: 0,
               padding: '1rem',
-              height: '100%',
-              width: '100%',
+              minWidth: 'max-content', // For horizontal scroll
               fontSize: '0.875rem',
               lineHeight: '1.5',
-              borderRadius: 0,
-              backgroundColor: isDarkMode ? '#171717' : '#f9fafb',
-              overflowX: 'auto',
-              whiteSpace: 'pre'
+              backgroundColor: isDarkMode ? '#111827' : '#f9fafb',
             }}
             wrapLongLines={false}
             showLineNumbers={true}
-            className="overflow-scrollbar"
-            lineNumberStyle={{ 
-              minWidth: '2.5em', 
-              paddingRight: '1em', 
+            lineNumberStyle={{ // (Same styles as before)
+              minWidth: '2.5em',
+              paddingRight: '1em',
+              textAlign: 'right',
               color: isDarkMode ? '#6b7280' : '#9ca3af',
               borderRight: isDarkMode ? '1px solid #374151' : '1px solid #e5e7eb',
-              marginRight: '1em'
+              position: 'sticky',
+              left: 0,
+              backgroundColor: isDarkMode ? '#111827' : '#f9fafb', 
+              zIndex: 10
             }}
           >
             {content}
@@ -1337,63 +1252,6 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
           ? "Generated Test Scripts" 
           : "Generate Scripts For Target Frameworks"}
       </h2>
-      
-      {/* Debug Tools for Development (hidden in production) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mb-4 p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-sm">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">Development Debug Tools</h3>
-            <button
-              onClick={() => setShowDebugInfo(!showDebugInfo)}
-              className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors"
-            >
-              {showDebugInfo ? 'Hide Debug' : 'Show Debug'}
-            </button>
-          </div>
-          
-          {showDebugInfo && (
-            <div className="mt-2">
-              <h4 className="text-xs font-medium mb-1 text-gray-700 dark:text-gray-300">Scripts Data Structure:</h4>
-              <pre className="text-xs bg-gray-50 dark:bg-gray-900 p-3 rounded-md overflow-auto max-h-48 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
-                {JSON.stringify(state.scripts, null, 2)}
-              </pre>
-              <div className="mt-2 flex gap-2">
-                <button
-                  onClick={() => {
-                    // Force refresh the scripts from the backend
-                    if (state.scriptJobId) {
-                      fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/status/${state.scriptJobId}`)
-                        .then(res => res.json())
-                        .then(data => {
-                          if (data.result?.scripts) {
-                            console.log('Refreshed scripts data:', data.result.scripts);
-                            setScripts(data.result.scripts);
-                          } else {
-                            console.error('No scripts in refresh response');
-                          }
-                        })
-                        .catch(err => console.error('Error refreshing scripts:', err));
-                    }
-                  }}
-                  className="text-xs px-2 py-1 bg-primary-100 text-primary-700 hover:bg-primary-200 rounded transition-colors"
-                >
-                  Refresh Scripts
-                </button>
-                <button
-                  onClick={() => {
-                    // Reset selected target to force re-selection
-                    setSelectedTarget(null);
-                    setSelectedFile(null);
-                  }}
-                  className="text-xs px-2 py-1 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded transition-colors"
-                >
-                  Reset Selection
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
       
       {(generating || jobStatus.data?.status === 'queued' || jobStatus.data?.status === 'processing') && renderProgress()}
       {renderError()}

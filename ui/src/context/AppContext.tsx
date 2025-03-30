@@ -15,7 +15,7 @@ const initialState: AppState = {
   businessRules: '',
   testData: '',
   testFlow: '',
-  targets: ['postman', 'playwright'],
+  target: 'postman',
   maxIterations: 3,
   blueprintJobId: null,
   blueprintProgress: {
@@ -51,7 +51,7 @@ interface AppContextType {
   setBusinessRules: (rules: string) => void;
   setTestData: (data: string) => void;
   setTestFlow: (flow: string) => void;
-  setTargets: (targets: string[]) => void;
+  setTarget: (target: string | null) => void;
   setMaxIterations: (iterations: number) => void;
   setBlueprintJobId: (id: string | null) => void;
   setBlueprintProgress: (progress: AppState['blueprintProgress']) => void;
@@ -103,8 +103,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setState(prev => ({ ...prev, testFlow: flow }));
   };
 
-  const setTargets = (targets: string[]) => {
-    setState(prev => ({ ...prev, targets }));
+  const setTarget = (target: string | null) => {
+    setState(prev => ({ ...prev, target }));
   };
 
   const setMaxIterations = (iterations: number) => {
@@ -156,7 +156,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setBusinessRules,
     setTestData,
     setTestFlow,
-    setTargets,
+    setTarget,
     setMaxIterations,
     setBlueprintJobId,
     setBlueprintProgress,

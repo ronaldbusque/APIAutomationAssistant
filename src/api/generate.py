@@ -396,19 +396,26 @@ async def generate_scripts_background(
                 }, "system")
                 
                 # Run the autonomous script pipeline
-                script_files = await run_autonomous_script_pipeline(
+                script_files_list = await run_autonomous_script_pipeline(
                     blueprint=blueprint_dict,
                     framework=target,
                     progress_callback=progress_callback_wrapper,
                     max_iterations=iterations_to_use
                 )
                 
+                # Convert the list of file objects into an object map {filename: content}
+                script_files_map = {
+                    file_obj["filename"]: file_obj["content"]
+                    for file_obj in script_files_list
+                    if "filename" in file_obj and "content" in file_obj # Basic validation
+                }
+                
                 # Store result for this target
                 trace_id = f"autonomous_script_{job_id}_{target}"
-                results[target] = script_files
+                results[target] = script_files_map
                 trace_ids[target] = trace_id
                 
-                logger.info(f"Script generation for target {target} complete: {len(script_files)} files generated")
+                logger.info(f"Script generation for target {target} complete: {len(script_files_map)} files generated")
             except Exception as e:
                 logger.error(f"Error generating scripts for target {target}: {str(e)}")
                 results[target] = {"error": str(e)}
