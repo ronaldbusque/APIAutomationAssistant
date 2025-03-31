@@ -471,19 +471,11 @@ def create_api_router(app: FastAPI = None):
     Returns:
         Created API router
     """
-    if app is None:
-        from fastapi import APIRouter
-        router = APIRouter()
-    else:
-        router = app
+    from fastapi import APIRouter
+    # Create router with prefix
+    router = APIRouter(prefix="/api/v1", tags=["Generation"])
     
-    @app.middleware("http")
-    async def suppress_status_logging(request: Request, call_next):
-        """Middleware to prevent logging for status poll endpoints."""
-        response = await call_next(request)
-        return response
-    
-    @app.post("/generate-blueprint", response_model=Dict[str, str])
+    @router.post("/generate-blueprint", response_model=Dict[str, str])
     async def generate_blueprint(request: GenerateBlueprintRequest, background_tasks: BackgroundTasks):
         """
         Generate a test blueprint from an OpenAPI spec.
@@ -511,7 +503,7 @@ def create_api_router(app: FastAPI = None):
         
         return {"job_id": job_id}
     
-    @app.post("/generate-scripts", response_model=Dict[str, str])
+    @router.post("/generate-scripts", response_model=Dict[str, str])
     async def generate_scripts(request: GenerateScriptsRequest, background_tasks: BackgroundTasks):
         """
         Generate test scripts from a blueprint.
@@ -536,7 +528,7 @@ def create_api_router(app: FastAPI = None):
         
         return {"job_id": job_id}
     
-    @app.get("/status/{job_id}", response_model=JobStatusResponse)
+    @router.get("/status/{job_id}", response_model=JobStatusResponse)
     async def get_job_status(job_id: str):
         """Get the status of a job."""
         # This endpoint is polled frequently, so we need to make it efficient
@@ -558,7 +550,7 @@ def create_api_router(app: FastAPI = None):
             "error": error,
         }
     
-    @app.websocket("/ws/job/{job_id}")
+    @router.websocket("/ws/job/{job_id}")
     async def websocket_job_status(websocket: WebSocket, job_id: str):
         """
         WebSocket endpoint for real-time job status updates.
@@ -615,7 +607,7 @@ def create_api_router(app: FastAPI = None):
             if job_id in websocket_connections:
                 del websocket_connections[job_id]
     
-    @app.get("/file-content/{job_id}/{target}/{filename:path}")
+    @router.get("/file-content/{job_id}/{target}/{filename:path}")
     async def get_file_content(job_id: str, target: str, filename: str):
         """
         Get the content of a specific generated file.

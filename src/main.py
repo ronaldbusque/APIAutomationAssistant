@@ -69,15 +69,25 @@ def configure_logging():
     log_file = settings.get("LOG_FILE")
     if log_file:
         try:
-            file_handler = logging.FileHandler(log_file, encoding='utf-8')
+            # Make log file path absolute if needed
+            log_file_path = Path(log_file)
+            if not log_file_path.is_absolute():
+                log_file_path = Path.cwd() / log_file
+            
+            # Ensure parent directory exists
+            log_file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Create file handler
+            file_handler = logging.FileHandler(str(log_file_path), encoding='utf-8')
             file_handler.setLevel(getattr(logging, log_level))
             file_handler.setFormatter(logging.Formatter(log_format))
             logger.addHandler(file_handler)
             
             # We can log this now since we've added at least one handler
-            logger.info(f"File logging configured at: {log_file}")
+            logger.info(f"File logging configured at: {log_file_path}")
         except Exception as e:
             print(f"Error setting up file logging: {e}")
+            logger.error(f"Failed to set up file logging: {str(e)}")
     
     # Configure library loggers to prevent excessive messages
     logging.getLogger("uvicorn").setLevel(logging.INFO)
@@ -130,7 +140,9 @@ async def test_generation_exception_handler(request: Request, exc: APITestGenera
     )
 
 # Create API router and include it in the app
-router = generate.create_api_router(app)
+router = generate.create_api_router()
+app.include_router(router)
+logger.info("Included API router with prefix /api/v1")
 
 # Health check endpoint
 @app.get("/health", tags=["Monitoring"])
@@ -156,10 +168,12 @@ async def version():
     }
 
 # Mount static files for UI (if directory exists)
-ui_path = Path("ui/dist")
+ui_path = Path("static/ui")
 if ui_path.exists():
     app.mount("/", StaticFiles(directory=str(ui_path), html=True), name="ui")
     logger.info(f"Mounted UI static files from {ui_path}")
+else:
+    logger.warning(f"UI path {ui_path} not found, static UI will not be available")
 
 # Start standalone server if executed directly
 if __name__ == "__main__":

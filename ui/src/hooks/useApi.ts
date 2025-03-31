@@ -1,8 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { GenerateBlueprintRequest, GenerateScriptsRequest, JobStatusResponse } from '../types/app';
 
-// API base URL - point directly to backend server
-const API_BASE_URL = 'http://localhost:8000';
+// API base URL - point directly to backend server with API prefix
+const API_BASE_URL = '/api/v1';
 
 // Generate blueprint
 export const useGenerateBlueprint = () => {
@@ -105,8 +105,8 @@ export const useWebSocket = (jobId: string | null, onMessage: (data: any) => voi
     // Prepare WebSocket URL - updating to match the server's expected path
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsHost = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
-    // Fix the WebSocket URL to exactly match the server endpoint path '/ws/job/{job_id}'
-    const wsURL = `${wsProtocol}//${wsHost}/ws/job/${jobId}`;
+    // Fix the WebSocket URL to include the API prefix
+    const wsURL = `${wsProtocol}//${wsHost}/api/v1/ws/job/${jobId}`;
     
     console.log(`WebSocket URL: ${wsURL}`);
     
