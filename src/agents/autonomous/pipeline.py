@@ -120,29 +120,29 @@ async def run_autonomous_blueprint_pipeline(
         # Prepare spec analysis summary for the prompt
         spec_for_prompt = json.dumps(spec_analysis, indent=2)
         # Limit size if too large
-        MAX_SPEC_PROMPT_LEN = 10000 # Adjust as needed
+        MAX_SPEC_PROMPT_LEN = 80000 # Increased limit as per fix plan
         if len(spec_for_prompt) > MAX_SPEC_PROMPT_LEN:
             spec_for_prompt = spec_for_prompt[:MAX_SPEC_PROMPT_LEN] + "\n... (spec truncated) ..."
-            logger.warning("Spec analysis truncated for Author/Reviewer prompt due to size.")
+            logger.warning(f"Spec analysis truncated (limit: {MAX_SPEC_PROMPT_LEN}) for Author/Reviewer prompt due to size.")
 
         # Modify author_input_data
+        author_input_data = {
+            "spec_analysis_summary": spec_for_prompt,
+            "reviewer_feedback": reviewer_feedback,
+        }
         if blueprint_json:
-            author_input_data = {
-                "spec_analysis_summary": spec_for_prompt, # ADDED
-                "reviewer_feedback": reviewer_feedback,
-                "previous_blueprint": blueprint_json
-            }
-        else:
-            author_input_data = {
-                "spec_analysis_summary": spec_for_prompt, # ADDED
-                "reviewer_feedback": reviewer_feedback
-            }
+            author_input_data["previous_blueprint"] = blueprint_json
+        # Explicitly add context fields if they exist
+        if business_rules:
+            author_input_data["business_rules"] = business_rules
+        if test_data:
+            author_input_data["test_data_guidance"] = test_data # Use descriptive key
+        if test_flow:
+            author_input_data["test_flow_guidance"] = test_flow   # Use descriptive key
 
-        # Log Author Input (limit blueprint length if too long)
-        log_author_input = author_input_data.copy()
-        log_author_input["spec_analysis_summary"] = log_author_input["spec_analysis_summary"][:300] + "..."
-        if "previous_blueprint" in log_author_input:
-            log_author_input["previous_blueprint"] = log_author_input["previous_blueprint"][:300] + "..."
+        # Log Author Input (limit length for readability)
+        log_author_input = {k: (v[:300] + "..." if isinstance(v, str) and len(v) > 300 else v)
+                            for k, v in author_input_data.items()}
         logger.debug(f"AUTHOR Input (Iter {iteration}):\n{json.dumps(log_author_input, indent=2)}")
         
         if progress_callback:
@@ -202,14 +202,20 @@ async def run_autonomous_blueprint_pipeline(
         # --- Reviewer Step ---
         # Modify reviewer_input_data
         reviewer_input_data = {
-            "spec_analysis_summary": spec_for_prompt, # ADDED
-            "blueprint_to_review": blueprint_json
+            "spec_analysis_summary": spec_for_prompt,
+            "blueprint_to_review": blueprint_json,
         }
-        
-        # Log Reviewer Input
-        log_reviewer_input = reviewer_input_data.copy()
-        log_reviewer_input["spec_analysis_summary"] = log_reviewer_input["spec_analysis_summary"][:300] + "..."
-        log_reviewer_input["blueprint_to_review"] = log_reviewer_input["blueprint_to_review"][:300] + "..."
+        # Explicitly add context fields if they exist
+        if business_rules:
+            reviewer_input_data["business_rules"] = business_rules
+        if test_data:
+            reviewer_input_data["test_data_guidance"] = test_data
+        if test_flow:
+            reviewer_input_data["test_flow_guidance"] = test_flow
+
+        # Log Reviewer Input (limit length)
+        log_reviewer_input = {k: (v[:300] + "..." if isinstance(v, str) and len(v) > 300 else v)
+                              for k, v in reviewer_input_data.items()}
         logger.debug(f"REVIEWER Input (Iter {iteration}):\n{json.dumps(log_reviewer_input, indent=2)}")
         
         if progress_callback:

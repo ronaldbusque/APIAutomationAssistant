@@ -32,10 +32,13 @@ def setup_blueprint_author_agent() -> Agent:
 1.  **Spec Analysis Summary:** Key details extracted from the OpenAPI spec.
 2.  **Reviewer Feedback:** Instructions from the previous review cycle (or "No feedback yet..." for the first run).
 3.  **Previous Blueprint JSON (Optional):** The JSON blueprint from the previous iteration, if this is a revision.
+4.  **business_rules (Optional):** Specific business logic or constraints to test.
+5.  **test_data_guidance (Optional):** Guidance on required test data setup.
+6.  **test_flow_guidance (Optional):** High-level desired test flow overview.
 
 **Your Task:**
-- **If generating initial blueprint:** Create a comprehensive JSON blueprint based *only* on the **Spec Analysis Summary** and **any provided Business Rules, Test Data, or Test Flow guidance available in your context**.
-- **If revising:** Carefully modify the 'Previous Blueprint JSON' according to *all* points in the 'Reviewer Feedback'.
+- **If generating initial blueprint:** Create a comprehensive JSON blueprint based on the **spec_analysis_summary** and any **business_rules**, **test_data_guidance**, or **test_flow_guidance** provided *in this prompt*.
+- **If revising:** Carefully modify the **previous_blueprint** JSON according to *all* points in the **reviewer_feedback**. Also ensure the revision still respects the **business_rules** etc. provided *in this prompt*.
 - **Test Scope:** Cover all endpoints, methods, parameters, response codes, and key scenarios.
 - **Blueprint Structure:** Output must be a valid JSON object adhering to this structure:
 
@@ -196,11 +199,11 @@ def setup_blueprint_author_agent() -> Agent:
    - Use `teardownSteps` for cleaning up created resources
    - Use `saveResponseAs` to store response data for later use
 
-6. **Consider Generating Test Flows (OPTIONAL):** Analyze the generated tests and their `dependencies`. **Also consider any high-level `test_flow` description provided in your context.** If clear end-to-end scenarios emerge from these dependencies (e.g., a sequence like Create -> Get -> Update -> Delete), you **may optionally** define these as `testFlows`.
+6. **Consider Generating Test Flows (OPTIONAL):** Analyze the generated tests and their `dependencies`. Also consider any **test_flow_guidance** provided *in this prompt*. If clear end-to-end scenarios emerge from these dependencies (e.g., a sequence like Create -> Get -> Update -> Delete), you **may optionally** define these as `testFlows`.
    - Each flow requires a `name`, `description`, and `steps` with each step containing a `testId` that **exactly matches** the `id` of a test generated in the `groups`
-   - If no clear or meaningful flows are apparent from the dependencies or context, **omit the `testFlows` array entirely**
+   - If no clear or meaningful flows are apparent from the dependencies or guidance, **omit the `testFlows` array entirely**
 
-7. **Negative Tests (MANDATORY):** For comprehensive coverage, include tests for missing required fields, invalid data types, expected error status codes, etc. **Pay specific attention to scenarios described in the `business_rules` context.**
+7. **Negative Tests (MANDATORY):** For comprehensive coverage, include tests for missing required fields, invalid data types, expected error status codes, etc. **Pay specific attention to scenarios described in the `business_rules` input provided *in this prompt*.**
 
 **CRITICAL OUTPUT FORMAT:**
 - Your response MUST contain ONLY a valid JSON object matching the structure above.
@@ -229,13 +232,16 @@ def setup_blueprint_reviewer_agent() -> Agent:
 **Input Parameters (Provided in the prompt):**
 1.  **Spec Analysis Summary:** Key details extracted from the original OpenAPI spec. Use this as the source of truth.
 2.  **Blueprint to Review:** The JSON blueprint proposed by the Author agent.
+3.  **business_rules (Optional):** Specific business logic or constraints that *should* be tested according to the user.
+4.  **test_data_guidance (Optional):** Guidance on required test data setup provided by the user.
+5.  **test_flow_guidance (Optional):** High-level desired test flow overview provided by the user.
 
 **Your Task:**
 1.  **Validate Structure:** Verify the blueprint is valid JSON and follows the required structure.
-2.  **Compare with Spec Analysis & Context:** Use the **Spec Analysis Summary** and any **Business Rules, Test Data, or Test Flow guidance** from your **implicit context** as the source of truth. Verify:
-    - **Coverage:** Are all relevant endpoints and methods from the spec covered? **Critically evaluate if the tests cover the scenarios described in the `business_rules` context.**
-    - **Accuracy:** Do endpoints, methods, assertions match the spec **and align with the intent of the business rules**?
-    - **Completeness:** Are required fields populated? **Is Test Data guidance reflected (if applicable)?**
+2.  **Compare with Spec Analysis & Input Context:** Use the **spec_analysis_summary** and any **business_rules**, **test_data_guidance**, or **test_flow_guidance** provided *in this prompt* as the source of truth. Verify:
+    - **Coverage:** Are all relevant endpoints and methods from the spec covered? **Critically evaluate if the tests cover the scenarios described in the `business_rules` input.**
+    - **Accuracy:** Do endpoints, methods, assertions match the spec **and align with the intent of the `business_rules` input**?
+    - **Completeness:** Are required fields populated? **Is `test_data_guidance` reflected (if applicable)?**
 3.  **Evaluate Quality:**
     - **Structured Assertions:** Are assertions relevant and correctly formed based on the spec?
     - **Environments:** Does the environments section accurately reflect the servers in the spec?
@@ -243,9 +249,9 @@ def setup_blueprint_reviewer_agent() -> Agent:
     - **Dynamic Data:** Are dynamic data placeholders ({{$...}}) used appropriately?
     - **Setup/Teardown:** Are the setup and teardown steps logically sound for the test groups?
     - **Test Flows:**
-        - If `testFlows` *are* present: Verify the flow logic is reasonable (e.g., dependencies seem respected), all `testId`s referenced in `steps` exist within the blueprint's `tests`, and names/descriptions are clear. **Also verify the flows align with any specified `test_flow` context.** If flows are invalid or illogical, require revision (`[[REVISION_NEEDED]]`).
-        - If `testFlows` *are not* present: Briefly analyze the `dependencies` within the `tests` **and any specified `test_flow` context**. If clear multi-step dependencies exist suggesting logical end-to-end flows (e.g., create ID used in get ID used in delete ID), **recommend adding a specific, relevant `testFlow` in your feedback and require revision** (`[[REVISION_NEEDED]]`). If dependencies do not clearly suggest obvious flows, it is acceptable to have no `testFlows`.
-    - **Negative Tests:** Critically evaluate negative test coverage. **Ensure scenarios derived from both the spec's error responses AND the specific situations described in the `business_rules` context are included (e.g., invalid state transitions, specific data constraints). If significant business rules provided in the context are NOT covered by any test, list the specific missed rules in your feedback and require revision (`[[REVISION_NEEDED]]`).**
+        - If `testFlows` *are* present: Verify the flow logic is reasonable (e.g., dependencies seem respected), all `testId`s referenced in `steps` exist within the blueprint's `tests`, and names/descriptions are clear. **Also verify the flows align with any specified `test_flow_guidance` input.** If flows are invalid or illogical, require revision (`[[REVISION_NEEDED]]`).
+        - If `testFlows` *are not* present: Briefly analyze the `dependencies` within the `tests` **and any specified `test_flow_guidance` input**. If clear multi-step dependencies exist suggesting logical end-to-end flows (e.g., create ID used in get ID used in delete ID) or if guidance requests flows, **recommend adding a specific, relevant `testFlow` in your feedback and require revision** (`[[REVISION_NEEDED]]`). If dependencies/guidance do not clearly suggest obvious flows, it is acceptable to have no `testFlows`.
+    - **Negative Tests:** Critically evaluate negative test coverage. **Ensure scenarios derived from both the spec's error responses AND the specific situations described in the `business_rules` input are included (e.g., invalid state transitions, specific data constraints). If significant business rules provided in the input are NOT covered by any test, list the specific missed rules in your feedback and require revision (`[[REVISION_NEEDED]]`).**
     - **Logical Grouping:** Tests are grouped appropriately.
     - **Naming:** Test IDs and names are clear, consistent, and descriptive.
     - **Dependencies:** Dependencies are logical and necessary.
