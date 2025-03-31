@@ -341,13 +341,60 @@ def setup_script_coder_agent(framework: str) -> Agent:
 - **Assertions:** Translate structured assertions into Postman `pm.test(...)` scripts using `pm.response` methods.
 - **Environments:** Generate separate environment files based on the `environments` dictionary.
 - **Authentication:** Configure Collection/Folder/Request level authentication based on the `auth` field.
-- **Dynamic Data:** Map `{{$...}}` placeholders to Postman's dynamic variables.
-- **Setup/Teardown:** Implement pre-request and test scripts for setup/teardown steps.
+  - **IMPORTANT:** When implementing API Key authentication, always use the correct structure:
+    ```json
+    "auth": {
+      "type": "apikey",
+      "apikey": [
+        {
+          "key": "in",
+          "value": "header",
+          "type": "string"
+        },
+        {
+          "key": "key",
+          "value": "X-API-Key",
+          "type": "string"
+        },
+        {
+          "key": "value",
+          "value": "{{API_KEY}}",
+          "type": "string"
+        }
+      ]
+    }
+    ```
+  - This structure includes the required `"in": "header"` field that Postman expects to properly recognize API Key auth.
+- **Dynamic Data:** Map `{{$...}}` placeholders to Postman's dynamic variables (like `$randomUUID`). Implement pre-request scripts to generate these values if needed (e.g., using JavaScript `Math.random()` or similar).
+- **Setup/Teardown:** Implement pre-request and test scripts for setup/teardown steps. Use `pm.environment.set` and `pm.environment.get` for variable passing between requests.
 - **Required Files:**
     - The main Postman collection JSON (`collection.json`)
     - Example environment files (e.g., `environments/development.json`, `environments/production.json`)
-    - Example data file if data-driven tests are present (`data/test_data.csv`)
     - A simple `README.md` explaining how to import and run the collection
+
+- **CRITICAL SCRIPT FORMATTING:** When generating Postman `event` scripts (for `prerequest` or `test`), the `script.exec` property **MUST** be an array of strings. **Each element in this array MUST correspond to a single, complete line of the JavaScript code.** Do NOT put multi-line JavaScript code inside a single string element, and do not break a single line of JavaScript across multiple string elements.
+    **Correct Example:**
+    ```json
+    "script": {
+      "type": "text/javascript",
+      "exec": [
+        "console.log('Starting test...');",
+        "let x = 1 + 2;",
+        "if (x > 2) {",
+        "  console.log('Result is greater than 2');",
+        "}",
+        "pm.test('Check result', function() { pm.expect(x).to.equal(3); });"
+      ]
+    }
+    ```
+    **Incorrect Example (Multi-line in one string):**
+    ```json
+    "script": { "exec": ["console.log('Line 1');\nlet x = 1 + 2;"] }
+    ```
+    **Incorrect Example (Single line broken):**
+    ```json
+    "script": { "exec": ["console.log(", "'Starting test...');"] }
+    ```
 """
     # Add more frameworks as needed
 
@@ -369,8 +416,8 @@ def setup_script_coder_agent(framework: str) -> Agent:
 {extra_instructions}
 **CRITICAL OUTPUT FORMAT:**
 - Your response MUST contain ONLY a valid JSON array of file objects.
-- Each object MUST have "filename" (including relative path, e.g., "tests/api/users.spec.ts") and "content" (the full code/text) properties.
-- Example: `[{{"filename": "tests/users.spec.ts", "content": "// Test code..."}}, {{"filename": "playwright.config.ts", "content": "// Config..."}}]`
+- Each object MUST have "filename" (including relative path, e.g., "collection.json" or "tests/api/users.spec.ts") and "content" (the full code/text as a JSON-compatible string) properties.
+- Example: `[{{"filename": "collection.json", "content": "... escaped json content ..."}}, {{"filename": "environments/dev.json", "content": "..."}}]`
 - Start the output directly with `[` and end it directly with `]`.
 - Absolutely no explanations, comments, apologies, markdown formatting, or any text before the starting `[` or after the ending `]`.
 """,
