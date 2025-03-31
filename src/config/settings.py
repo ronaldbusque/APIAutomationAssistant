@@ -22,10 +22,11 @@ BASE_CONFIG = {
     "LOG_FILE": None,
     
     # Model selection settings
-    "MODEL_PLANNING": "o3-mini",
-    "MODEL_CODING": "gpt-4o-mini",
-    "MODEL_TRIAGE": "gpt-4o-mini",
     "MODEL_DEFAULT": "gpt-4o-mini",
+    "MODEL_BP_AUTHOR": "gpt-4o",
+    "MODEL_BP_REVIEWER": "gpt-4o",
+    "MODEL_SCRIPT_CODER": "gpt-4o",
+    "MODEL_SCRIPT_REVIEWER": "gpt-4o",
     
     # Complexity thresholds
     "MODEL_PLANNING_HIGH_THRESHOLD": "0.7",
@@ -36,7 +37,8 @@ BASE_CONFIG = {
     # Performance settings
     "MAX_RETRIES": "3",
     "BASE_TIMEOUT": "300",
-    "MAX_JITTER": "1.0"
+    "MAX_JITTER": "1.0",
+    "AUTONOMOUS_MAX_ITERATIONS": "3"
 }
 
 def load_settings() -> Dict[str, Any]:
@@ -66,7 +68,8 @@ def load_settings() -> Dict[str, Any]:
     numeric_settings = [
         "PORT", "MAX_RETRIES", "BASE_TIMEOUT", "MAX_JITTER",
         "MODEL_PLANNING_HIGH_THRESHOLD", "MODEL_PLANNING_MEDIUM_THRESHOLD",
-        "MODEL_CODING_HIGH_THRESHOLD", "MODEL_CODING_MEDIUM_THRESHOLD"
+        "MODEL_CODING_HIGH_THRESHOLD", "MODEL_CODING_MEDIUM_THRESHOLD",
+        "AUTONOMOUS_MAX_ITERATIONS"
     ]
     
     for key in numeric_settings:

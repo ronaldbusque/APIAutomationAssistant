@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { useJobStatus, useWebSocket } from '../hooks/useApi';
+import { useGenerateScripts, useJobStatus, useWebSocket } from '../hooks/useApi';
 
 interface Props {
   onBack: () => void;
@@ -12,13 +12,13 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
     state, 
     setBlueprint, 
     setBlueprintIsValid,
+    setScriptJobId
   } = useAppContext();
   
   const [isEditing, setIsEditing] = useState(false);
   const [editedBlueprint, setEditedBlueprint] = useState('');
   const [error, setError] = useState<string | null>(null);
   const processedJobRef = useRef<string | null>(null);
-  const [showDebugInfo, setShowDebugInfo] = useState(false);
   const wsRef = useRef<any>(null);
   
   // Poll job status
@@ -43,6 +43,9 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
       jobStatus.refetch();
     }
   });
+  
+  // Generate scripts hook
+  const generateScriptsMutation = useGenerateScripts();
   
   // Update blueprint when job completes
   useEffect(() => {
@@ -140,6 +143,17 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
     setError(null);
   };
   
+  // Handle continue to script generation
+  const handleContinue = async () => {
+    if (!state.blueprintIsValid || !state.blueprint) {
+      return;
+    }
+    
+    // Simply move to the next step
+    // Script generation will be handled in the ScriptOutput component
+    onNext();
+  };
+  
   // Render progress indicator
   const renderProgress = () => {
     if (jobStatus.isLoading) {
@@ -172,12 +186,24 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
     
     if (jobStatus.data?.status === 'processing' && progress) {
       // Get more descriptive stage name
-      const getStageName = (stage: string) => {
+      const getStageName = (stage: string, autonomousStage?: string) => {
+        // Check if we have an autonomous-specific stage to display
+        if (autonomousStage) {
+          switch (autonomousStage) {
+            case "spec_analysis": return "Analyzing Specification";
+            case "blueprint_authoring": return "Creating Blueprint";
+            case "blueprint_reviewing": return "Reviewing Blueprint";
+            case "blueprint_complete": return "Blueprint Complete";
+            default: return autonomousStage.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+          }
+        }
+        
+        // Standard stage names
         switch (stage) {
-          case 'planning': return 'Planning Blueprint Structure';
-          case 'initializing': return 'Initializing';
-          case 'completed': return 'Completed';
-          case 'failed': return 'Failed';
+          case "planning": return 'Planning Blueprint Structure';
+          case "initializing": return 'Initializing';
+          case "completed": return 'Completed';
+          case "failed": return 'Failed';
           default: return stage.charAt(0).toUpperCase() + stage.slice(1);
         }
       };
@@ -206,7 +232,7 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
           <div className="mb-6">
             <div className="flex items-center mb-4">
               <div className="font-medium text-gray-800 dark:text-gray-200">
-                {getStageName(progress.stage)}
+                {getStageName(progress.stage, progress.autonomous_stage)}
               </div>
             </div>
             
@@ -234,50 +260,6 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
               </div>
             </div>
           </div>
-          
-          {/* Show job details for debugging */}
-          <div className="mt-4 flex justify-end">
-            <button
-              onClick={() => setShowDebugInfo(!showDebugInfo)}
-              className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {showDebugInfo ? 'Hide Details' : 'Show Details'}
-            </button>
-          </div>
-          
-          {showDebugInfo && jobStatus.data && (
-            <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-mono overflow-auto max-h-48">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">Job ID:</span>{' '}
-                  <span className="text-gray-600 dark:text-gray-400">{jobStatus.data.job_id}</span>
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">Status:</span>{' '}
-                  <span className="text-gray-600 dark:text-gray-400">{jobStatus.data.status}</span>
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">Stage:</span>{' '}
-                  <span className="text-gray-600 dark:text-gray-400">{progress.stage || 'N/A'}</span>
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">Trace ID:</span>{' '}
-                  <span className="text-gray-600 dark:text-gray-400">{jobStatus.data.result?.trace_id || 'N/A'}</span>
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">Last Updated:</span>{' '}
-                  <span className="text-gray-600 dark:text-gray-400">{new Date().toLocaleTimeString()}</span>
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">Message:</span>{' '}
-                  <span className="text-gray-600 dark:text-gray-400">{progress.message}</span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       );
     }
@@ -387,7 +369,7 @@ const BlueprintView: React.FC<Props> = ({ onBack, onNext }) => {
         </button>
         
         <button
-          onClick={onNext}
+          onClick={handleContinue}
           disabled={!state.blueprintIsValid || jobStatus.data?.status !== 'completed'}
           className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-colors"
         >
