@@ -18,7 +18,8 @@ export interface AppState {
   businessRules: string;
   testData: string;
   testFlow: string;
-  targets: string[];
+  target: string | null;
+  maxIterations: number;
   
   // Jobs and progress
   blueprintJobId: string | null;
@@ -26,6 +27,8 @@ export interface AppState {
     stage: string;
     percent: number;
     message: string;
+    autonomous_stage?: string;
+    agent?: string;
   };
   
   // Blueprint data
@@ -42,6 +45,9 @@ export interface AppState {
     stage: string;
     percent: number;
     message: string;
+    autonomous_stage?: string;
+    target?: string;
+    agent?: string;
     files: {
       [target: string]: {
         name: string;
@@ -61,14 +67,13 @@ export interface AppState {
 export interface GenerateBlueprintRequest {
   spec: string;
   mode: 'basic' | 'advanced';
-  business_rules?: string;
-  test_data?: string;
-  test_flow?: string;
+  max_iterations?: number;
 }
 
 export interface GenerateScriptsRequest {
   blueprint: any;
   targets: string[];
+  max_iterations?: number;
 }
 
 export interface JobStatusResponse {
@@ -78,6 +83,9 @@ export interface JobStatusResponse {
     stage: string;
     percent: number;
     message: string;
+    autonomous_stage?: string;
+    target?: string;
+    agent?: string;
   };
   result?: any;
   error?: string;

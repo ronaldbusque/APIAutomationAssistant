@@ -14,6 +14,7 @@ from typing import Tuple, Dict, List, Any, Optional, AsyncIterator, Callable, Un
 
 from agents import Agent, Runner, gen_trace_id, trace
 from agents.items import RunItem
+from agents import RunResult  # Import RunResult explicitly
 from pydantic import BaseModel
 
 from .model_selection import ModelSelectionStrategy
@@ -48,10 +49,11 @@ async def run_agent_with_retry(
     input_data: Union[str, dict], 
     config: RetryConfig = None,
     run_config: RunConfig = None,
+    context: Any = None,  # Add context parameter
     complexity: float = 0.5,
     task: str = "general",
     model_selection: ModelSelectionStrategy = None
-) -> Tuple[Any, str]:
+) -> Tuple[RunResult, str]:  # Return RunResult instead of Any
     """
     Run an agent with retry logic and error handling.
     
@@ -60,12 +62,13 @@ async def run_agent_with_retry(
         input_data: The input data (string or dict)
         config: Retry configuration
         run_config: Run configuration (takes precedence over complexity/task)
+        context: Optional context data to pass to the agent
         complexity: Task complexity (0-1) to determine model
         task: Task type for model selection
         model_selection: Optional model selection strategy
         
     Returns:
-        Tuple of (result, trace_id)
+        Tuple of (RunResult, trace_id)
     """
     # Use default config if not provided
     config = config or RetryConfig()
@@ -109,8 +112,8 @@ async def run_agent_with_retry(
             try:
                 logger.info(f"Attempt {attempt+1}/{config.max_retries} for {agent.name}")
                 
-                # Run the agent without timeout parameter (removed to fix compatibility issue)
-                result = await Runner.run(agent, input=input_data)
+                # Run the agent with context parameter
+                result: RunResult = await Runner.run(agent, input=input_data, context=context)
                 logger.info(f"Agent {agent.name} completed successfully")
                 
                 # Restore original model and configuration
