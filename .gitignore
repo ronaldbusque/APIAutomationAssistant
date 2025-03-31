@@ -78,3 +78,6 @@ src/download_files.py
 src/simple_task_test.py
 ui/src/components/ApiTest.tsx
 ui/ux_plan.md
+docker-instructions.md
+fixes/
+app.log
