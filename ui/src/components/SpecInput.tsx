@@ -116,6 +116,10 @@ const SpecInput: React.FC<Props> = ({ onNext }) => {
         setSpec(content);
         setSpecFormat(format);
         setOpenApiSpec(content);
+        
+        // Reset blueprint state for new specifications
+        setBlueprint(null);
+        setBlueprintIsValid(false);
       }
     };
     
