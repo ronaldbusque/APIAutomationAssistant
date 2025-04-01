@@ -9,6 +9,12 @@ interface Props {
   onBack: () => void;
 }
 
+// Define interface for JSON validation errors
+interface JsonError {
+  message: string;
+  // We might add line/column later if we use a better parser, but keep it simple for now
+}
+
 const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   const { 
     state, 
@@ -27,6 +33,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   const [blueprintInput, setBlueprintInput] = useState<string>('');
   const [showBlueprintInput, setShowBlueprintInput] = useState<boolean>(false);
   const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
+  const [jsonErrors, setJsonErrors] = useState<Record<string, JsonError | null>>({});
   
   const generateScriptsMutation = useGenerateScripts();
   const jobStatus = useJobStatus(state.scriptJobId);
@@ -36,6 +43,40 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   
   // After the useState declarations at the top of the component, add a new state for tracking expanded directories
   const [expandedDirs, setExpandedDirs] = useState<Record<string, boolean>>({});
+  
+  // Add validation useEffect for JSON files
+  useEffect(() => {
+    const currentTargetScripts = state.target ? state.scripts[state.target] : null;
+    const errors: Record<string, JsonError | null> = {};
+
+    if (currentTargetScripts) {
+      Object.entries(currentTargetScripts).forEach(([filename, content]) => {
+        if (filename.endsWith('.json')) { // Only validate .json files
+          try {
+            if (content && typeof content === 'string') { // Ensure content is a non-empty string
+              JSON.parse(content);
+              errors[filename] = null; // No error
+            } else {
+               errors[filename] = null; // Treat empty/non-string content as not-an-error for now
+            }
+          } catch (e) {
+            if (e instanceof Error) {
+              // Store the error message
+              errors[filename] = { message: e.message };
+            } else {
+              // Fallback for unknown error types
+              errors[filename] = { message: 'Unknown JSON parsing error' };
+            }
+            console.warn(`JSON validation failed for file: ${filename}`, e);
+          }
+        } else {
+           errors[filename] = null; // Not a JSON file, no error
+        }
+      });
+    }
+    setJsonErrors(errors); // Update the state with errors for the current target
+
+  }, [state.target, state.scripts]); // Re-run when target or scripts change
   
   // Set up WebSocket for real-time updates
   const { connect } = useWebSocket(state.scriptJobId, (data) => {
@@ -861,155 +902,166 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
       );
     }
     
+    // Calculate if the current target has any JSON errors
+    const hasAnyJsonError = state.target ? Object.values(jsonErrors).some(error => error !== null) : false;
+
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        {/* Define height for the flex container */}
-        <div className="flex flex-col md:flex-row h-[calc(100vh-280px)]"> 
-          {/* Target and file selector Column */}
-          {/* Make this column scrollable independently */}
-          <div className="w-full md:w-72 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto">
+        <div className="flex flex-col md:flex-row h-[calc(100vh-280px)]">
+          {/* File List Column - Fixed width, independent scrolling */}
+          <div className="w-full md:w-72 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
             {state.target && (
-              // Remove padding from here, add within sections if needed
-              <div className="flex-1">
-                {/* Make header sticky */}
-                <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Files for <span className="capitalize font-semibold">{state.target}</span>
+              <div className="flex-1 flex flex-col">
+                {/* Sticky Header */}
+                <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 z-10 flex-shrink-0">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
+                    Files for <span className="capitalize font-semibold mx-1">{state.target}</span>
+                    {/* Global Error Indicator for Target */}
+                    {hasAnyJsonError && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-amber-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                        <title>Contains files with JSON errors</title>
+                        <path fillRule="evenodd" d="M8.257 3.099c.636-1.178 2.364-1.178 3.001 0l5.142 9.496c.61 1.124-.17 2.573-1.5 2.573H4.614c-1.33 0-2.11-1.449-1.5-2.573l5.142-9.496zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                    )}
                   </h3>
+                  {/* ... (Download All button) ... */}
                   <button
                     onClick={handleDownloadAllFiles}
-                    className="text-xs px-2 py-1 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md border border-primary-300 dark:border-primary-700 flex items-center transition-colors"
+                    className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
                     title="Download all files as ZIP"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
                     Download All
                   </button>
                 </div>
-                {/* Remove border, overflow, max-h from here. Container above handles scroll */}
-                <div className="file-list-container p-4">
+                {/* File List - Scrollable area */}
+                <div className="file-list-container p-4 overflow-y-auto flex-grow">
                   {(() => {
-                    // Group files by directory
+                    // ... (existing logic for filesByDir, rootFiles, rootDirs) ...
+                    // Logic to organize files into directories
                     const filesByDir: Record<string, string[]> = {};
                     const rootFiles: string[] = [];
-                    const rootDirs: Set<string> = new Set();
+                    const rootDirs = new Set<string>();
                     
-                    // Organize files into directories with proper hierarchy
-                    Object.keys(state.scripts[state.target] || {}).forEach(file => {
-                      if (file.includes('/')) {
-                        // Split path and extract directory hierarchy
-                        const parts = file.split('/');
-                        const fileName = parts.pop();
+                    if (state.target && state.scripts[state.target]) {
+                      // Process each file path
+                      Object.keys(state.scripts[state.target]).forEach(filePath => {
+                        const parts = filePath.split('/');
                         
-                        // Create path for each level of the hierarchy
-                        let currentPath = '';
-                        parts.forEach((part, index) => {
-                          const parentPath = currentPath;
-                          currentPath = currentPath ? `${currentPath}/${part}` : part;
+                        if (parts.length === 1) {
+                          // Root-level file
+                          rootFiles.push(filePath);
+                        } else {
+                          // File in a directory
+                          const dirPath = parts.slice(0, -1).join('/');
                           
-                          // Add to filesByDir if not already present
-                          if (!filesByDir[currentPath]) {
-                            filesByDir[currentPath] = [];
+                          // Create directory entry if it doesn't exist
+                          if (!filesByDir[dirPath]) {
+                            filesByDir[dirPath] = [];
                             
-                            // Add as root dir if this is a top-level directory
-                            if (index === 0) {
-                              rootDirs.add(currentPath);
-                            }
-                            
-                            // Add this directory to its parent
-                            if (parentPath && !filesByDir[parentPath].includes(`${currentPath}/`)) {
-                              filesByDir[parentPath].push(`${currentPath}/`);
-                            }
+                            // Also add parent directories
+                            let currentDir = '';
+                            parts.slice(0, -1).forEach(part => {
+                              currentDir = currentDir ? `${currentDir}/${part}` : part;
+                              rootDirs.add(currentDir);
+                            });
                           }
-                        });
-                        
-                        // Add the file to its immediate directory
-                        filesByDir[currentPath].push(file);
-                      } else {
-                        rootFiles.push(file);
-                      }
-                    });
+                          
+                          // Add file to its directory
+                          filesByDir[dirPath].push(filePath);
+                        }
+                      });
+                    }
                     
-                    // Function to render a directory and its contents
+                    const renderFileButton = (filePath: string, indent: number) => {
+                      const fileName = filePath.split('/').pop() || filePath;
+                      const fileError = jsonErrors[filePath]; // Check for error
+                      const isJsonFile = filePath.endsWith('.json');
+
+                      return (
+                        <button
+                          key={filePath}
+                          onClick={() => handleFileSelect(filePath)}
+                          className={`block w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
+                            selectedFile === filePath
+                              ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-medium'
+                              : fileError && isJsonFile
+                              ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-800 dark:text-red-300' // Error style
+                              : 'hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-300'
+                          } transition-colors`}
+                          style={{ paddingLeft: `${indent}px` }}
+                        >
+                          <span className="flex items-center">
+                            {getFileIcon(fileName)}
+                            <span className="truncate mr-1">{fileName}</span>
+                            {/* Per-File Error Indicator */}
+                            {fileError && isJsonFile && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-auto flex-shrink-0 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                                <title>{`Invalid JSON: ${fileError.message}`}</title>
+                                <path fillRule="evenodd" d="M8.257 3.099c.636-1.178 2.364-1.178 3.001 0l5.142 9.496c.61 1.124-.17 2.573-1.5 2.573H4.614c-1.33 0-2.11-1.449-1.5-2.573l5.142-9.496zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </span>
+                        </button>
+                      );
+                    };
+
                     const renderDir = (dirPath: string, level: number) => {
-                      const dirName = dirPath.split('/').pop();
+                      // ... (existing directory rendering logic) ...
+                      // Compute directory display name
+                      const dirName = dirPath.split('/').pop() || dirPath;
                       const indent = level * 12;
-                      const isExpanded = expandedDirs[dirPath] !== false; // Default to expanded if not specified
+                      const isExpanded = expandedDirs[dirPath] !== false; // Default to expanded
+                      
+                      // Check if this directory contains any files
+                      const hasFiles = filesByDir[dirPath] && filesByDir[dirPath].length > 0;
+                      
+                      // Find subdirectories of this directory
+                      const subDirs = Array.from(rootDirs).filter(dir => {
+                        const parts = dir.split('/');
+                        const parentDir = parts.slice(0, -1).join('/');
+                        return parentDir === dirPath;
+                      });
                       
                       return (
-                        <div key={dirPath}>
-                          <button 
+                        <div key={dirPath} className="mb-1">
+                          {/* Directory header/button */}
+                          <button
                             onClick={() => {
-                              setExpandedDirs(prev => ({
-                                ...prev,
+                              setExpandedDirs({
+                                ...expandedDirs,
                                 [dirPath]: !isExpanded
-                              }));
+                              });
                             }}
-                            className="flex w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
-                            style={{ paddingLeft: `${indent + 12}px` }}
+                            className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-800 dark:text-gray-200 font-medium flex items-center"
+                            style={{ paddingLeft: `${indent}px` }}
                           >
-                            <span className="flex items-center">
-                              <svg 
-                                xmlns="http://www.w3.org/2000/svg" 
-                                className={`h-4 w-4 mr-1.5 transition-transform ${isExpanded ? '' : '-rotate-90'}`}
-                                fill="none" 
-                                viewBox="0 0 24 24" 
-                                stroke="currentColor"
-                              >
-                                <path 
-                                  strokeLinecap="round" 
-                                  strokeLinejoin="round" 
-                                  strokeWidth={2} 
-                                  d="M19 9l-7 7-7-7" 
-                                />
-                              </svg>
-                              <svg 
-                                xmlns="http://www.w3.org/2000/svg" 
-                                className="h-4 w-4 mr-1.5 text-blue-500 dark:text-blue-400 flex-shrink-0"
-                                fill="none" 
-                                viewBox="0 0 24 24" 
-                                stroke="currentColor"
-                              >
-                                <path 
-                                  strokeLinecap="round" 
-                                  strokeLinejoin="round" 
-                                  strokeWidth={2} 
-                                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" 
-                                />
-                              </svg>
-                              {dirName}
-                            </span>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className={`h-4 w-4 mr-1 transition-transform ${isExpanded ? 'transform rotate-90' : ''}`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                            </svg>
+                            <span className="truncate">{dirName}</span>
                           </button>
                           
+                          {/* Directory contents (conditionally rendered) */}
                           {isExpanded && (
-                            <div className="directory-contents">
-                              {filesByDir[dirPath]?.map(item => {
-                                // Check if this item is a directory (ends with /)
-                                if (item.endsWith('/')) {
-                                  // It's a directory
-                                  const subDirPath = item.slice(0, -1); // Remove trailing slash
-                                  return renderDir(subDirPath, level + 1);
-                                } else {
-                                  // It's a file
-                                  const fileName = item.split('/').pop();
-                                  return (
-                                    <button
-                                      key={item}
-                                      onClick={() => handleFileSelect(item)}
-                                      className={`block w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
-                                        selectedFile === item
-                                          ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-medium'
-                                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-300'
-                                      } transition-colors`}
-                                      style={{ paddingLeft: `${indent + 32}px` }}
-                                    >
-                                      <span className="flex items-center">
-                                        {getFileIcon(fileName || '')}
-                                        <span className="truncate">{fileName}</span>
-                                      </span>
-                                    </button>
-                                  );
+                            <div className="ml-4">
+                              {/* Render subdirectories */}
+                              {subDirs.map(subDir => renderDir(subDir, level + 1))}
+                              
+                              {/* Render files in this directory */}
+                              {hasFiles && filesByDir[dirPath].map(item => {
+                                // If this is a file in this exact directory (not a sub-subdirectory)
+                                const fileName = item.split('/').pop();
+                                if (fileName) {
+                                  return renderFileButton(item, indent + 20);
                                 }
                               })}
                             </div>
@@ -1022,26 +1074,41 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
                     return (
                       <>
                         {/* Root directories */}
-                        {Array.from(rootDirs).map(dir => renderDir(dir, 0))}
+                        {Array.from(rootDirs).filter(dir => !dir.includes('/')).map(dir => renderDir(dir, 0))}
                         
                         {/* Root files */}
-                        {rootFiles.map(file => (
-                          <button
-                            key={file}
-                            onClick={() => handleFileSelect(file)}
-                            className={`block w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
-                              selectedFile === file
-                                ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-medium'
-                                : 'hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-300'
-                            } transition-colors`}
-                            style={{ paddingLeft: '12px' }}
-                          >
-                            <span className="flex items-center">
-                              {getFileIcon(file)}
-                              <span className="truncate">{file}</span>
-                            </span>
-                          </button>
-                        ))}
+                        {rootFiles.map(file => {
+                          const fileName = file.split('/').pop() || file;
+                          const fileError = jsonErrors[file]; // Check for error
+                          const isJsonFile = file.endsWith('.json');
+
+                          return (
+                            <button
+                              key={file}
+                              onClick={() => handleFileSelect(file)}
+                              className={`block w-full text-left px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
+                                selectedFile === file
+                                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-medium'
+                                  : fileError && isJsonFile
+                                  ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-800 dark:text-red-300' // Error style
+                                  : 'hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-300'
+                              } transition-colors`}
+                              style={{ paddingLeft: '12px' }}
+                            >
+                              <span className="flex items-center">
+                                {getFileIcon(file)}
+                                <span className="truncate mr-1">{fileName}</span>
+                                {/* Per-File Error Indicator */}
+                                {fileError && isJsonFile && (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-auto flex-shrink-0 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                                    <title>{`Invalid JSON: ${fileError.message}`}</title>
+                                    <path fillRule="evenodd" d="M8.257 3.099c.636-1.178 2.364-1.178 3.001 0l5.142 9.496c.61 1.124-.17 2.573-1.5 2.573H4.614c-1.33 0-2.11-1.449-1.5-2.573l5.142-9.496zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </>
                     );
                   })()}
@@ -1050,10 +1117,8 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
             )}
           </div>
           
-          {/* Script content Column */}
-          {/* Remove padding p-4, flex-grow handles sizing */}
-          <div className="flex-grow min-w-0">
-            {/* renderFileContent will now provide its own padding */}
+          {/* Script content Column - Flexible width, independent scrolling */}
+          <div className="flex-grow min-w-0 overflow-hidden">
             {renderFileContent()} 
           </div>
         </div>
@@ -1064,12 +1129,15 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   const renderFileContent = () => {
     if (!state.target || !selectedFile || !state.scripts[state.target]?.[selectedFile]) {
       return (
-        // ... Placeholder - ensure it has some padding or alignment if needed ...
         <div className="p-4 h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
           Select a file to view its content.
         </div>
       );
     }
+
+    // Get the error for the currently selected file
+    const currentJsonError = jsonErrors[selectedFile];
+    const isCurrentJsonInvalid = !!currentJsonError && selectedFile.endsWith('.json');
 
     const getLanguage = () => {
       if (selectedFile?.endsWith('.ts')) return 'typescript';
@@ -1089,11 +1157,10 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     const isDarkMode = document.documentElement.classList.contains('dark');
 
     return (
-      // Main container for file content section
-      // Use h-full to fill the parent's height (from flex-grow min-w-0)
-      <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+      // Main container for file content section with flex column layout
+      <div className="flex flex-col h-full">
         {/* Fixed Header for Filename and Buttons */}
-        <div className="flex justify-between items-center p-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
+        <div className="flex justify-between items-center p-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
            <h3 className="font-medium text-gray-800 dark:text-gray-200 flex items-center truncate pr-2">
              <span className="mr-1.5 flex-shrink-0">{getFileIcon(selectedFile)}</span>
              <span className="truncate" title={selectedFile}>{selectedFile}</span>
@@ -1127,9 +1194,22 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
           </div>
         </div>
         
+        {/* JSON Validation Warning Banner */}
+        {isCurrentJsonInvalid && (
+          <div className="p-3 border-b border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 flex items-start text-sm flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.257 3.099c.636-1.178 2.364-1.178 3.001 0l5.142 9.496c.61 1.124-.17 2.573-1.5 2.573H4.614c-1.33 0-2.11-1.449-1.5-2.573l5.142-9.496zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+            </svg>
+            <div>
+              <span className="font-semibold">Invalid JSON Detected:</span> Importing might fail.
+              {/* Display the actual error message */}
+              <div className="mt-1 font-mono text-xs bg-amber-100 dark:bg-amber-800/50 p-1 rounded">Error: {currentJsonError.message}</div>
+            </div>
+          </div>
+        )}
+        
         {/* Scrollable Code Area */}
-        {/* Use flex-1 to take remaining space, explicit scrolling */}
-        <div className="flex-1 overflow-x-scroll overflow-y-scroll min-h-0 relative">
+        <div className="flex-1 overflow-y-auto overflow-x-auto bg-gray-50 dark:bg-gray-900">
           <SyntaxHighlighter
             language={language}
             style={isDarkMode ? oneDark : oneLight}
@@ -1140,7 +1220,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
               fontSize: '0.875rem',
               lineHeight: '1.5',
               backgroundColor: isDarkMode ? '#111827' : '#f9fafb',
-              // No overflow property here to avoid conflicts
+              height: '100%',
             }}
             wrapLongLines={false} // MUST be false for horizontal scroll
             showLineNumbers={true}
