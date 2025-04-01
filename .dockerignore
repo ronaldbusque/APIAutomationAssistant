@@ -3,6 +3,7 @@
 # Git files
 .git
 .gitignore
+.github
 
 # Docker/Fly files
 .dockerignore
@@ -57,4 +58,23 @@ ui/node_modules/
 ui/dist/
 ui/.vite/
 
-# Generated test outputs (if any) 
+# Generated test outputs (if any)
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Node.js
+ui/coverage/
+ui/.next/
+
+# IDE
+*.swp
+*.swo
+
+# Project specific
+logs/
+*.log
+data/
+.fly/ 
