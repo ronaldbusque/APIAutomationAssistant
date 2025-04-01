@@ -46,10 +46,11 @@ const Layout: React.FC<Props> = ({ children }) => {
     switch (state.currentStep) {
       case 'input':
         return <SpecInput onNext={() => {
-          // If we have a valid blueprint, skip directly to scripts
+          // Only skip directly to scripts if we have a valid blueprint
           if (state.blueprintIsValid && state.blueprint) {
             setCurrentStep('scripts');
           } else {
+            // For new specifications, always go to the mode/configure page
             setCurrentStep('mode');
           }
         }} />;

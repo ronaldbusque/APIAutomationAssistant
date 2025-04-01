@@ -70,6 +70,10 @@ const SpecInput: React.FC<Props> = ({ onNext }) => {
       setSpecFormat(format);
       setOpenApiSpec(text);
       
+      // Reset blueprint state for new specifications
+      setBlueprint(null);
+      setBlueprintIsValid(false);
+      
       // Move to next step
       onNext();
     } catch (err) {
@@ -145,6 +149,10 @@ const SpecInput: React.FC<Props> = ({ onNext }) => {
     setSpec(pasteInput);
     setSpecFormat(format);
     setOpenApiSpec(pasteInput);
+    
+    // Reset blueprint state for new specifications
+    setBlueprint(null);
+    setBlueprintIsValid(false);
     
     // Move to next step
     onNext();
@@ -322,7 +330,12 @@ const SpecInput: React.FC<Props> = ({ onNext }) => {
             <button
               type="button"
               className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors font-medium"
-              onClick={onNext}
+              onClick={() => {
+                // Reset blueprint state for new specifications
+                setBlueprint(null);
+                setBlueprintIsValid(false);
+                onNext();
+              }}
             >
               Continue with Selected File
             </button>
