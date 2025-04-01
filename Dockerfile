@@ -24,8 +24,15 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=8080 \
     # Add HOST variable to make sure we bind to all interfaces
     HOST=0.0.0.0
+
 # Set working directory
 WORKDIR /app
+
+# Install basic utilities and Python dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt ./
@@ -39,8 +46,9 @@ COPY src/ ./src/
 COPY entrypoint.sh ./
 RUN chmod +x /app/entrypoint.sh
 
-# Create logs directory
+# Create logs directory and ensure permissions
 RUN mkdir -p /app/logs && chmod 777 /app/logs
+RUN mkdir -p /app/data && chmod 777 /app/data
 
 # Copy built frontend assets from the builder stage to the location FastAPI will serve
 COPY --from=node-builder /app/ui/dist ./static/ui
