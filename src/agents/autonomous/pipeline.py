@@ -393,7 +393,10 @@ async def run_autonomous_script_pipeline(
                 f"script_coder_{framework}"
             )
         
-        coder_failed_json = False # Flag to track if coder failed JSON validation
+        coder_outer_json_valid = False
+        inner_json_validation_warnings = [] # Store warnings for inner content errors
+        script_files_list_from_coder = [] # Store the parsed list even if inner content is bad
+
         try:
             # TODO: Calculate complexity
             complexity = 0.7
@@ -405,101 +408,100 @@ async def run_autonomous_script_pipeline(
             )
             # Properly unpack the tuple result
             coder_run_result, coder_trace_id = coder_result
-            # Access raw output string from the RunResult object
             proposed_script_files_json = coder_run_result.final_output
             if not isinstance(proposed_script_files_json, str):
                 proposed_script_files_json = str(proposed_script_files_json)
-            
-            # Log Coder Output
-            logger.debug(f"CODER Output for {framework} (Iter {iteration}):\n{proposed_script_files_json[:1000]}...")
-            
-            # --- ENHANCED JSON VALIDATION ---
+
+            logger.debug(f"CODER Output Chars (Iter {iteration}): {len(proposed_script_files_json)}")
+            logger.debug(f"CODER Output (Iter {iteration}):\n{proposed_script_files_json[:1000]}...")
+
+            # --- MODIFIED JSON VALIDATION ---
             try:
-                # 1. Validate the outer array structure
-                script_files_list = json.loads(proposed_script_files_json)
+                # 1. Validate the outer array structure FIRST
+                script_files_list_from_coder = json.loads(proposed_script_files_json) # Store the parsed list
 
-                if not isinstance(script_files_list, list):
-                    raise ScriptGenerationError(f"Coder output is not a JSON list (Iter {iteration}). Got type: {type(script_files_list)}")
+                if not isinstance(script_files_list_from_coder, list):
+                    # This is a severe error - outer structure is wrong
+                    raise ScriptGenerationError(f"Coder output is not a JSON list (Iter {iteration}). Got type: {type(script_files_list_from_coder)}")
 
-                # 2. Validate individual file objects and inner JSON content
-                validated_files = []
-                for i, file_obj in enumerate(script_files_list):
+                # 2. Validate individual file objects structure
+                for i, file_obj in enumerate(script_files_list_from_coder):
                     if not isinstance(file_obj, dict) or "filename" not in file_obj or "content" not in file_obj:
+                        # This is also severe - file object structure is wrong
                         raise ScriptGenerationError(f"Invalid file object structure at index {i} (Iter {iteration}).")
+                    # Ensure content is string (attempt conversion)
+                    if not isinstance(file_obj["content"], str):
+                         logger.warning(f"Content for file '{file_obj['filename']}' is not a string (type: {type(file_obj['content'])}). Attempting conversion.")
+                         file_obj["content"] = str(file_obj["content"])
 
+                # If outer structure is valid, mark it and store the original JSON string
+                coder_outer_json_valid = True
+                script_files_json = proposed_script_files_json # Keep the original string
+                script_files = script_files_list_from_coder # Keep the parsed list
+
+                # 3. NOW, attempt to validate inner JSON content for .json files (as warnings)
+                for file_obj in script_files_list_from_coder:
                     filename = file_obj["filename"]
                     content_str = file_obj["content"]
-
-                    # Ensure content is a string
-                    if not isinstance(content_str, str):
-                         logger.warning(f"Content for file '{filename}' is not a string (type: {type(content_str)}). Attempting conversion.")
-                         content_str = str(content_str)
-                         file_obj["content"] = content_str # Update the object
-
-                    # 3. If it's a JSON file, validate its content string
                     if filename.lower().endswith('.json'):
                         try:
-                            # Attempt to parse the inner JSON content
-                            json.loads(content_str)
+                            json.loads(content_str) # Try parsing inner content
                             logger.debug(f"Successfully validated inner JSON for: {filename}")
                         except json.JSONDecodeError as inner_json_err:
-                            # Raise specific error if inner JSON is invalid
-                            raise ScriptGenerationError(
-                                f"Coder produced invalid JSON content within file '{filename}' (Iter {iteration}): {inner_json_err}"
-                            ) from inner_json_err
+                            # Store as a warning, don't raise error here
+                            warning_msg = f"Warning: Coder produced invalid JSON content within file '{filename}' (Iter {iteration}): {inner_json_err}"
+                            logger.warning(warning_msg)
+                            inner_json_validation_warnings.append(warning_msg)
+                            # NOTE: We keep the potentially invalid content_str in script_files
 
-                    validated_files.append(file_obj) # Add validated file object
+                logger.info(f"Script coder proposed valid outer JSON structure for {framework} (iteration {iteration}): {len(script_files)} files.")
+                if inner_json_validation_warnings:
+                    logger.warning(f"Found {len(inner_json_validation_warnings)} inner JSON content validation warnings.")
 
-                # All validations passed
-                script_files_json = proposed_script_files_json # Store the original valid outer JSON string
-                script_files = validated_files # Store the list of validated file objects
-                logger.info(f"Script coder proposed valid JSON structure and content for {framework} (iteration {iteration}): {len(script_files)} files")
-
-            except (json.JSONDecodeError, ScriptGenerationError) as json_validation_err:
-                # Catch errors specifically from JSON parsing or our structure checks
-                logger.error(f"Script coder JSON validation failed (Iter {iteration}): {json_validation_err}")
-                coder_failed_json = True # Set the flag
-                # Prepare feedback for the *next* coder iteration
+            except (json.JSONDecodeError, ScriptGenerationError) as outer_validation_err:
+                # Catch errors parsing the outer array or validating file object structure
+                logger.error(f"Script coder outer JSON validation failed (Iter {iteration}): {outer_validation_err}")
+                coder_outer_json_valid = False # Mark outer structure as invalid
+                # Prepare feedback for the next coder iteration about the outer structure error
                 reviewer_feedback = (
-                    f"{REVISION_NEEDED_KEYWORD}\n" # Ensure keyword is present for loop logic
-                    f"Error: Your previous output was not valid JSON or had an invalid structure.\n"
-                    f"Validation Error: {json_validation_err}\n"
-                    f"Please carefully review your entire output, ensuring it's a single, valid JSON array `[{{\"filename\": ..., \"content\": ...}}]` "
-                    f"and that all `content` strings (especially for .json files) have correctly escaped internal quotes (`\\\"`) and backslashes (`\\\\`). Fix the JSON syntax and structure."
+                    f"{REVISION_NEEDED_KEYWORD}\n"
+                    f"Error: Your previous output was not a valid JSON array of file objects.\n"
+                    f"Validation Error: {outer_validation_err}\n"
+                    f"Please ensure your entire output is a single, valid JSON array `[{{\"filename\": ..., \"content\": ...}}]` and fix the syntax."
                 )
-                # If it's the last iteration, raise the error anyway
-                if iteration >= max_iterations: # Use >= for safety
-                     logger.error(f"Coder failed JSON validation on final attempt ({iteration}). Raising error.")
-                     # Raise the original error for better context
-                     raise ScriptGenerationError(f"Coder failed JSON validation on final attempt: {json_validation_err}") from json_validation_err
+                if iteration >= max_iterations:
+                     logger.error(f"Coder failed OUTER JSON validation on final attempt ({iteration}). Raising error.")
+                     raise ScriptGenerationError(f"Coder failed OUTER JSON validation on final attempt: {outer_validation_err}") from outer_validation_err
                 else:
-                    # Allow loop to continue to give coder a chance to fix it
-                    logger.info(f"Coder failed JSON validation on attempt {iteration}. Feeding error back for retry.")
-            # --- END ENHANCED JSON VALIDATION ---
-                
-        except ScriptGenerationError as sge: # Catch our specific errors raised during validation
-            logger.error(str(sge))
-            # If validation fails, we want to retry if possible (handled above),
-            # but if it failed on the last iteration, re-raise.
-            if iteration >= max_iterations:
-                raise
-            else:
-                # Ensure the flag is set and feedback is prepared if not already
-                coder_failed_json = True
-                if not reviewer_feedback.startswith(REVISION_NEEDED_KEYWORD): # Avoid double-prepending
-                    reviewer_feedback = f"{REVISION_NEEDED_KEYWORD}\n{str(sge)}"
+                    logger.info(f"Coder failed OUTER JSON validation on attempt {iteration}. Feeding error back for retry.")
+            # --- END MODIFIED JSON VALIDATION ---
+
         except Exception as e:
             # Handle other unexpected errors during coder execution
-            logger.error(f"Script coder failed for {framework} (iteration {iteration}): {str(e)}")
-            # If coder fails execution (not just validation), we should probably raise
-            raise ScriptGenerationError(f"Script coder failed: {str(e)}") from e
-        
+            logger.error(f"Script coder execution failed for {framework} (iteration {iteration}): {str(e)}", exc_info=True)
+            # If coder fails execution, treat as severe failure for retry/raise
+            coder_outer_json_valid = False
+            reviewer_feedback = (
+                f"{REVISION_NEEDED_KEYWORD}\n"
+                f"Error: The script coder agent failed during execution.\n"
+                f"Execution Error: {str(e)}\n"
+                f"Please review the task and try again."
+            )
+            if iteration >= max_iterations:
+                raise ScriptGenerationError(f"Script coder execution failed on final attempt: {str(e)}") from e
+            else:
+                 logger.info(f"Coder execution failed on attempt {iteration}. Feeding error back for retry.")
+
         # --- Reviewer Step ---
-        # Skip reviewer step if the coder failed JSON validation in this iteration
-        if coder_failed_json:
-            logger.warning(f"Skipping reviewer step for iteration {iteration} due to coder JSON validation failure.")
-            continue # Go to the next iteration of the loop
-        
+        # Only skip reviewer if the OUTER structure was invalid
+        if not coder_outer_json_valid:
+            logger.warning(f"Skipping reviewer step for iteration {iteration} due to coder OUTER JSON validation failure.")
+            continue # Go to next iteration with feedback about outer structure
+
+        # --- Prepare feedback for Reviewer/Next Coder Iteration ---
+        # Start with any inner JSON warnings found during validation
+        current_feedback_parts = list(inner_json_validation_warnings)
+
         # Modify reviewer_input_data
         reviewer_input_data = {
             "framework": framework,
@@ -519,7 +521,7 @@ async def run_autonomous_script_pipeline(
                 {"message": f"Reviewing {framework} test scripts (iteration {iteration})"}, 
                 f"script_reviewer_{framework}"
             )
-        
+
         try:
             # TODO: Calculate complexity
             complexity = 0.6
@@ -538,56 +540,64 @@ async def run_autonomous_script_pipeline(
             
             # Log Reviewer Output
             logger.debug(f"REVIEWER Output for {framework} (Iter {iteration}):\n{review_output_raw}")
-            
-            # --- MODIFIED Keyword Parsing ---
+
+            # --- Parse Reviewer Output ---
             approved = False
             revision_needed = False
             feedback_lines = []
             keyword_found = False
-
             lines = review_output_raw.strip().split('\n')
-            # Iterate backwards to find the last non-empty line for the keyword
             for i in range(len(lines) - 1, -1, -1):
                 line = lines[i].strip()
                 if line == CODE_APPROVED_KEYWORD:
                     approved = True
                     keyword_found = True
-                    feedback_lines = lines[:i] # Get lines before the keyword line
+                    feedback_lines = lines[:i]
                     break
                 elif line == REVISION_NEEDED_KEYWORD:
                     revision_needed = True
                     keyword_found = True
-                    feedback_lines = lines[:i] # Get lines before the keyword line
+                    feedback_lines = lines[:i]
                     break
-                elif line: # Stop searching if we hit a non-empty line that isn't a keyword
+                elif line:
                     break
 
+            # Combine reviewer feedback with any inner JSON warnings
+            reviewer_text_feedback = '\n'.join(feedback_lines).strip()
+            if reviewer_text_feedback: # Add reviewer's feedback if it exists
+                current_feedback_parts.append(reviewer_text_feedback)
+
+            # Construct the final feedback for the next coder iteration
             if approved:
                 logger.info(f"Scripts approved by reviewer on iteration {iteration}")
-                reviewer_feedback = '\n'.join(feedback_lines).strip()
-            elif revision_needed:
-                logger.info(f"Script revision needed (iteration {iteration})")
-                reviewer_feedback = '\n'.join(feedback_lines).strip()
-            else:
-                # No recognized keyword found, use entire output as feedback
-                logger.warning(f"No recognized keyword found in reviewer output (iteration {iteration})")
-                reviewer_feedback = review_output_raw # Keep original raw output as feedback
-            # --- END MODIFIED Keyword Parsing ---
-            
+                reviewer_feedback = "" # Clear feedback if approved
+            elif revision_needed or inner_json_validation_warnings: # If reviewer needs revision OR there were inner JSON warnings
+                logger.info(f"Script revision needed (iteration {iteration}) based on reviewer feedback and/or inner JSON warnings.")
+                # Prepend the keyword only if revision is needed by reviewer or warnings exist
+                reviewer_feedback = f"{REVISION_NEEDED_KEYWORD}\n" + "\n---\n".join(current_feedback_parts)
+            else: # No keyword found in reviewer output AND no inner JSON warnings
+                logger.warning(f"No recognized keyword found in reviewer output and no inner JSON warnings (iteration {iteration})")
+                # Treat as needing revision, include full raw output + warnings
+                current_feedback_parts.append(review_output_raw)
+                reviewer_feedback = f"{REVISION_NEEDED_KEYWORD}\n" + "\n---\n".join(current_feedback_parts)
+            # --- End Parse Reviewer Output ---
+
         except Exception as e:
             logger.error(f"Script reviewer failed for {framework} (iteration {iteration}): {str(e)}")
             raise ScriptGenerationError(f"Script reviewer failed: {str(e)}") from e
-    
+
     # After the loop, check if scripts were approved
     if not approved:
-        logger.warning(f"Max iterations ({max_iterations}) reached without script approval")
-    
-    # Call progress callback if provided
+        logger.warning(f"Max iterations ({max_iterations}) reached without script approval.")
+        if not script_files: # Check if we never got a valid outer structure
+             raise ScriptGenerationError(f"Failed to generate valid script file structure after {max_iterations} iterations.")
+
     if progress_callback:
         await progress_callback(
             "script_generation_complete", 
             {"percent": 100, "message": f"{framework} script generation complete."}, 
             "system"
         )
-    
+
+    # Return the script files, even if inner content might be invalid (UI will warn)
     return script_files 
