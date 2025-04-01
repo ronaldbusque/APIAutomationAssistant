@@ -440,7 +440,7 @@ def setup_script_coder_agent(framework: str) -> Agent:
 - Your response MUST contain ONLY a valid JSON array of file objects.
 - Each object MUST have "filename" (including relative path, e.g., "collection.json" or "tests/api/users.spec.ts") and "content" (the full code/text as a JSON-compatible string) properties.
 - **The `content` value itself MUST be a valid JSON string.** This means any double quotes (`"`) within the actual file content MUST be escaped as `\"`, and any backslashes (`\`) must be escaped as `\\`. Pay meticulous attention to this escaping, especially for JSON file content like `collection.json`.
-- Example: `[{"filename": "collection.json", "content": "... escaped json content ..."}, {"filename": "environments/dev.json", "content": "..."}]`
+- Example: `[{{"filename": "collection.json", "content": "... escaped json content ..."}}, {{"filename": "environments/dev.json", "content": "..."}}]`
 - Start the output directly with `[` and end it directly with `]`.
 - Absolutely no explanations, comments, apologies, markdown formatting, or any text before the starting `[` or after the ending `]`.
 """,
