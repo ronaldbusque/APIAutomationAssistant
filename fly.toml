@@ -1,8 +1,17 @@
-app = "apiautomationassistant"
-primary_region = "iad"
+# fly.toml app configuration file generated for apiautomationassistant on 2025-04-01T16:12:42+13:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'apiautomationassistant'
+primary_region = 'syd'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
+
+[env]
+  PORT = '8080'
+  HOST = '0.0.0.0'
 
 [http_service]
   internal_port = 8080
@@ -10,17 +19,34 @@ primary_region = "iad"
   auto_stop_machines = true
   auto_start_machines = true
   min_machines_running = 0
-  processes = ["app"]
+  processes = ['app']
+  
+  [http_service.concurrency]
+    type = 'connections'
+    hard_limit = 550
+    soft_limit = 500
+
+  [[http_service.checks]]
+    grace_period = '30s'
+    interval = '15s'
+    method = 'GET'
+    timeout = '10s'
+    path = '/health'
+
+[[mounts]]
+  source = 'apiautomation_data'
+  destination = '/app/data'
 
 [[services.ports]]
   port = 80
-  handlers = ["http"]
+  handlers = ['http']
   force_https = true
 
 [[services.ports]]
   port = 443
-  handlers = ["tls", "http"]
-  
-[mounts]
-  source = "apiautomation_data"
-  destination = "/app/data" 
+  handlers = ['tls', 'http']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
