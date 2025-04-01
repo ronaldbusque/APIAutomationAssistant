@@ -408,6 +408,15 @@ def setup_script_coder_agent(framework: str) -> Agent:
       ]
     }
     ```
+    
+    **Incorrect Example (Multi-line in one string):**
+    ```json
+    "script": { "exec": ["console.log('Line 1');\nlet x = 1 + 2;"] }
+    ```
+    **Incorrect Example (Single line broken):**
+    ```json
+    "script": { "exec": ["console.log(", "'Starting test...');"] }
+    ```
 """
     # Add more frameworks as needed
 
