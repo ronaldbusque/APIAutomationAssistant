@@ -24,7 +24,9 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     setBlueprintIsValid,
     setCurrentStep,
     setMaxIterations,
-    setTarget // Add setTarget here
+    setTarget, // Add setTarget here
+    setSpec,
+    setSpecFormat
   } = useAppContext();
   
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -336,6 +338,12 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
     setGenerating(true);
     setError(null);
     
+    // Reset script-related state when generating new scripts
+    setScripts({});
+    setScriptJobId(null);
+    setSelectedFile(null);
+    processedJobRef.current = null;
+
     if (!state.target) { // Check if a target is selected
         setError('Please select a target framework before generating scripts.');
         setGenerating(false);
@@ -1356,6 +1364,12 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
       <div className="flex justify-between">
         <button
           onClick={() => {
+            // Clear script-related state before navigating back
+            setScripts({});
+            setScriptJobId(null);
+            setSelectedFile(null);
+            processedJobRef.current = null;
+            
             // If we came from a saved blueprint, go back to input
             if (state.blueprintIsValid && !state.blueprintJobId) {
               setCurrentStep('input');
@@ -1376,7 +1390,20 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
         {state.scripts && Object.keys(state.scripts).length > 0 && (
           <div className="flex space-x-3">
             <button
-              onClick={() => window.location.href = '/'}
+              onClick={() => {
+                // Reset all application state before starting a new project
+                setScripts({});
+                setScriptJobId(null);
+                setSelectedFile(null);
+                processedJobRef.current = null;
+                setBlueprint(null);
+                setBlueprintIsValid(false);
+                setSpec(null);
+                setSpecFormat(null);
+                
+                // Navigate to input step
+                setCurrentStep('input');
+              }}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
             >
               Start New Project

@@ -81,7 +81,16 @@ const Layout: React.FC<Props> = ({ children }) => {
       case 'scripts':
         return (
           <ScriptOutput
-            onBack={() => setCurrentStep('blueprint')}
+            onBack={() => {
+              // When navigating back from scripts to blueprint, clear the script state
+              if (state.blueprintJobId) {
+                // If we have a blueprint job ID, go back to the blueprint page
+                setCurrentStep('blueprint');
+              } else {
+                // If using a manual blueprint, go back to input page
+                setCurrentStep('input');
+              }
+            }}
           />
         );
       default:
