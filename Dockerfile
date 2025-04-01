@@ -20,8 +20,10 @@ FROM python:3.11-slim AS python-app
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     TZ=Etc/UTC \
-    # Set PORT for Uvicorn (Fly.io convention often uses 8080)
-    PORT=8080
+    # Set PORT for Uvicorn (Fly.io requires 8080)
+    PORT=8080 \
+    # Add HOST variable to make sure we bind to all interfaces
+    HOST=0.0.0.0
 # Set working directory
 WORKDIR /app
 
@@ -44,7 +46,7 @@ RUN mkdir -p /app/logs && chmod 777 /app/logs
 COPY --from=node-builder /app/ui/dist ./static/ui
 
 # Expose the internal port the app runs on
-EXPOSE ${PORT:-8080}
+EXPOSE 8080
 
 # Command to run the application
 ENTRYPOINT ["/app/entrypoint.sh"] 
