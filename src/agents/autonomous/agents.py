@@ -378,7 +378,13 @@ def setup_script_coder_agent(framework: str) -> Agent:
     - Example environment files (e.g., `environments/development.json`, `environments/production.json`)
     - A simple `README.md` explaining how to import and run the collection
 
-- **CRITICAL SCRIPT FORMATTING:** When generating Postman `event` scripts (for `prerequest` or `test`), the `script.exec` property **MUST** be an array of strings. **Each element in this array MUST correspond to a single, complete line of the JavaScript code.** Do NOT put multi-line JavaScript code inside a single string element, and do not break a single line of JavaScript across multiple string elements.
+- **CRITICAL SCRIPT FORMATTING:** When generating Postman `event` scripts (for `prerequest` or `test`), the `script.exec` property **MUST** be a valid JSON array of strings.
+    - **Each element** in this array MUST correspond to a single, complete line of the JavaScript code.
+    - **Each element** MUST be a **valid JSON string literal**, meaning it must start and end with a double quote (`"`) and have proper escaping for internal quotes or backslashes if needed.
+    - **Crucially, ensure the final string element in the `exec` array is also correctly terminated with a closing double quote (`"`). Do not omit it.**
+    - Do NOT put multi-line JavaScript code inside a single string element.
+    - Do NOT break a single line of JavaScript across multiple string elements.
+
     **Correct Example:**
     ```json
     "script": {
@@ -389,17 +395,18 @@ def setup_script_coder_agent(framework: str) -> Agent:
         "if (x > 2) {",
         "  console.log('Result is greater than 2');",
         "}",
-        "pm.test('Check result', function() { pm.expect(x).to.equal(3); });"
+        "pm.test('Check result', function() { pm.expect(x).to.equal(3); });" // Note the closing quote on the last line
       ]
     }
     ```
-    **Incorrect Example (Multi-line in one string):**
+    **Incorrect Example (Missing Final Quote):**
     ```json
-    "script": { "exec": ["console.log('Line 1');\nlet x = 1 + 2;"] }
-    ```
-    **Incorrect Example (Single line broken):**
-    ```json
-    "script": { "exec": ["console.log(", "'Starting test...');"] }
+    "script": {
+      "exec": [
+        "console.log('Line 1');",
+        "pm.test('Test', () => {});" // << MISSING CLOSING QUOTE HERE
+      ]
+    }
     ```
 """
     # Add more frameworks as needed
@@ -463,7 +470,8 @@ def setup_script_reviewer_agent(framework: str) -> Agent:
     - **Assertions:** All structured assertions from the blueprint are correctly implemented
     - **Environments:** Environment configurations are properly implemented
     - **Authentication:** Auth mechanisms from the blueprint are correctly implemented
-    - **Setup/Teardown:** Setup and teardown steps are correctly implemented  
+    - **Setup/Teardown:** Setup and teardown steps are correctly implemented
+    - **Validate Script `exec` Array Syntax:** For Postman collections (`collection.json`), specifically examine all `prerequest` and `test` scripts. Verify that the `script.exec` field is a valid JSON array. **Critically, verify that *every element* within the `exec` array is a correctly formed JSON string literal (starts and ends with `"`). Pay close attention to the *last* string in each array to ensure it has its closing quote.** If any `exec` array or its string elements are malformed JSON, require revision (`[[REVISION_NEEDED]]`).  
     - **Code Quality:** Code is well-structured, readable, and follows best practices.
     - **Error Handling:** Appropriate error handling and validation is implemented.
     - **Maintainability:** Code is modular, reusable, and well-commented.
