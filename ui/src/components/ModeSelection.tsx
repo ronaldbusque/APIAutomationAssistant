@@ -24,10 +24,6 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
   
   const generateBlueprintMutation = useGenerateBlueprint();
   
-  const handleModeChange = (mode: 'basic' | 'advanced') => {
-    setMode(mode);
-  };
-  
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError(null);
@@ -35,15 +31,12 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
     try {
       const request: any = {
         spec: state.openApiSpec,
-        mode: state.mode as 'basic' | 'advanced',
         max_iterations: state.maxIterations
       };
       
-      if (state.mode === 'advanced') {
-        if (state.businessRules) request.business_rules = state.businessRules;
-        if (state.testData) request.test_data = state.testData;
-        if (state.testFlow) request.test_flow = state.testFlow;
-      }
+      if (state.businessRules) request.business_rules = state.businessRules;
+      if (state.testData) request.test_data = state.testData;
+      if (state.testFlow) request.test_flow = state.testFlow;
       
       const result = await generateBlueprintMutation.mutateAsync(request);
       
@@ -60,99 +53,65 @@ const ModeSelection: React.FC<Props> = ({ onBack, onNext }) => {
     <div className="space-y-8">
       <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Blueprint Generation Settings</h2>
       
-      {/* Mode Selection */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-          Select Generation Mode
-        </label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button
-            type="button"
-            onClick={() => handleModeChange('basic')}
-            className={`block w-full text-left p-4 rounded-lg border transition-colors ${
-              state.mode === 'basic'
-                ? 'bg-primary-50 dark:bg-gray-700 border-primary-500 dark:border-primary-400 ring-1 ring-primary-500 dark:ring-primary-400'
-                : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-            }`}
-          >
-            <div className="font-semibold text-gray-900 dark:text-white">Basic Mode</div>
-            <div className="text-sm mt-1 text-gray-600 dark:text-gray-400">
-              Focus on endpoint contracts, status codes, and schema validation.
-            </div>
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => handleModeChange('advanced')}
-            className={`block w-full text-left p-4 rounded-lg border transition-colors ${
-              state.mode === 'advanced'
-                ? 'bg-primary-50 dark:bg-gray-700 border-primary-500 dark:border-primary-400 ring-1 ring-primary-500 dark:ring-primary-400'
-                : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-            }`}
-          >
-            <div className="font-semibold text-gray-900 dark:text-white">Advanced Mode</div>
-            <div className="text-sm mt-1 text-gray-600 dark:text-gray-400">
-              Includes business rules, test data, and test flow configuration.
-            </div>
-          </button>
+      {/* Advanced Options - Now Always Visible */}
+      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-5 space-y-5 bg-white dark:bg-gray-800 shadow-sm">
+        <h3 className="font-medium text-base text-gray-900 dark:text-white mb-2">
+          Advanced Configuration
+        </h3>
+        <div>
+          <label htmlFor="business-rules" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Business Rules (Optional)
+          </label>
+          <textarea
+            id="business-rules"
+            value={state.businessRules}
+            onChange={(e) => setBusinessRules(e.target.value)}
+            placeholder="e.g., - Users under 18 cannot create orders.
+                 - Invalid API keys must return a 401 Unauthorized error.
+                 - GET /products should support sorting by 'price' and 'name'."
+            className="w-full h-32 p-2 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500"
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Describe business rules that should be validated through testing.
+          </p>
+        </div>
+        
+        <div>
+          <label htmlFor="test-data" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Test Data Setup Guidance (Optional)
+          </label>
+          <textarea
+            id="test-data"
+            value={state.testData}
+            onChange={(e) => setTestData(e.target.value)}
+            placeholder="e.g., - Ensure a user with ID '123' exists before running GET /users/123.
+                 - Need products in 'electronics' and 'clothing' categories.
+                 - Pre-populate the system with at least 5 orders."
+            className="w-full h-24 p-2 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500"
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Provide guidance on specific data needed for tests. If empty, the AI will infer setup needs from the spec.
+          </p>
+        </div>
+        
+        <div>
+          <label htmlFor="test-flow" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Test Flow Guidance (Optional)
+          </label>
+          <textarea
+            id="test-flow"
+            value={state.testFlow}
+            onChange={(e) => setTestFlow(e.target.value)}
+            placeholder="e.g., - Test the Login endpoint before any other authenticated endpoints.
+                 - Verify the Create -> Read -> Update -> Delete sequence for '/items'.
+                 - Run all GET requests before POST/PUT/DELETE requests."
+            className="w-full h-24 p-2 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500"
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Describe desired test execution order or dependencies. If empty, the AI will determine a sequence.
+          </p>
         </div>
       </div>
-      
-      {/* Advanced Options */}
-      {state.mode === 'advanced' && (
-        <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-5 space-y-5 bg-white dark:bg-gray-800 shadow-sm animate-fade-in">
-          <h3 className="font-medium text-base text-gray-900 dark:text-white mb-2">
-            Advanced Configuration
-          </h3>
-          <div>
-            <label htmlFor="business-rules" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Business Rules
-            </label>
-            <textarea
-              id="business-rules"
-              value={state.businessRules}
-              onChange={(e) => setBusinessRules(e.target.value)}
-              placeholder="e.g., Invalid tokens must return 401"
-              className="w-full h-24 p-2 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Describe business rules that should be validated through testing.
-            </p>
-          </div>
-          
-          <div>
-            <label htmlFor="test-data" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Test Data Setup <span className="text-xs text-gray-500 dark:text-gray-400">(Optional)</span>
-            </label>
-            <textarea
-              id="test-data"
-              value={state.testData}
-              onChange={(e) => setTestData(e.target.value)}
-              placeholder="e.g., POST /users to create a resource"
-              className="w-full h-24 p-2 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              If left empty, the test planner will automatically create appropriate test data based on the API specification.
-            </p>
-          </div>
-          
-          <div>
-            <label htmlFor="test-flow" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Test Flow <span className="text-xs text-gray-500 dark:text-gray-400">(Optional)</span>
-            </label>
-            <textarea
-              id="test-flow"
-              value={state.testFlow}
-              onChange={(e) => setTestFlow(e.target.value)}
-              placeholder="e.g., Create -> Read -> Update -> Delete"
-              className="w-full h-24 p-2 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              If left empty, the test planner will automatically determine an appropriate test sequence based on API dependencies.
-            </p>
-          </div>
-        </div>
-      )}
       
       {/* Generation Options */}
       <div className="p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/30">
