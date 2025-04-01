@@ -412,31 +412,58 @@ async def run_autonomous_script_pipeline(
             # Log Coder Output
             logger.debug(f"CODER Output for {framework} (Iter {iteration}):\n{proposed_script_files_json[:1000]}...")
             
+            # --- ENHANCED JSON VALIDATION ---
             try:
-                # Validate JSON structure
+                # 1. Validate the outer array structure
                 script_files_list = json.loads(proposed_script_files_json)
-                
-                # Basic validation of structure
+
                 if not isinstance(script_files_list, list):
-                    raise ScriptGenerationError(f"Invalid script files format: expected list, got {type(script_files_list)}")
-                
-                # Check each file has filename and content
+                    raise ScriptGenerationError(f"Coder output is not a JSON list (Iter {iteration}). Got type: {type(script_files_list)}")
+
+                # 2. Validate individual file objects and inner JSON content
+                validated_files = []
                 for i, file_obj in enumerate(script_files_list):
-                    if not isinstance(file_obj, dict):
-                        raise ScriptGenerationError(f"Invalid file object at index {i}: expected dict, got {type(file_obj)}")
-                    
-                    if "filename" not in file_obj or "content" not in file_obj:
-                        raise ScriptGenerationError(f"Invalid file object at index {i}: missing required keys (filename, content)")
+                    if not isinstance(file_obj, dict) or "filename" not in file_obj or "content" not in file_obj:
+                        raise ScriptGenerationError(f"Invalid file object structure at index {i} (Iter {iteration}).")
+
+                    filename = file_obj["filename"]
+                    content_str = file_obj["content"]
+
+                    # Ensure content is a string
+                    if not isinstance(content_str, str):
+                         logger.warning(f"Content for file '{filename}' is not a string (type: {type(content_str)}). Attempting conversion.")
+                         content_str = str(content_str)
+                         file_obj["content"] = content_str # Update the object
+
+                    # 3. If it's a JSON file, validate its content string
+                    if filename.lower().endswith('.json'):
+                        try:
+                            # Attempt to parse the inner JSON content
+                            json.loads(content_str)
+                            logger.debug(f"Successfully validated inner JSON for: {filename}")
+                        except json.JSONDecodeError as inner_json_err:
+                            # Raise specific error if inner JSON is invalid
+                            raise ScriptGenerationError(
+                                f"Coder produced invalid JSON content within file '{filename}' (Iter {iteration}): {inner_json_err}"
+                            ) from inner_json_err
+
+                    validated_files.append(file_obj) # Add validated file object
+
+                # All validations passed
+                script_files_json = proposed_script_files_json # Store the original valid outer JSON string
+                script_files = validated_files # Store the list of validated file objects
+                logger.info(f"Script coder proposed valid JSON structure and content for {framework} (iteration {iteration}): {len(script_files)} files")
+
+            except json.JSONDecodeError as outer_json_err:
+                # Error parsing the outer array structure
+                logger.error(f"Script coder produced invalid outer JSON structure for {framework} (iteration {iteration}): {outer_json_err}")
+                raise ScriptGenerationError(f"Script coder produced invalid outer JSON structure (iteration {iteration}): {outer_json_err}") from outer_json_err
+            # --- END ENHANCED JSON VALIDATION ---
                 
-                # Use the proposed script files JSON for the next iteration
-                script_files_json = proposed_script_files_json
-                script_files = script_files_list
-                logger.info(f"Script coder proposed valid files for {framework} (iteration {iteration}): {len(script_files)} files")
-                
-            except json.JSONDecodeError as e:
-                logger.error(f"Script coder produced invalid JSON for {framework} (iteration {iteration}): {e}")
-                raise ScriptGenerationError(f"Script coder produced invalid JSON: {e}")
-                
+        except ScriptGenerationError as sge: # Catch our specific errors
+            logger.error(str(sge))
+            # Raise immediately to stop the loop for this target
+            raise
         except Exception as e:
             logger.error(f"Script coder failed for {framework} (iteration {iteration}): {str(e)}")
             raise ScriptGenerationError(f"Script coder failed: {str(e)}") from e

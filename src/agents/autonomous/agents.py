@@ -439,7 +439,8 @@ def setup_script_coder_agent(framework: str) -> Agent:
 **CRITICAL OUTPUT FORMAT:**
 - Your response MUST contain ONLY a valid JSON array of file objects.
 - Each object MUST have "filename" (including relative path, e.g., "collection.json" or "tests/api/users.spec.ts") and "content" (the full code/text as a JSON-compatible string) properties.
-- Example: `[{{"filename": "collection.json", "content": "... escaped json content ..."}}, {{"filename": "environments/dev.json", "content": "..."}}]`
+- **The `content` value itself MUST be a valid JSON string.** This means any double quotes (`"`) within the actual file content MUST be escaped as `\"`, and any backslashes (`\`) must be escaped as `\\`. Pay meticulous attention to this escaping, especially for JSON file content like `collection.json`.
+- Example: `[{"filename": "collection.json", "content": "... escaped json content ..."}, {"filename": "environments/dev.json", "content": "..."}]`
 - Start the output directly with `[` and end it directly with `]`.
 - Absolutely no explanations, comments, apologies, markdown formatting, or any text before the starting `[` or after the ending `]`.
 """,
@@ -483,6 +484,7 @@ def setup_script_reviewer_agent(framework: str) -> Agent:
     - **Validate Script `exec` Array Syntax:** For Postman collections (`collection.json`), specifically examine all `prerequest` and `test` scripts. Verify that the `script.exec` field is a valid JSON array. **Critically, verify that *every element* within the `exec` array is a correctly formed JSON string literal (starts and ends with `"`). Pay close attention to the *last* string in each array to ensure it has its closing quote.** If any `exec` array or its string elements are malformed JSON, require revision (`[[REVISION_NEEDED]]`).  
     - **Code Quality:** Code is well-structured, readable, and follows best practices.
     - **Error Handling:** Appropriate error handling and validation is implemented.
+    - **Validate Inner JSON Content:** For files ending in `.json` (like `collection.json`), attempt to mentally parse the `content` string. Does it look like valid JSON after considering the escaping (e.g., `\"` becomes `"` internally)? If the `content` string appears to be malformed JSON, require revision (`[[REVISION_NEEDED]]`).
     - **Maintainability:** Code is modular, reusable, and well-commented.
     - **Validate File Content Types & Accuracy:**
         - **`tests/**/*.spec.ts`:** Verify the code implements tests from the blueprint accurately. Check that environment variables are referenced *literally* as `process.env.VAR_NAME` and not evaluated or replaced with errors. Ensure necessary imports (`test`, `expect`, `faker`, helpers) are present.

@@ -909,9 +909,9 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col md:flex-row h-[calc(100vh-280px)]">
           {/* File List Column - Fixed width, independent scrolling */}
-          <div className="w-full md:w-72 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+          <div className="w-full md:w-72 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col min-h-0">
             {state.target && (
-              <div className="flex-1 flex flex-col">
+              <div className="flex-1 flex flex-col min-h-0">
                 {/* Sticky Header */}
                 <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 z-10 flex-shrink-0">
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
@@ -934,7 +934,7 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
                   </button>
                 </div>
                 {/* File List - Scrollable area */}
-                <div className="file-list-container p-4 overflow-y-auto flex-grow">
+                <div className="file-list-container p-4 overflow-y-auto overflow-x-auto flex-grow min-h-0">
                   {(() => {
                     // ... (existing logic for filesByDir, rootFiles, rootDirs) ...
                     // Logic to organize files into directories
@@ -1117,8 +1117,8 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
             )}
           </div>
           
-          {/* Script content Column - Flexible width, independent scrolling */}
-          <div className="flex-grow min-w-0 overflow-hidden">
+          {/* Content View Column - Flexible width, independent scrolling */}
+          <div className="flex-grow min-w-0 min-h-0 flex flex-col">
             {renderFileContent()} 
           </div>
         </div>
@@ -1127,113 +1127,92 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
   };
   
   const renderFileContent = () => {
-    if (!state.target || !selectedFile || !state.scripts[state.target]?.[selectedFile]) {
+    if (!selectedFile || !state.target || !state.scripts[state.target]) {
       return (
-        <div className="p-4 h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-          Select a file to view its content.
+        <div className="flex-1 flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-900">
+          <p className="text-gray-500 dark:text-gray-400">Select a file to view its content</p>
         </div>
       );
     }
 
-    // Get the error for the currently selected file
-    const currentJsonError = jsonErrors[selectedFile];
-    const isCurrentJsonInvalid = !!currentJsonError && selectedFile.endsWith('.json');
-
-    const getLanguage = () => {
-      if (selectedFile?.endsWith('.ts')) return 'typescript';
-      if (selectedFile?.endsWith('.js')) return 'javascript';
-      if (selectedFile?.endsWith('.py')) return 'python';
-      if (selectedFile?.endsWith('.json')) return 'json';
-      if (selectedFile?.endsWith('.java')) return 'java';
-      if (selectedFile?.endsWith('.md')) return 'markdown';
-      if (selectedFile?.endsWith('.html')) return 'html';
-      if (selectedFile?.endsWith('.css')) return 'css';
-      if (selectedFile?.endsWith('.yml') || selectedFile?.endsWith('.yaml')) return 'yaml';
-      return 'text';
-    };
-
     const content = state.scripts[state.target][selectedFile];
-    const language = getLanguage();
-    const isDarkMode = document.documentElement.classList.contains('dark');
+    const fileError = jsonErrors[selectedFile];
+    const isJsonFile = selectedFile.endsWith('.json');
 
     return (
-      // Main container for file content section with flex column layout
-      <div className="flex flex-col h-full">
-        {/* Fixed Header for Filename and Buttons */}
-        <div className="flex justify-between items-center p-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
-           <h3 className="font-medium text-gray-800 dark:text-gray-200 flex items-center truncate pr-2">
-             <span className="mr-1.5 flex-shrink-0">{getFileIcon(selectedFile)}</span>
-             <span className="truncate" title={selectedFile}>{selectedFile}</span>
-             {language !== 'text' && language !== 'markdown' && (
-               <span className="ml-2 text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full capitalize flex-shrink-0">
-                 {language}
-               </span>
-             )}
-          </h3>
-          <div className="flex space-x-2 flex-shrink-0">
-            {/* Copy Button */}
+      <div className="flex-1 flex flex-col min-h-0">
+        {/* File header with actions */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
+          <div className="flex items-center space-x-2">
+            {getFileIcon(selectedFile)}
+            <span className="font-medium text-gray-900 dark:text-white">{selectedFile}</span>
+          </div>
+          <div className="flex items-center space-x-2">
             <button
-              onClick={handleCopy}
-              className="px-3 py-1 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md border border-gray-300 dark:border-gray-600 text-sm flex items-center transition-colors"
+              onClick={() => handleCopyContent(content)}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              title="Copy content"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
-              Copy
             </button>
-            {/* Download Button */}
             <button
-              onClick={handleDownload}
-              className="px-3 py-1 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md border border-primary-300 dark:border-primary-700 text-sm flex items-center transition-colors"
+              onClick={() => handleDownloadFile(selectedFile, content)}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              title="Download file"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              Download
             </button>
           </div>
         </div>
-        
-        {/* JSON Validation Warning Banner */}
-        {isCurrentJsonInvalid && (
-          <div className="p-3 border-b border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 flex items-start text-sm flex-shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8.257 3.099c.636-1.178 2.364-1.178 3.001 0l5.142 9.496c.61 1.124-.17 2.573-1.5 2.573H4.614c-1.33 0-2.11-1.449-1.5-2.573l5.142-9.496zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-            </svg>
-            <div>
-              <span className="font-semibold">Invalid JSON Detected:</span> Importing might fail.
-              {/* Display the actual error message */}
-              <div className="mt-1 font-mono text-xs bg-amber-100 dark:bg-amber-800/50 p-1 rounded">Error: {currentJsonError.message}</div>
+
+        {/* JSON Error Warning Banner */}
+        {fileError && isJsonFile && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-4 flex-shrink-0">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.636-1.178 2.364-1.178 3.001 0l5.142 9.496c.61 1.124-.17 2.573-1.5 2.573H4.614c-1.33 0-2.11-1.449-1.5-2.573l5.142-9.496zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  Invalid JSON: {fileError.message}
+                </p>
+              </div>
             </div>
           </div>
         )}
-        
-        {/* Scrollable Code Area */}
-        <div className="flex-1 overflow-y-auto overflow-x-auto bg-gray-50 dark:bg-gray-900">
+
+        {/* Content area with syntax highlighting */}
+        <div className="flex-1 overflow-x-auto min-h-0 min-w-0 bg-gray-50 dark:bg-gray-900">
           <SyntaxHighlighter
-            language={language}
-            style={isDarkMode ? oneDark : oneLight}
+            language={getLanguageFromFileName(selectedFile)}
+            style={document.documentElement.classList.contains('dark') ? oneDark : oneLight}
             customStyle={{
               margin: 0,
               padding: '1rem',
-              minWidth: 'max-content', // For horizontal scroll
+              minWidth: 'max-content',
               fontSize: '0.875rem',
               lineHeight: '1.5',
-              backgroundColor: isDarkMode ? '#111827' : '#f9fafb',
+              backgroundColor: document.documentElement.classList.contains('dark') ? '#111827' : '#f9fafb',
               height: '100%',
+              overflowY: 'auto'
             }}
-            wrapLongLines={false} // MUST be false for horizontal scroll
+            wrapLongLines={false}
             showLineNumbers={true}
             lineNumberStyle={{
-              minWidth: '2.5em',
+              minWidth: '3em',
               paddingRight: '1em',
               textAlign: 'right',
-              color: isDarkMode ? '#6b7280' : '#9ca3af',
-              borderRight: isDarkMode ? '1px solid #374151' : '1px solid #e5e7eb',
+              userSelect: 'none',
               position: 'sticky',
               left: 0,
-              backgroundColor: isDarkMode ? '#111827' : '#f9fafb', 
-              zIndex: 10
+              zIndex: 10,
+              backgroundColor: document.documentElement.classList.contains('dark') ? '#111827' : '#f9fafb'
             }}
           >
             {content}
@@ -1324,6 +1303,41 @@ const ScriptOutput: React.FC<Props> = ({ onBack }) => {
           </svg>
         );
     }
+  };
+  
+  // Add utility functions
+  const getLanguageFromFileName = (fileName: string): string => {
+    if (fileName.endsWith('.ts')) return 'typescript';
+    if (fileName.endsWith('.js')) return 'javascript';
+    if (fileName.endsWith('.py')) return 'python';
+    if (fileName.endsWith('.json')) return 'json';
+    if (fileName.endsWith('.java')) return 'java';
+    if (fileName.endsWith('.md')) return 'markdown';
+    if (fileName.endsWith('.html')) return 'html';
+    if (fileName.endsWith('.css')) return 'css';
+    if (fileName.endsWith('.yml') || fileName.endsWith('.yaml')) return 'yaml';
+    return 'text';
+  };
+
+  const handleCopyContent = (content: string) => {
+    navigator.clipboard.writeText(content).then(() => {
+      // You might want to show a toast notification here
+      console.log('Content copied to clipboard');
+    }).catch(err => {
+      console.error('Failed to copy content:', err);
+    });
+  };
+
+  const handleDownloadFile = (fileName: string, content: string) => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   };
   
   return (
