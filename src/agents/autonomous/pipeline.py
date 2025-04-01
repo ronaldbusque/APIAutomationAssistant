@@ -117,17 +117,26 @@ async def run_autonomous_blueprint_pipeline(
         logger.info(f"Starting blueprint iteration {iteration}/{max_iterations}")
         
         # --- Author Step ---
-        # Prepare spec analysis summary for the prompt
-        spec_for_prompt = json.dumps(spec_analysis, indent=2)
+        # Prepare spec analysis summary for the prompt - MODIFIED TO REMOVE INDENTATION
+        spec_for_prompt = json.dumps(spec_analysis)  # NO INDENTATION for more compact representation
+        
         # Limit size if too large
-        MAX_SPEC_PROMPT_LEN = 80000 # Increased limit as per fix plan
+        MAX_SPEC_PROMPT_LEN = 80000
         if len(spec_for_prompt) > MAX_SPEC_PROMPT_LEN:
-            spec_for_prompt = spec_for_prompt[:MAX_SPEC_PROMPT_LEN] + "\n... (spec truncated) ..."
-            logger.warning(f"Spec analysis truncated (limit: {MAX_SPEC_PROMPT_LEN}) for Author/Reviewer prompt due to size.")
+            # Ensure we truncate to valid JSON by finding a safe ending position
+            truncate_pos = MAX_SPEC_PROMPT_LEN
+            # Look back to find a safer truncation point at a comma or closing brace
+            for i in range(truncate_pos-1, max(0, truncate_pos-100), -1):
+                if spec_for_prompt[i] in [',', '}', ']']:
+                    truncate_pos = i + 1
+                    break
+            
+            spec_for_prompt = spec_for_prompt[:truncate_pos] + '..."}}' # Add closing JSON suffix
+            logger.warning(f"Spec analysis (compact) truncated (limit: {MAX_SPEC_PROMPT_LEN}) for Author/Reviewer prompt due to size.")
 
         # Modify author_input_data
         author_input_data = {
-            "spec_analysis_summary": spec_for_prompt,
+            "spec_analysis_summary": spec_for_prompt,  # Use compact version
             "reviewer_feedback": reviewer_feedback,
         }
         if blueprint_json:
@@ -202,7 +211,7 @@ async def run_autonomous_blueprint_pipeline(
         # --- Reviewer Step ---
         # Modify reviewer_input_data
         reviewer_input_data = {
-            "spec_analysis_summary": spec_for_prompt,
+            "spec_analysis_summary": spec_for_prompt,  # Use compact version
             "blueprint_to_review": blueprint_json,
         }
         # Explicitly add context fields if they exist
@@ -245,26 +254,40 @@ async def run_autonomous_blueprint_pipeline(
             # Log Reviewer Output
             logger.debug(f"REVIEWER Output (Iter {iteration}):\n{review_output_raw}")
             
-            # Extract feedback and check for approval keyword
-            reviewer_output = review_output_raw
-            
-            # Find the last line to check for keywords
-            lines = reviewer_output.strip().split('\n')
-            last_line = lines[-1].strip() if lines else ""
-            
-            if last_line == BLUEPRINT_APPROVED_KEYWORD:
-                approved = True
+            # --- MODIFIED Keyword Parsing ---
+            approved = False
+            revision_needed = False
+            feedback_lines = []
+            keyword_found = False
+
+            lines = review_output_raw.strip().split('\n')
+            # Iterate backwards to find the last non-empty line for the keyword
+            for i in range(len(lines) - 1, -1, -1):
+                line = lines[i].strip()
+                if line == BLUEPRINT_APPROVED_KEYWORD:
+                    approved = True
+                    keyword_found = True
+                    feedback_lines = lines[:i] # Get lines before the keyword line
+                    break
+                elif line == REVISION_NEEDED_KEYWORD:
+                    revision_needed = True
+                    keyword_found = True
+                    feedback_lines = lines[:i] # Get lines before the keyword line
+                    break
+                elif line: # Stop searching if we hit a non-empty line that isn't a keyword
+                    break
+
+            if approved:
                 logger.info(f"Blueprint approved by reviewer on iteration {iteration}")
-                # Remove the keyword from the feedback
-                reviewer_feedback = '\n'.join(lines[:-1])
-            elif last_line == REVISION_NEEDED_KEYWORD:
-                # Remove the keyword from the feedback
-                reviewer_feedback = '\n'.join(lines[:-1])
+                reviewer_feedback = '\n'.join(feedback_lines).strip()
+            elif revision_needed:
                 logger.info(f"Blueprint revision needed (iteration {iteration})")
+                reviewer_feedback = '\n'.join(feedback_lines).strip()
             else:
-                # No recognized keyword, use entire output as feedback
-                reviewer_feedback = reviewer_output
+                # No recognized keyword found, use entire output as feedback
                 logger.warning(f"No recognized keyword found in reviewer output (iteration {iteration})")
+                reviewer_feedback = review_output_raw # Keep original raw output as feedback
+            # --- END MODIFIED Keyword Parsing ---
             
         except Exception as e:
             logger.error(f"Blueprint reviewer failed (iteration {iteration}): {str(e)}")
@@ -458,26 +481,40 @@ async def run_autonomous_script_pipeline(
             # Log Reviewer Output
             logger.debug(f"REVIEWER Output for {framework} (Iter {iteration}):\n{review_output_raw}")
             
-            # Extract feedback and check for approval keyword
-            reviewer_output = review_output_raw
-            
-            # Find the last line to check for keywords
-            lines = reviewer_output.strip().split('\n')
-            last_line = lines[-1].strip() if lines else ""
-            
-            if last_line == CODE_APPROVED_KEYWORD:
-                approved = True
+            # --- MODIFIED Keyword Parsing ---
+            approved = False
+            revision_needed = False
+            feedback_lines = []
+            keyword_found = False
+
+            lines = review_output_raw.strip().split('\n')
+            # Iterate backwards to find the last non-empty line for the keyword
+            for i in range(len(lines) - 1, -1, -1):
+                line = lines[i].strip()
+                if line == CODE_APPROVED_KEYWORD:
+                    approved = True
+                    keyword_found = True
+                    feedback_lines = lines[:i] # Get lines before the keyword line
+                    break
+                elif line == REVISION_NEEDED_KEYWORD:
+                    revision_needed = True
+                    keyword_found = True
+                    feedback_lines = lines[:i] # Get lines before the keyword line
+                    break
+                elif line: # Stop searching if we hit a non-empty line that isn't a keyword
+                    break
+
+            if approved:
                 logger.info(f"Scripts approved by reviewer on iteration {iteration}")
-                # Remove the keyword from the feedback
-                reviewer_feedback = '\n'.join(lines[:-1])
-            elif last_line == REVISION_NEEDED_KEYWORD:
-                # Remove the keyword from the feedback
-                reviewer_feedback = '\n'.join(lines[:-1])
+                reviewer_feedback = '\n'.join(feedback_lines).strip()
+            elif revision_needed:
                 logger.info(f"Script revision needed (iteration {iteration})")
+                reviewer_feedback = '\n'.join(feedback_lines).strip()
             else:
-                # No recognized keyword, use entire output as feedback
-                reviewer_feedback = reviewer_output
+                # No recognized keyword found, use entire output as feedback
                 logger.warning(f"No recognized keyword found in reviewer output (iteration {iteration})")
+                reviewer_feedback = review_output_raw # Keep original raw output as feedback
+            # --- END MODIFIED Keyword Parsing ---
             
         except Exception as e:
             logger.error(f"Script reviewer failed for {framework} (iteration {iteration}): {str(e)}")
