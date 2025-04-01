@@ -371,6 +371,23 @@ def setup_script_coder_agent(framework: str) -> Agent:
     }
     ```
   - This structure includes the required `"in": "header"` field that Postman expects to properly recognize API Key auth.
+  - **Postman Request Body Structure:** Pay close attention when generating the `request.body` object. If both `raw` and `options` keys are present, they are siblings within the `body` object. **DO NOT place a comma after the value of the `raw` key if the next key is `options`.**
+    **Correct Body Example:**
+    ```json
+    "body": {
+      "mode": "raw",
+      "raw": "{ \\\"key\\\": \\\"value\\\" }", // NO comma after this value's closing quote
+      "options": { "raw": { "language": "json" } }
+    }
+    ```
+    **Incorrect Body Example (DO NOT DO THIS):**
+    ```json
+    "body": {
+      "mode": "raw",
+      "raw": "{ \\\"key\\\": \\\"value\\\" }", // <<< Extraneous comma
+      "options": { "raw": { "language": "json" } }
+    }
+    ```
 - **Dynamic Data:** Map `{{$...}}` placeholders to Postman's dynamic variables (like `$randomUUID`). Implement pre-request scripts to generate these values if needed (e.g., using JavaScript `Math.random()` or similar).
 - **Setup/Teardown:** Implement pre-request and test scripts for setup/teardown steps. Use `pm.environment.set` and `pm.environment.get` for variable passing between requests.
 - **Required Files:**
@@ -439,9 +456,10 @@ def setup_script_coder_agent(framework: str) -> Agent:
 **CRITICAL OUTPUT FORMAT:**
 - Your response MUST contain ONLY a valid JSON array of file objects.
 - Each object MUST have "filename" (including relative path, e.g., "collection.json" or "tests/api/users.spec.ts") and "content" (the full code/text as a JSON-compatible string) properties.
-- **The `content` value itself MUST be a valid JSON string.** This means any double quotes (`"`) within the actual file content MUST be escaped as `\"`, and any backslashes (`\`) must be escaped as `\\`. Pay meticulous attention to this escaping, especially for JSON file content like `collection.json`.
+- **The `content` value itself MUST be a valid JSON string.** This means any double quotes (`"`) within the actual file content MUST be escaped as `\"`, and any backslashes (`\`) must be escaped as `\\`. Pay meticulous attention to this escaping, especially for JSON file content like `collection.json`. **Double-check your escaping.**
 - Example: `[{{"filename": "collection.json", "content": "... escaped json content ..."}}, {{"filename": "environments/dev.json", "content": "..."}}]`
 - Start the output directly with `[` and end it directly with `]`.
+- **Ensure the entire response is a single, complete JSON array string without any truncation.** Verify the final closing bracket `]` is present.
 - Absolutely no explanations, comments, apologies, markdown formatting, or any text before the starting `[` or after the ending `]`.
 """,
         output_type=str,
@@ -484,6 +502,7 @@ def setup_script_reviewer_agent(framework: str) -> Agent:
     - **Validate Script `exec` Array Syntax:** For Postman collections (`collection.json`), specifically examine all `prerequest` and `test` scripts. Verify that the `script.exec` field is a valid JSON array. **Critically, verify that *every element* within the `exec` array is a correctly formed JSON string literal (starts and ends with `"`). Pay close attention to the *last* string in each array to ensure it has its closing quote.** If any `exec` array or its string elements are malformed JSON, require revision (`[[REVISION_NEEDED]]`).  
     - **Code Quality:** Code is well-structured, readable, and follows best practices.
     - **Error Handling:** Appropriate error handling and validation is implemented.
+    - **Validate Postman Body Structure:** Within the `collection.json` content, check any `request.body` objects. If both `raw` and `options` keys exist, ensure there is **NO comma** separating the `raw` value string and the `options` key. If an extra comma is found, require revision (`[[REVISION_NEEDED]]`).
     - **Validate Inner JSON Content:** For files ending in `.json` (like `collection.json`), attempt to mentally parse the `content` string. Does it look like valid JSON after considering the escaping (e.g., `\"` becomes `"` internally)? If the `content` string appears to be malformed JSON, require revision (`[[REVISION_NEEDED]]`).
     - **Maintainability:** Code is modular, reusable, and well-commented.
     - **Validate File Content Types & Accuracy:**

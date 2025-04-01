@@ -393,6 +393,7 @@ async def run_autonomous_script_pipeline(
                 f"script_coder_{framework}"
             )
         
+        coder_failed_json = False # Flag to track if coder failed JSON validation
         try:
             # TODO: Calculate complexity
             complexity = 0.7
@@ -454,21 +455,51 @@ async def run_autonomous_script_pipeline(
                 script_files = validated_files # Store the list of validated file objects
                 logger.info(f"Script coder proposed valid JSON structure and content for {framework} (iteration {iteration}): {len(script_files)} files")
 
-            except json.JSONDecodeError as outer_json_err:
-                # Error parsing the outer array structure
-                logger.error(f"Script coder produced invalid outer JSON structure for {framework} (iteration {iteration}): {outer_json_err}")
-                raise ScriptGenerationError(f"Script coder produced invalid outer JSON structure (iteration {iteration}): {outer_json_err}") from outer_json_err
+            except (json.JSONDecodeError, ScriptGenerationError) as json_validation_err:
+                # Catch errors specifically from JSON parsing or our structure checks
+                logger.error(f"Script coder JSON validation failed (Iter {iteration}): {json_validation_err}")
+                coder_failed_json = True # Set the flag
+                # Prepare feedback for the *next* coder iteration
+                reviewer_feedback = (
+                    f"{REVISION_NEEDED_KEYWORD}\n" # Ensure keyword is present for loop logic
+                    f"Error: Your previous output was not valid JSON or had an invalid structure.\n"
+                    f"Validation Error: {json_validation_err}\n"
+                    f"Please carefully review your entire output, ensuring it's a single, valid JSON array `[{{\"filename\": ..., \"content\": ...}}]` "
+                    f"and that all `content` strings (especially for .json files) have correctly escaped internal quotes (`\\\"`) and backslashes (`\\\\`). Fix the JSON syntax and structure."
+                )
+                # If it's the last iteration, raise the error anyway
+                if iteration >= max_iterations: # Use >= for safety
+                     logger.error(f"Coder failed JSON validation on final attempt ({iteration}). Raising error.")
+                     # Raise the original error for better context
+                     raise ScriptGenerationError(f"Coder failed JSON validation on final attempt: {json_validation_err}") from json_validation_err
+                else:
+                    # Allow loop to continue to give coder a chance to fix it
+                    logger.info(f"Coder failed JSON validation on attempt {iteration}. Feeding error back for retry.")
             # --- END ENHANCED JSON VALIDATION ---
                 
-        except ScriptGenerationError as sge: # Catch our specific errors
+        except ScriptGenerationError as sge: # Catch our specific errors raised during validation
             logger.error(str(sge))
-            # Raise immediately to stop the loop for this target
-            raise
+            # If validation fails, we want to retry if possible (handled above),
+            # but if it failed on the last iteration, re-raise.
+            if iteration >= max_iterations:
+                raise
+            else:
+                # Ensure the flag is set and feedback is prepared if not already
+                coder_failed_json = True
+                if not reviewer_feedback.startswith(REVISION_NEEDED_KEYWORD): # Avoid double-prepending
+                    reviewer_feedback = f"{REVISION_NEEDED_KEYWORD}\n{str(sge)}"
         except Exception as e:
+            # Handle other unexpected errors during coder execution
             logger.error(f"Script coder failed for {framework} (iteration {iteration}): {str(e)}")
+            # If coder fails execution (not just validation), we should probably raise
             raise ScriptGenerationError(f"Script coder failed: {str(e)}") from e
         
         # --- Reviewer Step ---
+        # Skip reviewer step if the coder failed JSON validation in this iteration
+        if coder_failed_json:
+            logger.warning(f"Skipping reviewer step for iteration {iteration} due to coder JSON validation failure.")
+            continue # Go to the next iteration of the loop
+        
         # Modify reviewer_input_data
         reviewer_input_data = {
             "framework": framework,
