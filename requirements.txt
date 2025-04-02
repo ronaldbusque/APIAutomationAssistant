@@ -21,7 +21,8 @@ jsonschema>=4.19.0
 httpx>=0.25.0
 aiohttp>=3.8.5
 
-# OpenAI API
+# LLM APIs
+google-genai>=0.7.2
 openai>=1.0.0
 
 # OpenAI Agents SDK

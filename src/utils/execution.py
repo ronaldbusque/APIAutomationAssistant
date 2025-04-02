@@ -88,11 +88,6 @@ async def run_agent_with_retry(
     # Create model selection strategy if not provided
     model_selection = model_selection or ModelSelectionStrategy()
     
-    # Select model based on task and complexity
-    original_model = agent.model
-    selected_model = model_selection.select_model(task, complexity)
-    agent.model = selected_model
-    
     # Update agent configuration based on complexity
     original_model_kwargs = getattr(agent, "model_kwargs", {})
     agent_config = {"model_kwargs": original_model_kwargs}
@@ -105,7 +100,17 @@ async def run_agent_with_retry(
     # Generate trace ID
     trace_id = gen_trace_id()
     
-    logger.info(f"Running {agent.name} with model {selected_model}, timeout {timeout}s, complexity {complexity:.2f}")
+    # Log the model instance details from the agent object
+    model_info = "Unknown Model"
+    if agent.model:
+        if hasattr(agent.model, 'full_model_name'):
+            model_info = f"{type(agent.model).__name__}({agent.model.full_model_name})"
+        elif hasattr(agent.model, 'model_name'):
+            model_info = f"{type(agent.model).__name__}({agent.model.model_name})"
+        else:
+            model_info = type(agent.model).__name__
+    
+    logger.info(f"Running {agent.name} with model {model_info}, timeout {timeout}s, complexity {complexity:.2f}")
     
     with trace(f"{agent.name} Execution", trace_id=trace_id):
         for attempt in range(config.max_retries):
@@ -116,8 +121,7 @@ async def run_agent_with_retry(
                 result: RunResult = await Runner.run(agent, input=input_data, context=context)
                 logger.info(f"Agent {agent.name} completed successfully")
                 
-                # Restore original model and configuration
-                agent.model = original_model
+                # Restore model_kwargs only - no need to restore model anymore
                 agent.model_kwargs = original_model_kwargs
                 
                 return result, trace_id
@@ -128,8 +132,7 @@ async def run_agent_with_retry(
                 
                 if attempt == config.max_retries - 1:  # Last attempt
                     logger.error(f"All {config.max_retries} attempts failed for {agent.name}")
-                    # Restore original model and configuration
-                    agent.model = original_model
+                    # Restore model_kwargs only
                     agent.model_kwargs = original_model_kwargs
                     raise
                 
@@ -166,11 +169,6 @@ def run_agent_sync(
     # Create model selection strategy if not provided
     model_selection = model_selection or ModelSelectionStrategy()
     
-    # Select model based on task and complexity
-    original_model = agent.model
-    selected_model = model_selection.select_model(config.task, config.complexity)
-    agent.model = selected_model
-    
     # Update agent configuration based on complexity
     original_model_kwargs = getattr(agent, "model_kwargs", {})
     agent_config = {"model_kwargs": original_model_kwargs}
@@ -180,7 +178,17 @@ def run_agent_sync(
     # Calculate timeout based on complexity
     timeout = model_selection.calculate_timeout(config.timeout, config.complexity)
     
-    logger.info(f"Running {agent.name} synchronously with model {selected_model}, timeout {timeout}s")
+    # Log the model instance details from the agent object
+    model_info = "Unknown Model"
+    if agent.model:
+        if hasattr(agent.model, 'full_model_name'):
+            model_info = f"{type(agent.model).__name__}({agent.model.full_model_name})"
+        elif hasattr(agent.model, 'model_name'):
+            model_info = f"{type(agent.model).__name__}({agent.model.model_name})"
+        else:
+            model_info = type(agent.model).__name__
+    
+    logger.info(f"Running {agent.name} synchronously with model {model_info}, timeout {timeout}s")
     
     try:
         # Generate trace ID for logging
@@ -193,8 +201,7 @@ def run_agent_sync(
             logger.info(f"Agent {agent.name} completed successfully (sync)")
             return result
     finally:
-        # Restore original model and configuration
-        agent.model = original_model
+        # Restore only model_kwargs
         agent.model_kwargs = original_model_kwargs
 
 async def run_agent_with_streaming(
@@ -205,24 +212,21 @@ async def run_agent_with_streaming(
     model_selection: ModelSelectionStrategy = None
 ) -> Any:
     """
-    Run an agent with streaming updates for real-time progress.
+    Run an agent with streaming support for real-time feedback.
     
     Args:
         agent: The agent to run
         input_data: The input data (string or dict)
-        progress_callback: Callback function for progress updates (agent_name, item_type, content)
+        progress_callback: Callback function for progress updates with parameters:
+                          (stage, status, data)
         config: Run configuration
         model_selection: Optional model selection strategy
         
     Returns:
-        The agent's result
+        The agent's final result
     """
     # Use default config if not provided
     config = config or RunConfig()
-    
-    # Handle input_data from config if provided and not directly supplied
-    if config.input_data is not None and input_data is None:
-        input_data = config.input_data
     
     # Convert dict to JSON string if needed
     if isinstance(input_data, dict):
@@ -231,13 +235,10 @@ async def run_agent_with_streaming(
     # Create model selection strategy if not provided
     model_selection = model_selection or ModelSelectionStrategy()
     
-    # Select model based on task and complexity
-    original_model = agent.model
-    selected_model = model_selection.select_model(config.task, config.complexity)
-    agent.model = selected_model
+    # Store original kwargs
+    original_model_kwargs = getattr(agent, "model_kwargs", {})
     
     # Update agent configuration based on complexity
-    original_model_kwargs = getattr(agent, "model_kwargs", {})
     agent_config = {"model_kwargs": original_model_kwargs}
     agent_config = model_selection.update_tool_choice(agent_config, config.complexity)
     agent.model_kwargs = agent_config["model_kwargs"]
@@ -245,70 +246,112 @@ async def run_agent_with_streaming(
     # Calculate timeout based on complexity
     timeout = model_selection.calculate_timeout(config.timeout, config.complexity)
     
-    logger.info(f"Running streaming agent {agent.name} with model {selected_model}, timeout {timeout}s")
+    # Log the model instance details from the agent object
+    model_info = "Unknown Model"
+    if agent.model:
+        if hasattr(agent.model, 'full_model_name'):
+            model_info = f"{type(agent.model).__name__}({agent.model.full_model_name})"
+        elif hasattr(agent.model, 'model_name'):
+            model_info = f"{type(agent.model).__name__}({agent.model.model_name})"
+        else:
+            model_info = type(agent.model).__name__
     
-    # Generate trace ID for monitoring
+    logger.info(f"Running {agent.name} with streaming using model {model_info}, timeout {timeout}s")
+    
+    # Generate trace ID for consistent correlation
     trace_id = gen_trace_id()
     
-    with trace(f"{agent.name} Streaming", trace_id=trace_id):
-        try:
-            # Start streaming run (removed timeout parameter that causes errors)
-            result = Runner.run_streamed(agent, input=input_data)
+    # Call progress callback with initialized state
+    progress_callback("initialize", "starting", {
+        "agent": agent.name,
+        "model": model_info,
+        "trace_id": trace_id,
+        "timestamp": datetime.datetime.now().isoformat(),
+    })
+    
+    try:
+        # Use trace for consistent tracing
+        with trace(f"{agent.name} Streaming", trace_id=trace_id):
+            # Create a run iterator
+            run = Runner.run_stream(agent, input=input_data)
             
-            # Process streaming events with proper error handling
-            async for event in result.stream_events():
-                try:
-                    # Extract streaming information
-                    if hasattr(event, 'delta') and event.delta:
-                        # Send progress update
-                        await progress_callback(
-                            agent.name, 
-                            getattr(event, 'item_type', 'unknown'),
-                            event.delta
-                        )
-                    elif isinstance(event, RunItem):
-                        # Process completed items
-                        item_type = type(event).__name__
-                        content = None
+            # Initialize result to None, will be updated on completion
+            result = None
+            
+            # Process streaming items as they arrive
+            async for event in run:
+                # Extract message type and data
+                event_type = "unknown"
+                event_data = None
+                
+                if isinstance(event, RunItem):
+                    event_type = event.item_type
+                    event_data = event.content
+                    
+                    # Handle Thought events with special parsing
+                    if event_type == "thought":
+                        # Progress callback for thought events
+                        progress_callback("thinking", "in_progress", {
+                            "thought": event_data,
+                            "timestamp": datetime.datetime.now().isoformat(),
+                        })
+                    
+                    # Handle Action events
+                    elif event_type == "action":
+                        # Progress callback for action events
+                        progress_callback("action", "in_progress", {
+                            "action": event_data,
+                            "timestamp": datetime.datetime.now().isoformat(),
+                        })
                         
-                        if hasattr(event, 'content'):
-                            if isinstance(event.content, list):
-                                # Extract text from MessageContentItem
-                                text_blocks = [
-                                    item.text for item in event.content 
-                                    if hasattr(item, 'text') and item.text
-                                ]
-                                content = "\n".join(text_blocks)
-                            else:
-                                content = str(event.content)
+                    # Handle ActionOutput events
+                    elif event_type == "action_output":
+                        # Progress callback for action output events
+                        progress_callback("action_output", "in_progress", {
+                            "output": event_data,
+                            "timestamp": datetime.datetime.now().isoformat(),
+                        })
                         
-                        # Send item completion
-                        await progress_callback(agent.name, item_type, content)
-                except Exception as stream_event_error:
-                    # Log but continue processing other events
-                    logger.error(f"Error processing stream event: {str(stream_event_error)}")
+                    # Handle other item types
+                    else:
+                        # Generic progress callback
+                        progress_callback(event_type, "in_progress", {
+                            "content": event_data,
+                            "timestamp": datetime.datetime.now().isoformat(),
+                        })
+                
+                # Handle final result
+                elif isinstance(event, RunResult):
+                    result = event
+                    # Save result for return
+                    logger.info(f"Agent {agent.name} completed with streaming result")
+                    
+                    # Progress callback for completion
+                    progress_callback("complete", "success", {
+                        "result": str(result.final_output)[:1000],  # First 1000 chars
+                        "timestamp": datetime.datetime.now().isoformat(),
+                    })
             
-            logger.info(f"Agent {agent.name} streaming completed")
+            return result
             
-            # Restore original model and configuration
-            agent.model = original_model
-            agent.model_kwargs = original_model_kwargs
-            
-            return result.final_output
-            
-        except asyncio.TimeoutError:
-            error_msg = f"Agent {agent.name} streaming timed out after {timeout} seconds"
-            logger.error(error_msg)
-            agent.model = original_model
-            agent.model_kwargs = original_model_kwargs
-            raise TimeoutError(error_msg)
-        except Exception as e:
-            error_type = type(e).__name__
-            logger.error(f"Agent {agent.name} streaming failed with {error_type}: {str(e)}")
-            # Restore original model and configuration
-            agent.model = original_model
-            agent.model_kwargs = original_model_kwargs
-            raise
+    except Exception as e:
+        error_type = type(e).__name__
+        error_msg = str(e)
+        logger.error(f"Agent {agent.name} streaming failed: {error_type}: {error_msg}")
+        
+        # Progress callback for error
+        progress_callback("error", "failed", {
+            "error_type": error_type,
+            "error_message": error_msg,
+            "timestamp": datetime.datetime.now().isoformat(),
+        })
+        
+        # Re-raise the exception
+        raise
+        
+    finally:
+        # Restore original settings in finally block for safety
+        agent.model_kwargs = original_model_kwargs
 
 def create_run_context(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """

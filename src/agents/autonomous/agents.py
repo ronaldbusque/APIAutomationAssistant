@@ -7,11 +7,23 @@ used in the blueprint and script generation pipeline.
 
 import logging
 from agents import Agent
-from src.config.settings import settings
+from agents.models.providers.openai import OpenAIProvider
+from src.config.settings import settings, BASE_CONFIG
 from src.utils.model_selection import ModelSelectionStrategy
+from src.utils.openai_setup import parse_model_identifier
+from src.providers.google import GeminiProvider
 
 logger = logging.getLogger(__name__)
 model_strategy = ModelSelectionStrategy()
+
+# Initialize provider instances
+openai_provider = OpenAIProvider()  # SDK default provider
+gemini_provider = GeminiProvider(api_key=settings.get("API_KEYS", {}).get("google"))
+
+provider_map = {
+    "openai": openai_provider,
+    "google": gemini_provider,
+}
 
 def setup_blueprint_author_agent() -> Agent:
     """
@@ -20,12 +32,36 @@ def setup_blueprint_author_agent() -> Agent:
     Returns:
         Configured Agent instance
     """
-    model_name = model_strategy.select_model("blueprint_authoring", complexity=0.7)
-    logger.info(f"Setting up Blueprint Author Agent with model: {model_name}")
+    complexity = 0.7
+    task_name = "blueprint_authoring"
+    # 1. Get full model identifier string (e.g., "google/gemini...")
+    full_model_id = model_strategy.select_model(task_name, complexity)
+    
+    # 2. Parse provider and model name
+    provider_name, model_name = parse_model_identifier(full_model_id)
+    
+    # 3. Get the provider instance
+    provider = provider_map.get(provider_name)
+    if not provider:
+        logger.error(f"Unknown provider '{provider_name}' for {task_name}. Falling back.")
+        provider_name, model_name = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
+        provider = provider_map.get(provider_name, openai_provider)  # Default to openai
+    
+    # 4. Get the concrete Model instance
+    try:
+        # Let the provider handle the specific model name format it needs
+        model_instance = provider.get_model(model_name)
+    except Exception as e:
+        logger.exception(f"Failed to get model instance for {full_model_id}. Falling back. Error: {e}")
+        provider_name_fb, model_name_fb = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
+        provider_fb = provider_map.get(provider_name_fb, openai_provider)
+        model_instance = provider_fb.get_model(model_name_fb)  # Use default model name
+    
+    logger.info(f"Setting up {task_name} agent with {provider_name} model: {model_name}")
     
     return Agent(
         name="BlueprintAuthorAgent",
-        model=model_name,
+        model=model_instance,  # Pass the concrete Model instance
         instructions="""You are an expert API testing specialist who creates detailed, structured test blueprints from API specifications.
 
 **Input Parameters (Provided in the prompt):**
@@ -221,12 +257,36 @@ def setup_blueprint_reviewer_agent() -> Agent:
     Returns:
         Configured Agent instance
     """
-    model_name = model_strategy.select_model("blueprint_reviewing", complexity=0.6)
-    logger.info(f"Setting up Blueprint Reviewer Agent with model: {model_name}")
+    complexity = 0.6
+    task_name = "blueprint_reviewing"
+    # 1. Get full model identifier string
+    full_model_id = model_strategy.select_model(task_name, complexity)
+    
+    # 2. Parse provider and model name
+    provider_name, model_name = parse_model_identifier(full_model_id)
+    
+    # 3. Get the provider instance
+    provider = provider_map.get(provider_name)
+    if not provider:
+        logger.error(f"Unknown provider '{provider_name}' for {task_name}. Falling back.")
+        provider_name, model_name = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
+        provider = provider_map.get(provider_name, openai_provider)  # Default to openai
+    
+    # 4. Get the concrete Model instance
+    try:
+        # Let the provider handle the specific model name format it needs
+        model_instance = provider.get_model(model_name)
+    except Exception as e:
+        logger.exception(f"Failed to get model instance for {full_model_id}. Falling back. Error: {e}")
+        provider_name_fb, model_name_fb = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
+        provider_fb = provider_map.get(provider_name_fb, openai_provider)
+        model_instance = provider_fb.get_model(model_name_fb)  # Use default model name
+    
+    logger.info(f"Setting up {task_name} agent with {provider_name} model: {model_name}")
     
     return Agent(
         name="BlueprintReviewerAgent",
-        model=model_name,
+        model=model_instance,
         instructions="""You are an expert API testing specialist who reviews test blueprints for quality, completeness, and accuracy.
 
 **Input Parameters (Provided in the prompt):**
@@ -280,8 +340,32 @@ def setup_script_coder_agent(framework: str) -> Agent:
     Returns:
         Configured Agent instance
     """
-    model_name = model_strategy.select_model("script_coding", complexity=0.7)
-    logger.info(f"Setting up Script Coder Agent for {framework} with model: {model_name}")
+    complexity = 0.7
+    task_name = "script_coding"
+    # 1. Get full model identifier string
+    full_model_id = model_strategy.select_model(task_name, complexity)
+    
+    # 2. Parse provider and model name
+    provider_name, model_name = parse_model_identifier(full_model_id)
+    
+    # 3. Get the provider instance
+    provider = provider_map.get(provider_name)
+    if not provider:
+        logger.error(f"Unknown provider '{provider_name}' for {task_name}. Falling back.")
+        provider_name, model_name = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
+        provider = provider_map.get(provider_name, openai_provider)  # Default to openai
+    
+    # 4. Get the concrete Model instance
+    try:
+        # Let the provider handle the specific model name format it needs
+        model_instance = provider.get_model(model_name)
+    except Exception as e:
+        logger.exception(f"Failed to get model instance for {full_model_id}. Falling back. Error: {e}")
+        provider_name_fb, model_name_fb = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
+        provider_fb = provider_map.get(provider_name_fb, openai_provider)
+        model_instance = provider_fb.get_model(model_name_fb)  # Use default model name
+    
+    logger.info(f"Setting up {task_name} agent for {framework} with {provider_name} model: {model_name}")
     
     # Define framework-specific expected files/structure
     extra_instructions = ""
@@ -439,7 +523,7 @@ def setup_script_coder_agent(framework: str) -> Agent:
 
     return Agent(
         name=f"ScriptCoderAgent_{framework}",
-        model=model_name,
+        model=model_instance,
         instructions=f"""You are an expert test automation engineer specializing in creating {framework} API test scripts from blueprints.
 
 **Input Parameters (Provided in the prompt):**
@@ -476,12 +560,36 @@ def setup_script_reviewer_agent(framework: str) -> Agent:
     Returns:
         Configured Agent instance
     """
-    model_name = model_strategy.select_model("script_reviewing", complexity=0.6)
-    logger.info(f"Setting up Script Reviewer Agent for {framework} with model: {model_name}")
+    complexity = 0.6
+    task_name = "script_reviewing"
+    # 1. Get full model identifier string
+    full_model_id = model_strategy.select_model(task_name, complexity)
+    
+    # 2. Parse provider and model name
+    provider_name, model_name = parse_model_identifier(full_model_id)
+    
+    # 3. Get the provider instance
+    provider = provider_map.get(provider_name)
+    if not provider:
+        logger.error(f"Unknown provider '{provider_name}' for {task_name}. Falling back.")
+        provider_name, model_name = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
+        provider = provider_map.get(provider_name, openai_provider)  # Default to openai
+    
+    # 4. Get the concrete Model instance
+    try:
+        # Let the provider handle the specific model name format it needs
+        model_instance = provider.get_model(model_name)
+    except Exception as e:
+        logger.exception(f"Failed to get model instance for {full_model_id}. Falling back. Error: {e}")
+        provider_name_fb, model_name_fb = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
+        provider_fb = provider_map.get(provider_name_fb, openai_provider)
+        model_instance = provider_fb.get_model(model_name_fb)  # Use default model name
+    
+    logger.info(f"Setting up {task_name} agent for {framework} with {provider_name} model: {model_name}")
     
     return Agent(
         name=f"ScriptReviewerAgent_{framework}",
-        model=model_name,
+        model=model_instance,
         instructions=f"""You are an expert test automation engineer who reviews {framework} API test scripts for quality, completeness, and correctness.
 
 **Input Parameters (Provided in the prompt):**
@@ -509,7 +617,7 @@ def setup_script_reviewer_agent(framework: str) -> Agent:
         - **`tests/**/*.spec.ts`:** Verify the code implements tests from the blueprint accurately. Check that environment variables are referenced *literally* as `process.env.VAR_NAME` and not evaluated or replaced with errors. Ensure necessary imports (`test`, `expect`, `faker`, helpers) are present.
         - **`playwright.config.ts`:** Verify it's a valid Playwright config. Check that `baseURL` and `extraHTTPHeaders` reference environment variables *literally* as `process.env.VAR_NAME`.
         - **`tests/fixtures/fixtures.ts`:** Verify its content **exactly matches** the standard boilerplate fixture code (import `test as base`, export `test = base.extend`, comments). It should **NOT** contain errors, `process.env`, or dynamic logic.
-        - **`.env.example`:** Verify its content is **purely static text** showing example assignments like `VAR_NAME=example_value`, derived correctly from the blueprint's `environments` and `auth`. It must **NOT** contain execution errors (like 'process is not defined') or dynamic code.
+        - **`.env.example`:** Verify its content is **purely static text** showing example assignments like `VAR_NAME=example_value`, derived correctly from the blueprint's `environments` and `auth` sections. It must **NOT** contain execution errors (like 'process is not defined') or dynamic code.
         - **`README.md`:** Verify it contains accurate, static setup and run instructions.
         - **General:** Ensure no file contains the literal error string "process is not defined". If any file has incorrect content type or errors, require revision (`[[REVISION_NEEDED]]`).
 3.  **Generate Feedback:** Create a numbered list of concise, actionable feedback points detailing ALL required changes. If no changes are needed, state that clearly.

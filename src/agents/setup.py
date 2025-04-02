@@ -28,6 +28,7 @@ try:
     # Import Agent from site-packages, not local module
     from agents import Agent, handoff, function_tool, trace, gen_trace_id, Runner
     from agents.items import RunItem, ItemHelpers
+    from agents.models.providers.openai import OpenAIProvider
 finally:
     # Restore path
     sys.path = original_path
@@ -35,14 +36,31 @@ finally:
 # Use absolute imports instead of relative
 from src.blueprint.models import Blueprint
 from src.models.script_output import ScriptOutput
-from src.config.settings import settings
+from src.config.settings import settings, BASE_CONFIG
+from src.utils.openai_setup import parse_model_identifier
+from src.providers.google import GeminiProvider
 
 # Create the logger
 logger = logging.getLogger(__name__)
 
-# Check if API key exists in environment
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+# Initialize provider instances
+openai_provider = OpenAIProvider()  # SDK default provider
+gemini_provider = GeminiProvider(api_key=settings.get("API_KEYS", {}).get("google"))
+
+provider_map = {
+    "openai": openai_provider,
+    "google": gemini_provider,
+}
+
+# Check if API keys exist
+OPENAI_API_KEY = settings.get("API_KEYS", {}).get("openai")
 if not OPENAI_API_KEY:
-    logger.warning("OPENAI_API_KEY not found in environment variables")
+    logger.warning("OpenAI API key not found in settings")
 else:
-    logger.info("OPENAI_API_KEY found in environment variables") 
+    logger.info("OpenAI API key found in settings")
+
+GOOGLE_API_KEY = settings.get("API_KEYS", {}).get("google")
+if not GOOGLE_API_KEY:
+    logger.warning("Google API key not found in settings")
+else:
+    logger.info("Google API key found in settings") 

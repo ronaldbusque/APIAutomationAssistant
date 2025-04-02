@@ -10,7 +10,8 @@ parent_dir = os.path.dirname(os.path.dirname(current_dir))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from src.config.settings import settings
+from src.config.settings import settings, GEMINI_FLASH
+from src.utils.openai_setup import parse_model_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -42,20 +43,20 @@ class ModelSelectionStrategy:
         from src.config.settings import settings as fresh_settings
         
         # Use settings from the centralized settings module
-        self.default_model = default_model or fresh_settings.get("MODEL_DEFAULT", "gpt-4o-mini")
+        self.default_model = default_model or fresh_settings.get("MODEL_DEFAULT", "gemini-1.5-pro")
         self.env_prefix = env_prefix
         
         # Load model configuration from settings
         self.model_config = {
-            "planning": fresh_settings.get("MODEL_PLANNING", "gpt-4o"),
-            "coding": fresh_settings.get("MODEL_CODING", "gpt-4o"),
-            "triage": fresh_settings.get("MODEL_TRIAGE", "gpt-3.5-turbo"),
+            "planning": fresh_settings.get("MODEL_PLANNING", "openai/gpt-4o"),
+            "coding": fresh_settings.get("MODEL_CODING", "openai/gpt-4o"),
+            "triage": fresh_settings.get("MODEL_TRIAGE", "openai/gpt-3.5-turbo"),
             "default": fresh_settings.get("MODEL_DEFAULT", self.default_model),
             # Add new autonomous agent model configurations
-            "blueprint_authoring": fresh_settings.get("MODEL_BP_AUTHOR", "gpt-4o"),
-            "blueprint_reviewing": fresh_settings.get("MODEL_BP_REVIEWER", "gpt-4o"),
-            "script_coding": fresh_settings.get("MODEL_SCRIPT_CODER", "gpt-4o"),
-            "script_reviewing": fresh_settings.get("MODEL_SCRIPT_REVIEWER", "gpt-4o"),
+            "blueprint_authoring": fresh_settings.get("MODEL_BP_AUTHOR", "openai/gpt-4o"),
+            "blueprint_reviewing": fresh_settings.get("MODEL_BP_REVIEWER", "openai/gpt-4o"),
+            "script_coding": fresh_settings.get("MODEL_SCRIPT_CODER", "openai/gpt-4o"),
+            "script_reviewing": fresh_settings.get("MODEL_SCRIPT_REVIEWER", "openai/gpt-4o"),
         }
         
         # Configure complexity thresholds from settings
@@ -73,90 +74,35 @@ class ModelSelectionStrategy:
         logger.debug(f"Initialized ModelSelectionStrategy with config: {self.model_config}")
         logger.info(f"Using models: planning={self.model_config['planning']}, coding={self.model_config['coding']}, triage={self.model_config['triage']}")
     
-    def select_model(self, task: str, complexity: float) -> str:
-        """
-        Select the appropriate model based on task type and complexity.
-        
-        Args:
-            task: Type of task (planning, coding, triage)
-            complexity: Complexity score (0-1)
-            
-        Returns:
-            Model name to use
-        """
-        try:
-            logger.debug(f"Original task requested: {task} with complexity {complexity}")
-            
-            # Map task aliases to standard task types
-            task_mapping = {
-                "code_generation": "coding",
-                "planning": "planning",
-                "triage": "triage",
-                "coding": "coding",
-                # Add new task mappings for autonomous agents
-                "blueprint_authoring": "blueprint_authoring",
-                "blueprint_reviewing": "blueprint_reviewing",
-                "script_coding": "script_coding",
-                "script_reviewing": "script_reviewing"
-            }
-            
-            # Standardize the task name
-            standard_task = task_mapping.get(task)
-            if standard_task:
-                logger.debug(f"Mapped task {task} to standard task {standard_task}")
-                task = standard_task
-            else:
-                logger.warning(f"Unknown task type: {task}, will try to use as-is or fall back to default")
-            
-            # Always respect the task-specific model from config if it exists
-            if task in self.model_config and self.model_config.get(task):
-                selected_model = self.model_config.get(task)
-                logger.info(f"Using configured model {selected_model} for {task} task with complexity {complexity:.2f}")
-                return selected_model
-            
-            # If no task-specific model is configured, select based on complexity
-            logger.debug(f"No direct model config for task '{task}', selecting based on complexity")
-            if task == "triage":
-                # Triage is a simple routing task, use lightweight model
-                selected_model = self.model_config.get("triage", "gpt-3.5-turbo")
-                
-            elif task == "planning":
-                thresholds = self.complexity_thresholds.get("planning", {"high": 0.7, "medium": 0.4})
-                
-                if complexity > thresholds["high"]:
-                    # High complexity planning - use the most capable model
-                    selected_model = "gpt-4o"
-                elif complexity > thresholds["medium"]:
-                    # Medium complexity - balance capability and cost
-                    selected_model = "gpt-4o-mini"
-                else:
-                    # Low complexity - use cost-effective model
-                    selected_model = "gpt-3.5-turbo"
-                    
-            elif task == "coding":
-                thresholds = self.complexity_thresholds.get("coding", {"high": 0.8, "medium": 0.5})
-                
-                if complexity > thresholds["high"]:
-                    # High complexity coding - use the most capable model
-                    selected_model = "gpt-4o"
-                elif complexity > thresholds["medium"]:
-                    # Medium complexity - balance capability and cost
-                    selected_model = "gpt-4o-mini"
-                else:
-                    # Low complexity - use cost-effective model
-                    selected_model = "gpt-3.5-turbo"
-            else:
-                logger.warning(f"Unrecognized task type: {task}, using default model")
-                selected_model = self.model_config.get("default", self.default_model)
-                
-            logger.info(f"Selected model {selected_model} for {task} task with complexity {complexity:.2f} (based on complexity)")
-            return selected_model
-            
-        except Exception as e:
-            logger.error(f"Error in model selection: {str(e)}, using default model {self.default_model}")
-            # Return the default model as a fallback
-            return self.model_config.get("default", self.default_model)
-            
+    def select_model(self, task_type: str, temperature: float = 0.7) -> str:
+        """Select a model based on task type and temperature."""
+        model_name = None
+
+        if task_type == "blueprint_authoring":
+            model_name = settings.get("MODEL_BP_AUTHOR")
+        elif task_type == "code_generation":
+            model_name = settings.get("MODEL_SCRIPT_CODER")
+        elif task_type == "code_review":
+            model_name = settings.get("MODEL_CODE_REVIEWER")
+        elif task_type == "documentation":
+            model_name = settings.get("MODEL_DOC_WRITER")
+        elif task_type == "testing":
+            model_name = settings.get("MODEL_TEST_WRITER")
+        else:
+            logging.warning(f"Unknown task type: {task_type}, falling back to default model")
+            model_name = settings.get("MODEL_DEFAULT")
+
+        return self._format_model_name(model_name)
+
+    def _format_model_name(self, model_name: str) -> str:
+        """Format model name to ensure it has the correct prefix."""
+        if not model_name:
+            model_name = settings.get("MODEL_DEFAULT", "gemini-1.5-pro")
+        # Remove any existing prefixes
+        model_name = model_name.replace("google/", "").replace("models/", "")
+        # Add models/ prefix
+        return f"models/{model_name}"
+
     def update_tool_choice(self, agent_config: Dict[str, Any], complexity: float) -> Dict[str, Any]:
         """
         Update tool choice based on complexity to ensure proper tool usage.

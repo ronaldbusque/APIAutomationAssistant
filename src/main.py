@@ -45,6 +45,9 @@ from src.errors.exceptions import APITestGenerationError
 from .utils.model_selection import ModelSelectionStrategy
 from .utils.openai_setup import setup_openai_client
 
+# Import providers to register them early
+import src.providers
+
 # Configure logging
 def configure_logging():
     """Configure application logging."""
