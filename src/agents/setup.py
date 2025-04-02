@@ -24,11 +24,33 @@ current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if current_dir in sys.path:
     sys.path.remove(current_dir)
 
+# Create the logger before imports to capture any import errors
+logger = logging.getLogger(__name__)
+
 try:
     # Import Agent from site-packages, not local module
     from agents import Agent, handoff, function_tool, trace, gen_trace_id, Runner
     from agents.items import RunItem, ItemHelpers
-    from agents.models.providers.openai import OpenAIProvider
+    
+    # Use robust import handling for different openai-agents SDK versions
+    try:
+        # Try the common 0.0.7 structure first
+        from agents.models.providers.openai import OpenAIProvider
+        logger.info("Successfully imported OpenAIProvider from agents.models.providers.openai")
+        OPENAI_PROVIDER_IMPORTED = True
+    except ImportError:
+        try:
+            # Try alternative structure (e.g., 0.0.6)
+            from agents.models.providers import OpenAIProvider
+            logger.info("Successfully imported OpenAIProvider from agents.models.providers")
+            OPENAI_PROVIDER_IMPORTED = True
+        except ImportError as e:
+            logger.error(f"Failed to import OpenAIProvider: {e}")
+            logger.error("OpenAI functionality will be disabled")
+            OPENAI_PROVIDER_IMPORTED = False
+except Exception as e:
+    logger.error(f"Error importing OpenAI agents SDK: {e}")
+    OPENAI_PROVIDER_IMPORTED = False
 finally:
     # Restore path
     sys.path = original_path
@@ -38,19 +60,35 @@ from src.blueprint.models import Blueprint
 from src.models.script_output import ScriptOutput
 from src.config.settings import settings, BASE_CONFIG
 from src.utils.openai_setup import parse_model_identifier
-from src.providers.google import GeminiProvider
 
-# Create the logger
-logger = logging.getLogger(__name__)
+# Import GeminiProvider with error handling
+try:
+    from src.providers.google import GeminiProvider
+    logger.info("Successfully imported GeminiProvider")
+    GEMINI_PROVIDER_IMPORTED = True
+except ImportError as e:
+    logger.error(f"Failed to import GeminiProvider: {e}")
+    logger.error("Gemini functionality will be disabled")
+    GEMINI_PROVIDER_IMPORTED = False
 
-# Initialize provider instances
-openai_provider = OpenAIProvider()  # SDK default provider
-gemini_provider = GeminiProvider(api_key=settings.get("API_KEYS", {}).get("google"))
+# Initialize provider instances with robust error handling
+provider_map = {}
 
-provider_map = {
-    "openai": openai_provider,
-    "google": gemini_provider,
-}
+if OPENAI_PROVIDER_IMPORTED:
+    try:
+        openai_provider = OpenAIProvider()  # SDK default provider
+        provider_map["openai"] = openai_provider
+        logger.info("Successfully initialized OpenAIProvider")
+    except Exception as e:
+        logger.error(f"Failed to initialize OpenAIProvider: {e}")
+
+if GEMINI_PROVIDER_IMPORTED:
+    try:
+        gemini_provider = GeminiProvider(api_key=settings.get("API_KEYS", {}).get("google"))
+        provider_map["google"] = gemini_provider
+        logger.info("Successfully initialized GeminiProvider")
+    except Exception as e:
+        logger.error(f"Failed to initialize GeminiProvider: {e}")
 
 # Check if API keys exist
 OPENAI_API_KEY = settings.get("API_KEYS", {}).get("openai")

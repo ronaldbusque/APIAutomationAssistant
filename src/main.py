@@ -27,6 +27,8 @@ import logging.config
 from typing import List, Optional, Dict, Any, Union
 from pathlib import Path
 from uuid import UUID
+from enum import Enum
+import pprint
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, status, WebSocket, WebSocketDisconnect, Depends
@@ -44,9 +46,6 @@ from src.api import generate
 from src.errors.exceptions import APITestGenerationError
 from .utils.model_selection import ModelSelectionStrategy
 from .utils.openai_setup import setup_openai_client
-
-# Import providers to register them early
-import src.providers
 
 # Configure logging
 def configure_logging():
@@ -177,6 +176,14 @@ if ui_path.exists():
     logger.info(f"Mounted UI static files from {ui_path}")
 else:
     logger.warning(f"UI path {ui_path} not found, static UI will not be available")
+
+# Import providers to register them early
+try:
+    import src.providers
+    logger.info("Successfully imported provider modules")
+except ImportError as e:
+    logger.error(f"Failed to import provider modules: {e}")
+    logger.error("Some provider functionality may be disabled")
 
 # Start standalone server if executed directly
 if __name__ == "__main__":

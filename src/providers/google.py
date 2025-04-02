@@ -1,19 +1,114 @@
+"""
+Google Gemini AI provider implementation
+"""
+
+import time
 import logging
 import json
+from enum import Enum
+from typing import List, Dict, Any, Optional, Union, Tuple, Callable, Literal, TypeVar, AsyncIterator
+
 import google.genai as genai
+from google.genai.types import HarmCategory, HarmBlockThreshold
+from google.genai.types.generation_types import GenerationConfig
 from google.genai.models import Models
 from google.genai.client import Client
-from typing import List, Dict, Any, Optional, AsyncIterator, Tuple, Union, Type
 
-# Import necessary types from openai-agents SDK
-from agents.models.interface import Model, ModelProvider
-from agents.model_settings import ModelSettings
-from agents.items import TResponseInputItem, TResponseOutputItem, TResponseStreamEvent, ModelResponse
-from openai.types.responses import ResponseOutputMessage, ResponseOutputRefusal
-from openai.types.responses import ResponseFunctionToolCall
-from agents.tool import Tool  # Use SDK's Tool type
-from agents.exceptions import ModelBehaviorError  # For raising errors
-from agents.usage import Usage  # Import Usage for ModelResponse
+# Create logger before imports
+logger = logging.getLogger(__name__)
+
+# Robust imports for the OpenAI agents SDK
+try:
+    # Try version 0.0.7 import paths first
+    from agents.models.providers.openai import OpenAIProvider
+    from agents.models.providers.base import BaseProvider, BaseModel
+    from agents.models.interface import Model, ModelProvider
+    from agents.model_settings import ModelSettings
+    from agents.items import TResponseInputItem, TResponseOutputItem, TResponseStreamEvent, ModelResponse
+    from agents.types.tool import FunctionTool
+    from agents.tool import Tool
+    from agents.exceptions import ModelBehaviorError
+    from agents.usage import Usage
+    
+    logger.info("Successfully imported OpenAI agents SDK modules using version 0.0.7 paths")
+    OPENAI_AGENTS_IMPORTED = True
+    
+except ImportError as e:
+    logger.warning(f"Failed to import using version 0.0.7 paths: {e}")
+    # Try alternative import paths (version 0.0.6)
+    try:
+        from agents.models.providers import OpenAIProvider
+        from agents.models.providers.base import BaseProvider, BaseModel
+        from agents.models.interface import Model, ModelProvider
+        from agents.model_settings import ModelSettings
+        from agents.items import TResponseInputItem, TResponseOutputItem, TResponseStreamEvent, ModelResponse
+        from agents.types.tool import FunctionTool
+        from agents.tool import Tool
+        from agents.exceptions import ModelBehaviorError
+        from agents.usage import Usage
+        
+        logger.info("Successfully imported OpenAI agents SDK modules using version 0.0.6 paths")
+        OPENAI_AGENTS_IMPORTED = True
+        
+    except ImportError as nested_e:
+        logger.error(f"Failed to import OpenAI agents SDK: {nested_e}")
+        logger.error("GeminiProvider will not function correctly without these imports")
+        OPENAI_AGENTS_IMPORTED = False
+        
+        # Define minimum stub classes to allow the file to import
+        class Model:
+            pass
+            
+        class ModelProvider:
+            pass
+            
+        class ModelSettings:
+            pass
+            
+        class TResponseInputItem:
+            pass
+            
+        class TResponseOutputItem:
+            pass
+            
+        class TResponseStreamEvent:
+            pass
+            
+        class ModelResponse:
+            pass
+            
+        class Tool:
+            pass
+            
+        class FunctionTool:
+            pass
+            
+        class ModelBehaviorError(Exception):
+            pass
+            
+        class Usage:
+            pass
+            
+        OpenAIProvider = None
+        BaseProvider = None
+        BaseModel = None
+
+# OpenAI types imports with error handling
+try:
+    from openai.types.responses import ResponseOutputMessage, ResponseOutputRefusal
+    from openai.types.responses import ResponseFunctionToolCall
+    logger.info("Successfully imported OpenAI types")
+except ImportError as e:
+    logger.error(f"Failed to import OpenAI types: {e}")
+    # Define stub classes
+    class ResponseOutputMessage:
+        pass
+        
+    class ResponseOutputRefusal:
+        pass
+        
+    class ResponseFunctionToolCall:
+        pass
 
 # Import app settings
 from src.config.settings import settings as app_settings
