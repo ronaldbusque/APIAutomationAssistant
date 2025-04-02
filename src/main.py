@@ -101,13 +101,6 @@ def configure_logging():
 # Initialize logger
 logger = configure_logging()
 
-# Initialize OpenAI client
-try:
-    openai_client = setup_openai_client()
-except Exception as e:
-    logger.error(f"Failed to initialize OpenAI client: {str(e)}")
-    sys.exit(1)
-
 # Initialize the FastAPI application
 app = FastAPI(
     title="API Automation Assistant",

@@ -128,23 +128,8 @@ class GeminiModel(Model):
             self.client_model_name = f"models/{self.client_model_name}"
             
         self.provider = provider
-        self.client = None  # Lazy initialization
-        self.models = None  # Will be set by _initialize_client
-
-    def _initialize_client(self):
-        """Initializes the Google Generative AI client."""
-        if self.client is None:
-            if not self.provider.api_key:
-                raise ValueError("Google API key not configured for GeminiProvider.")
-            try:
-                # Create the client instance
-                self.client = Client(api_key=self.provider.api_key)
-                # Get the model
-                self.models = self.client.models
-                logger.info(f"Initialized Google Generative AI client for model: {self.full_model_name}")
-            except Exception as e:
-                logger.exception(f"Failed to initialize Google Generative AI client: {e}")
-                raise ConnectionError(f"Failed to initialize Google client: {e}") from e
+        self.client = provider.client  # Get client from provider
+        self.models = provider.models  # Get models from provider
 
     # --- Translation Methods (Crucial and Complex) ---
 
@@ -412,9 +397,8 @@ class GeminiModel(Model):
             # Prepend system instructions as a system message
             input = [{"role": "system", "content": system_instructions}] + input
             
-        self._initialize_client()
-        if not hasattr(self, 'models') or not self.models:
-            raise ConnectionError("Gemini client not initialized.")
+        if not self.client or not self.models: # Check if client/models were set by provider
+            raise ConnectionError("Gemini client/models not initialized by provider.")
 
         # 1. Translate SDK history and tools to Gemini format
         try:

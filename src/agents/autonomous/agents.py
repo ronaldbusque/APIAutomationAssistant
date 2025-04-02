@@ -83,6 +83,29 @@ if not GOOGLE_API_KEY:
 else:
     logger.info("Google API key found in settings")
 
+# --- Define a helper to get the default provider instance ---
+def get_default_provider_instance():
+    """Gets the provider instance configured as the default."""
+    try:
+        default_model_full = BASE_CONFIG.get('MODEL_DEFAULT', 'google/gemini-1.5-pro') # Use a reasonable fallback default
+        provider_name, _ = parse_model_identifier(default_model_full)
+        default_provider = provider_map.get(provider_name)
+        if default_provider:
+            logger.info(f"Using configured default provider: {provider_name}")
+            return default_provider
+        else:
+            # This case means the default provider itself failed to initialize
+            logger.error(f"Default provider '{provider_name}' not found in initialized providers ({list(provider_map.keys())}). Cannot fall back.")
+            # As a last resort, try to return *any* initialized provider, or None
+            if provider_map:
+                fallback_provider_name = next(iter(provider_map))
+                logger.warning(f"Falling back to the first available provider: {fallback_provider_name}")
+                return provider_map[fallback_provider_name]
+            return None
+    except Exception as e:
+        logger.exception(f"Error determining default provider: {e}")
+        return None
+
 def setup_blueprint_author_agent() -> Agent:
     """
     Set up the Blueprint Author Agent that creates the initial test blueprint.
@@ -101,19 +124,37 @@ def setup_blueprint_author_agent() -> Agent:
     # 3. Get the provider instance
     provider = provider_map.get(provider_name)
     if not provider:
-        logger.error(f"Unknown provider '{provider_name}' for {task_name}. Falling back.")
-        provider_name, model_name = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
-        provider = provider_map.get(provider_name, openai_provider)  # Default to openai
+        logger.error(f"Provider '{provider_name}' for {task_name} not found or failed to initialize. Falling back to default.")
+        # --- MODIFIED FALLBACK ---
+        provider = get_default_provider_instance()
+        if not provider:
+             # If even the default provider failed, we have a major issue.
+             raise RuntimeError("No valid model providers could be initialized. Check API keys and configurations.")
+        # Update provider_name and model_name based on the actual default provider being used
+        default_model_full = BASE_CONFIG.get('MODEL_DEFAULT', 'google/gemini-1.5-pro')
+        provider_name, model_name = parse_model_identifier(default_model_full)
+        logger.warning(f"Now using default provider '{provider_name}' with model '{model_name}' for {task_name}.")
+        # --- END MODIFIED FALLBACK ---
     
     # 4. Get the concrete Model instance
     try:
         # Let the provider handle the specific model name format it needs
         model_instance = provider.get_model(model_name)
     except Exception as e:
-        logger.exception(f"Failed to get model instance for {full_model_id}. Falling back. Error: {e}")
-        provider_name_fb, model_name_fb = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
-        provider_fb = provider_map.get(provider_name_fb, openai_provider)
-        model_instance = provider_fb.get_model(model_name_fb)  # Use default model name
+        logger.exception(f"Failed to get model instance for {full_model_id} from provider {provider_name}. Falling back to default model. Error: {e}")
+        # --- MODIFIED FALLBACK MODEL INSTANCE ---
+        default_provider = get_default_provider_instance()
+        if not default_provider:
+             raise RuntimeError("No valid model providers could be initialized for fallback.")
+        default_model_full = BASE_CONFIG.get('MODEL_DEFAULT', 'google/gemini-1.5-pro')
+        provider_name_fb, model_name_fb = parse_model_identifier(default_model_full)
+        try:
+            model_instance = default_provider.get_model(model_name_fb)
+            logger.warning(f"Successfully fell back to default model instance: {provider_name_fb}/{model_name_fb}")
+        except Exception as fb_e:
+             logger.error(f"CRITICAL: Failed to get even the default model instance ({default_model_full}). Error: {fb_e}")
+             raise RuntimeError(f"Could not initialize any model instance. Last error: {fb_e}") from fb_e
+        # --- END MODIFIED FALLBACK MODEL INSTANCE ---
     
     logger.info(f"Setting up {task_name} agent with {provider_name} model: {model_name}")
     
@@ -326,19 +367,37 @@ def setup_blueprint_reviewer_agent() -> Agent:
     # 3. Get the provider instance
     provider = provider_map.get(provider_name)
     if not provider:
-        logger.error(f"Unknown provider '{provider_name}' for {task_name}. Falling back.")
-        provider_name, model_name = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
-        provider = provider_map.get(provider_name, openai_provider)  # Default to openai
+        logger.error(f"Provider '{provider_name}' for {task_name} not found or failed to initialize. Falling back to default.")
+        # --- MODIFIED FALLBACK ---
+        provider = get_default_provider_instance()
+        if not provider:
+             # If even the default provider failed, we have a major issue.
+             raise RuntimeError("No valid model providers could be initialized. Check API keys and configurations.")
+        # Update provider_name and model_name based on the actual default provider being used
+        default_model_full = BASE_CONFIG.get('MODEL_DEFAULT', 'google/gemini-1.5-pro')
+        provider_name, model_name = parse_model_identifier(default_model_full)
+        logger.warning(f"Now using default provider '{provider_name}' with model '{model_name}' for {task_name}.")
+        # --- END MODIFIED FALLBACK ---
     
     # 4. Get the concrete Model instance
     try:
         # Let the provider handle the specific model name format it needs
         model_instance = provider.get_model(model_name)
     except Exception as e:
-        logger.exception(f"Failed to get model instance for {full_model_id}. Falling back. Error: {e}")
-        provider_name_fb, model_name_fb = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
-        provider_fb = provider_map.get(provider_name_fb, openai_provider)
-        model_instance = provider_fb.get_model(model_name_fb)  # Use default model name
+        logger.exception(f"Failed to get model instance for {full_model_id} from provider {provider_name}. Falling back to default model. Error: {e}")
+        # --- MODIFIED FALLBACK MODEL INSTANCE ---
+        default_provider = get_default_provider_instance()
+        if not default_provider:
+             raise RuntimeError("No valid model providers could be initialized for fallback.")
+        default_model_full = BASE_CONFIG.get('MODEL_DEFAULT', 'google/gemini-1.5-pro')
+        provider_name_fb, model_name_fb = parse_model_identifier(default_model_full)
+        try:
+            model_instance = default_provider.get_model(model_name_fb)
+            logger.warning(f"Successfully fell back to default model instance: {provider_name_fb}/{model_name_fb}")
+        except Exception as fb_e:
+             logger.error(f"CRITICAL: Failed to get even the default model instance ({default_model_full}). Error: {fb_e}")
+             raise RuntimeError(f"Could not initialize any model instance. Last error: {fb_e}") from fb_e
+        # --- END MODIFIED FALLBACK MODEL INSTANCE ---
     
     logger.info(f"Setting up {task_name} agent with {provider_name} model: {model_name}")
     
@@ -409,19 +468,37 @@ def setup_script_coder_agent(framework: str) -> Agent:
     # 3. Get the provider instance
     provider = provider_map.get(provider_name)
     if not provider:
-        logger.error(f"Unknown provider '{provider_name}' for {task_name}. Falling back.")
-        provider_name, model_name = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
-        provider = provider_map.get(provider_name, openai_provider)  # Default to openai
+        logger.error(f"Provider '{provider_name}' for {task_name} not found or failed to initialize. Falling back to default.")
+        # --- MODIFIED FALLBACK ---
+        provider = get_default_provider_instance()
+        if not provider:
+             # If even the default provider failed, we have a major issue.
+             raise RuntimeError("No valid model providers could be initialized. Check API keys and configurations.")
+        # Update provider_name and model_name based on the actual default provider being used
+        default_model_full = BASE_CONFIG.get('MODEL_DEFAULT', 'google/gemini-1.5-pro')
+        provider_name, model_name = parse_model_identifier(default_model_full)
+        logger.warning(f"Now using default provider '{provider_name}' with model '{model_name}' for {task_name}.")
+        # --- END MODIFIED FALLBACK ---
     
     # 4. Get the concrete Model instance
     try:
         # Let the provider handle the specific model name format it needs
         model_instance = provider.get_model(model_name)
     except Exception as e:
-        logger.exception(f"Failed to get model instance for {full_model_id}. Falling back. Error: {e}")
-        provider_name_fb, model_name_fb = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
-        provider_fb = provider_map.get(provider_name_fb, openai_provider)
-        model_instance = provider_fb.get_model(model_name_fb)  # Use default model name
+        logger.exception(f"Failed to get model instance for {full_model_id} from provider {provider_name}. Falling back to default model. Error: {e}")
+        # --- MODIFIED FALLBACK MODEL INSTANCE ---
+        default_provider = get_default_provider_instance()
+        if not default_provider:
+             raise RuntimeError("No valid model providers could be initialized for fallback.")
+        default_model_full = BASE_CONFIG.get('MODEL_DEFAULT', 'google/gemini-1.5-pro')
+        provider_name_fb, model_name_fb = parse_model_identifier(default_model_full)
+        try:
+            model_instance = default_provider.get_model(model_name_fb)
+            logger.warning(f"Successfully fell back to default model instance: {provider_name_fb}/{model_name_fb}")
+        except Exception as fb_e:
+             logger.error(f"CRITICAL: Failed to get even the default model instance ({default_model_full}). Error: {fb_e}")
+             raise RuntimeError(f"Could not initialize any model instance. Last error: {fb_e}") from fb_e
+        # --- END MODIFIED FALLBACK MODEL INSTANCE ---
     
     logger.info(f"Setting up {task_name} agent for {framework} with {provider_name} model: {model_name}")
     
@@ -629,19 +706,37 @@ def setup_script_reviewer_agent(framework: str) -> Agent:
     # 3. Get the provider instance
     provider = provider_map.get(provider_name)
     if not provider:
-        logger.error(f"Unknown provider '{provider_name}' for {task_name}. Falling back.")
-        provider_name, model_name = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
-        provider = provider_map.get(provider_name, openai_provider)  # Default to openai
+        logger.error(f"Provider '{provider_name}' for {task_name} not found or failed to initialize. Falling back to default.")
+        # --- MODIFIED FALLBACK ---
+        provider = get_default_provider_instance()
+        if not provider:
+             # If even the default provider failed, we have a major issue.
+             raise RuntimeError("No valid model providers could be initialized. Check API keys and configurations.")
+        # Update provider_name and model_name based on the actual default provider being used
+        default_model_full = BASE_CONFIG.get('MODEL_DEFAULT', 'google/gemini-1.5-pro')
+        provider_name, model_name = parse_model_identifier(default_model_full)
+        logger.warning(f"Now using default provider '{provider_name}' with model '{model_name}' for {task_name}.")
+        # --- END MODIFIED FALLBACK ---
     
     # 4. Get the concrete Model instance
     try:
         # Let the provider handle the specific model name format it needs
         model_instance = provider.get_model(model_name)
     except Exception as e:
-        logger.exception(f"Failed to get model instance for {full_model_id}. Falling back. Error: {e}")
-        provider_name_fb, model_name_fb = parse_model_identifier(BASE_CONFIG['MODEL_DEFAULT'])
-        provider_fb = provider_map.get(provider_name_fb, openai_provider)
-        model_instance = provider_fb.get_model(model_name_fb)  # Use default model name
+        logger.exception(f"Failed to get model instance for {full_model_id} from provider {provider_name}. Falling back to default model. Error: {e}")
+        # --- MODIFIED FALLBACK MODEL INSTANCE ---
+        default_provider = get_default_provider_instance()
+        if not default_provider:
+             raise RuntimeError("No valid model providers could be initialized for fallback.")
+        default_model_full = BASE_CONFIG.get('MODEL_DEFAULT', 'google/gemini-1.5-pro')
+        provider_name_fb, model_name_fb = parse_model_identifier(default_model_full)
+        try:
+            model_instance = default_provider.get_model(model_name_fb)
+            logger.warning(f"Successfully fell back to default model instance: {provider_name_fb}/{model_name_fb}")
+        except Exception as fb_e:
+             logger.error(f"CRITICAL: Failed to get even the default model instance ({default_model_full}). Error: {fb_e}")
+             raise RuntimeError(f"Could not initialize any model instance. Last error: {fb_e}") from fb_e
+        # --- END MODIFIED FALLBACK MODEL INSTANCE ---
     
     logger.info(f"Setting up {task_name} agent for {framework} with {provider_name} model: {model_name}")
     
