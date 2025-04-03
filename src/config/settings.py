@@ -9,6 +9,7 @@ import os
 import logging
 from typing import Dict, Any
 from dotenv import load_dotenv
+from pathlib import Path
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -65,41 +66,81 @@ PROVIDER_CONFIG = {
 }
 
 def load_settings() -> Dict[str, Any]:
-    """
-    Load settings from environment variables with defaults.
-    
-    Returns:
-        Dictionary of application settings
-    """
+    """Load settings from environment."""
     settings_dict = {}
-    logger.info("Loading application settings...")
-    load_dotenv(override=True)  # Ensure .env overrides system env
-
-    # Load general settings from BASE_CONFIG
+    
+    # Prioritize environment variables
     for key, default in BASE_CONFIG.items():
-        # Skip API key patterns here, load them specifically later
-        if "_API_KEY" in key: continue
-        env_value = os.environ.get(key)
-        settings_dict[key] = env_value if env_value is not None else default
-        if key.startswith("MODEL_"):
-            logger.info(f"Setting {key} = '{settings_dict[key]}' (Source: {'Environment' if env_value is not None else 'Default'})")
-
-    # Load API keys into nested dict
-    settings_dict["API_KEYS"] = {}
-    for provider, config in PROVIDER_CONFIG.items():
-        provider_key = provider.lower()
-        api_key_env_var = config["api_key_env"]
-        api_key = os.environ.get(api_key_env_var)
-        if api_key:
-            settings_dict["API_KEYS"][provider_key] = api_key
-            logger.info(f"Loaded API key for provider: {provider_key} (from {api_key_env_var})")
+        value = os.environ.get(key, default)
+        settings_dict[key] = value
+    
+    # Check if .env file exists
+    env_file = Path(".env")
+    if env_file.exists():
+        logger.info(f"Loading additional settings from {env_file}")
+        with open(env_file, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    settings_dict[key.strip()] = value.strip()
+    else:
+        logger.warning(f".env file not found at {env_file.absolute()}")
+    
+    # Load API keys from environment and .env
+    api_keys = {}
+    
+    # Helper function to securely log API key info
+    def log_api_key(provider: str, key: str, source: str):
+        if key:
+            key_preview = key[:4] + "..." if len(key) > 8 else "***"
+            logger.info(f"Found {provider.upper()}_API_KEY in {source}: {key_preview} (length: {len(key)})")
+            return True
+        return False
+    
+    # Check OpenAI API Key - env takes precedence over .env
+    openai_api_key = os.environ.get("OPENAI_API_KEY")
+    if log_api_key("openai", openai_api_key, "environment"):
+        api_keys["openai"] = openai_api_key
+    else:
+        openai_api_key = settings_dict.get("OPENAI_API_KEY")
+        if log_api_key("openai", openai_api_key, ".env"):
+            api_keys["openai"] = openai_api_key
         else:
-            # Log warning only if a model for this provider is configured
-            provider_models = [v for k, v in settings_dict.items() if k.startswith("MODEL_") and v.startswith(f"{provider_key}/")]
-            if provider_models:
-                logger.warning(f"API key environment variable '{api_key_env_var}' not found for provider: {provider_key}. Configured models ({provider_models}) may fail.")
-            else:
-                logger.debug(f"API key environment variable '{api_key_env_var}' not found for provider: {provider_key} (no models configured for this provider).")
+            logger.warning("OPENAI_API_KEY not found")
+
+    # Check Google API Key - env takes precedence over .env
+    google_api_key = os.environ.get("GOOGLE_API_KEY")
+    if log_api_key("google", google_api_key, "environment"):
+        api_keys["google"] = google_api_key
+    else:
+        google_api_key = settings_dict.get("GOOGLE_API_KEY")
+        if log_api_key("google", google_api_key, ".env"):
+            api_keys["google"] = google_api_key
+        else:
+            logger.warning("GOOGLE_API_KEY not found")
+    
+    # Store API keys in settings
+    settings_dict["API_KEYS"] = api_keys
+    
+    # Automatically load API key from env if not provided in settings
+    for provider in ("openai", "google"):
+        # Check models for a provider
+        has_configured_models = any(
+            k.startswith("MODEL_") and isinstance(v, str) and v.startswith(f"{provider}/")
+            for k, v in settings_dict.items()
+        )
+        
+        # Log warning if provider has models configured but no API key
+        if has_configured_models and provider not in api_keys:
+            logger.warning(f"{provider.upper()} models configured but no API key found")
+    
+    # Convert string booleans to Python booleans
+    for key, value in settings_dict.items():
+        if isinstance(value, str) and value.lower() in ("true", "false", "yes", "no", "1", "0", "t", "f", "y", "n"):
+            settings_dict[key] = value.lower() in ("true", "yes", "1", "t", "y")
     
     # Convert numeric settings
     numeric_settings = [
@@ -120,11 +161,32 @@ def load_settings() -> Dict[str, Any]:
                 # Keep as string if conversion fails
                 pass
     
-    # Convert boolean settings
-    bool_settings = ["RELOAD"]
-    for key in bool_settings:
-        if key in settings_dict and isinstance(settings_dict[key], str):
-            settings_dict[key] = settings_dict[key].lower() in ("true", "yes", "1", "t", "y")
+    # Handle MODEL_X provider settings, e.g. MODEL_GEMINI_PRO=google/gemini-1.0-pro
+    providers = settings_dict.get("PROVIDERS", "").split(",")
+    provider_configs = {}
+    
+    for provider_key in providers:
+        provider_key = provider_key.strip().lower()
+        if not provider_key:
+            continue
+        provider_configs[provider_key] = {"models": []}
+        
+        # Map models to providers based on prefix
+        provider_models = []
+        for k, v in settings_dict.items():
+            if k.startswith("MODEL_") and isinstance(v, str) and v.startswith(f"{provider_key}/"):
+                provider_models.append(v)
+            
+        provider_configs[provider_key]["models"] = provider_models
+        
+        # API key might be a string or a dict depending on source
+        api_key = settings_dict.get(f"{provider_key.upper()}_API_KEY", None)
+        api_keys = settings_dict.get("API_KEYS", {})
+        
+        if isinstance(api_keys, dict) and provider_key in api_keys:
+            provider_configs[provider_key]["api_key"] = api_keys[provider_key]
+        elif api_key:
+            provider_configs[provider_key]["api_key"] = api_key
     
     logger.info("Settings loading complete.")
     return settings_dict

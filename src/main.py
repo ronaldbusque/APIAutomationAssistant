@@ -9,6 +9,10 @@ if env_path.exists():
     print(f"Loading environment variables from: {env_path}")
     load_dotenv(dotenv_path=env_path, override=True)
     print(f"Model settings from .env: MODEL_BP_AUTHOR={os.environ.get('MODEL_BP_AUTHOR')}, MODEL_BP_REVIEWER={os.environ.get('MODEL_BP_REVIEWER')}, MODEL_SCRIPT_CODER={os.environ.get('MODEL_SCRIPT_CODER')}")
+    
+    # Check if API keys are set in environment
+    print(f"OPENAI_API_KEY set: {'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}")
+    print(f"GOOGLE_API_KEY set: {'YES' if os.environ.get('GOOGLE_API_KEY') else 'NO'}")
 else:
     print(f"Warning: .env file not found at {env_path}")
 

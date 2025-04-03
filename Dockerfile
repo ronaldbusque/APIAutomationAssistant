@@ -41,7 +41,28 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source code
+# Uninstall any existing openai-agents version and then install the exact 0.0.7 version
+RUN pip uninstall -y openai-agents || true
+RUN pip install --no-cache-dir openai-agents==0.0.7
+
+# Install the latest version of google-genai
+RUN pip install --no-cache-dir --upgrade google-genai>=1.9.0
+
+# Add note about import paths to avoid circular imports
+RUN echo "Note: In OpenAI Agents SDK 0.0.7, the OpenAIProvider should be imported from agents.models.openai_provider, not agents.models.providers.openai" > /app/import_note.txt
+
+# Add test script to diagnose import issues
+COPY test_openai_agents.py ./
+RUN python test_openai_agents.py > /app/import_test_results.txt || echo "Test completed with errors"
+RUN cat /app/import_test_results.txt
+
+# Print installed packages for debugging
+RUN pip freeze | grep -E 'openai-agents|google-genai' || echo "Packages not found"
+
+# Add test environment file for debugging
+COPY test.env /app/.env
+
+# Copy backend source code AFTER installing dependencies
 COPY src/ ./src/
 
 # Copy entrypoint script

@@ -5,93 +5,50 @@ Google Gemini AI provider implementation
 import time
 import logging
 import json
+import os
 from enum import Enum
 from typing import List, Dict, Any, Optional, Union, Tuple, Callable, Literal, TypeVar, AsyncIterator
-
-import google.genai as genai
-from google.genai.types import HarmCategory, HarmBlockThreshold
-from google.genai.types.generation_types import GenerationConfig
-from google.genai.models import Models
-from google.genai.client import Client
 
 # Create logger before imports
 logger = logging.getLogger(__name__)
 
-# Robust imports for the OpenAI agents SDK
+# Import Google GenAI library
+import google.genai as genai
+
+# Define GenerationConfig as a simple class if it doesn't exist
+class GenerationConfig:
+    """Simple class to mimic GenerationConfig functionality"""
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+# Import Client directly
+from google.genai.client import Client
+
+# Import from openai_provider (version 0.0.7)
 try:
-    # Try version 0.0.7 import paths first
-    from agents.models.providers.openai import OpenAIProvider
-    from agents.models.providers.base import BaseProvider, BaseModel
+    logger.info("Attempting to import using 0.0.7 paths")
+    from agents.models.openai_provider import OpenAIProvider
     from agents.models.interface import Model, ModelProvider
     from agents.model_settings import ModelSettings
     from agents.items import TResponseInputItem, TResponseOutputItem, TResponseStreamEvent, ModelResponse
-    from agents.types.tool import FunctionTool
-    from agents.tool import Tool
+    from agents.tool import Tool, FunctionTool
     from agents.exceptions import ModelBehaviorError
     from agents.usage import Usage
     
     logger.info("Successfully imported OpenAI agents SDK modules using version 0.0.7 paths")
     OPENAI_AGENTS_IMPORTED = True
-    
 except ImportError as e:
-    logger.warning(f"Failed to import using version 0.0.7 paths: {e}")
-    # Try alternative import paths (version 0.0.6)
+    logger.error(f"Failed to import OpenAI agents SDK: {e}")
+    logger.error("GeminiProvider will not function correctly without these imports")
+    # List all packages to debug
+    import subprocess
     try:
-        from agents.models.providers import OpenAIProvider
-        from agents.models.providers.base import BaseProvider, BaseModel
-        from agents.models.interface import Model, ModelProvider
-        from agents.model_settings import ModelSettings
-        from agents.items import TResponseInputItem, TResponseOutputItem, TResponseStreamEvent, ModelResponse
-        from agents.types.tool import FunctionTool
-        from agents.tool import Tool
-        from agents.exceptions import ModelBehaviorError
-        from agents.usage import Usage
-        
-        logger.info("Successfully imported OpenAI agents SDK modules using version 0.0.6 paths")
-        OPENAI_AGENTS_IMPORTED = True
-        
-    except ImportError as nested_e:
-        logger.error(f"Failed to import OpenAI agents SDK: {nested_e}")
-        logger.error("GeminiProvider will not function correctly without these imports")
-        OPENAI_AGENTS_IMPORTED = False
-        
-        # Define minimum stub classes to allow the file to import
-        class Model:
-            pass
-            
-        class ModelProvider:
-            pass
-            
-        class ModelSettings:
-            pass
-            
-        class TResponseInputItem:
-            pass
-            
-        class TResponseOutputItem:
-            pass
-            
-        class TResponseStreamEvent:
-            pass
-            
-        class ModelResponse:
-            pass
-            
-        class Tool:
-            pass
-            
-        class FunctionTool:
-            pass
-            
-        class ModelBehaviorError(Exception):
-            pass
-            
-        class Usage:
-            pass
-            
-        OpenAIProvider = None
-        BaseProvider = None
-        BaseModel = None
+        pkg_list = subprocess.check_output(["pip", "list"]).decode()
+        logger.info(f"Installed packages: {pkg_list}")
+    except Exception as pkg_e:
+        logger.error(f"Failed to list packages: {pkg_e}")
+    OPENAI_AGENTS_IMPORTED = False
 
 # OpenAI types imports with error handling
 try:
@@ -454,14 +411,80 @@ class GeminiModel(Model):
         # 3. Make the API call
         logger.debug(f"Calling Gemini model '{self.full_model_name}' (History: {len(gemini_history)}, Tools: {len(gemini_tools[0]['function_declarations']) if gemini_tools else 0})")
         try:
-            response = await self.models.generate_content_async(
-                model=self.client_model_name,
-                contents=gemini_history,
-                tools=gemini_tools,
-                generation_config=generation_params,
-                tool_config=tool_params,
-                # request_options={"timeout": 60} # Example timeout
-            )
+            # Use the API format - synchronous call inside async method
+            # The Model interface requires async but google-genai might not have
+            # async methods, so we call the synchronous version here.
+            if gemini_tools:
+                # Log that tools are being ignored for this version
+                logger.warning("Tools parameter is being ignored because it's not supported in this version of Google GenAI")
+                logger.warning("Agent functionality that requires tools will not work with this model")
+            
+            # Check which parameters are supported in the current version
+            import inspect
+            generate_content_signature = inspect.signature(self.models.generate_content)
+            supported_params = generate_content_signature.parameters.keys()
+            logger.debug(f"Supported parameters for generate_content: {supported_params}")
+            
+            # Build parameters dict based on what's supported
+            call_params = {
+                "model": self.client_model_name,
+                "contents": gemini_history,
+            }
+            
+            # Handle older API versions (prior to 0.3.0) that need a GenerationConfig object
+            try:
+                import google.generativeai as genai_module
+                # Check if GenerationConfig exists in the module
+                if hasattr(genai_module, 'GenerationConfig'):
+                    logger.debug("Using GenAI-provided GenerationConfig")
+                    # Create a GenerationConfig object
+                    config = genai_module.GenerationConfig(**generation_params)
+                    if "generation_config" in supported_params:
+                        call_params["generation_config"] = config
+                    else:
+                        logger.debug("Generation config object created but parameter not supported")
+                        # Fallback to adding individual parameters
+                        for param_name, param_value in generation_params.items():
+                            if param_name in supported_params:
+                                call_params[param_name] = param_value
+                                logger.debug(f"Added individual param {param_name}={param_value}")
+                else:
+                    # Handle generation parameters: either pass as generation_config object or as direct parameters
+                    if "generation_config" in supported_params:
+                        logger.debug("Adding generation_config parameter to generate_content call")
+                        call_params["generation_config"] = generation_params
+                    else:
+                        # Add individual generation parameters directly
+                        logger.debug("Adding generation parameters directly to generate_content call")
+                        # Map each generation parameter if the parameter name exists in the function signature
+                        for param_name, param_value in generation_params.items():
+                            if param_name in supported_params:
+                                call_params[param_name] = param_value
+                                logger.debug(f"Added generation parameter {param_name}={param_value}")
+                            else:
+                                logger.debug(f"Skipping unsupported parameter: {param_name}")
+            except ImportError:
+                logger.warning("Could not import google.generativeai directly, using fallback approach")
+                # Fallback to direct parameter passing
+                for param_name, param_value in generation_params.items():
+                    if param_name in supported_params:
+                        call_params[param_name] = param_value
+                        logger.debug(f"Fallback: Added parameter {param_name}={param_value}")
+            
+            # Only add tool-related params if supported
+            if "tools" in supported_params and gemini_tools:
+                logger.debug("Adding tools parameter to generate_content call")
+                call_params["tools"] = gemini_tools
+            
+            if "tool_config" in supported_params and tool_params:
+                logger.debug("Adding tool_config parameter to generate_content call")
+                call_params["tool_config"] = tool_params
+            
+            # Make the API call with only supported parameters
+            logger.debug(f"Calling generate_content with parameters: {call_params.keys()}")
+            response = self.models.generate_content(**call_params)
+            logger.info("Successfully received response from Gemini API")
+                
         except Exception as e:
             logger.exception(f"Error calling Google GenAI API: {e}")
             # Return a structured refusal message
@@ -527,29 +550,97 @@ class GeminiProvider(ModelProvider):
     """Provides GeminiModel instances using google-genai."""
     
     def __init__(self, api_key: str):
+        if not api_key:
+            logger.error("Cannot initialize GeminiProvider: API key is None or empty")
+            raise ValueError("GeminiProvider requires a valid API key")
+        
+        # Log details about the API key for debugging (securely)
+        api_key_length = len(api_key) if api_key else 0
+        api_key_prefix = api_key[:4] + "..." if api_key_length > 8 else "***"
+        logger.info(f"Initializing with API key: {api_key_prefix}, length: {api_key_length}")
+        
         self.api_key = api_key
-        self.client = Client(api_key=api_key)
-        self.models = self.client.models
+        try:
+            logger.info("Initializing Google GenerativeAI Client")
+            
+            # Set environment variable - needed by certain versions
+            os.environ["GOOGLE_API_KEY"] = api_key
+            logger.info("Set GOOGLE_API_KEY environment variable")
+            
+            # Check Google GenAI version
+            try:
+                import google.generativeai as genai_module
+                logger.info(f"GenAI module path: {genai_module.__file__}")
+                logger.info(f"GenAI module version: {getattr(genai_module, '__version__', 'unknown')}")
+                
+                # Print all available attributes in the module
+                module_attrs = [attr for attr in dir(genai_module) if not attr.startswith('__')]
+                logger.info(f"Available GenAI module attributes: {module_attrs}")
+            except Exception as ve:
+                logger.error(f"Failed to get genai module version: {ve}")
+            
+            # Check Python package versions to diagnose any issues
+            import pkg_resources
+            google_genai_version = pkg_resources.get_distribution("google-genai").version
+            logger.info(f"Using google-genai version: {google_genai_version}")
+            
+            # Initialize the client
+            self.client = Client(api_key=api_key)
+            logger.info("Initialized Google Client with API key")
+            
+            # Models in 1.9.0 can be accessed through client.models
+            self.models = self.client.models
+            
+            # Test methods available on models
+            logger.info(f"Models object type: {type(self.models)}")
+            logger.info(f"Models object methods: {[m for m in dir(self.models) if not m.startswith('_')]}")
+            
+            # Test method signature of generate_content
+            import inspect
+            try:
+                sig = inspect.signature(self.models.generate_content)
+                logger.info(f"generate_content signature: {sig}")
+                logger.info(f"generate_content parameters: {list(sig.parameters.keys())}")
+            except Exception as se:
+                logger.error(f"Failed to get method signature: {se}")
+            
+            # Test by listing models
+            try:
+                model_list = self.client.models.list()
+                logger.info(f"Successfully listed models: {len(model_list)} models found")
+                for model in model_list:
+                    logger.info(f"Available model: {model.name}")
+            except Exception as e:
+                logger.warning(f"Could not list models (but client initialization succeeded): {e}")
+                
+            logger.info("Successfully initialized Google GenerativeAI Client")
+            
+        except Exception as e:
+            logger.exception(f"Failed to initialize Google GenerativeAI Client: {e}")
+            raise RuntimeError(f"Failed to initialize Google GenerativeAI Client: {e}") from e
 
     def get_model(self, model_name: str) -> Model:
         """Returns a GeminiModel instance for the given model name."""
         logger.info(f"Getting Gemini model instance for: {model_name}")
+        
+        # Handle Google model name format
         formatted_model_name = model_name
         
-        # Ensure model_name doesn't include the 'google/' prefix if the library expects just the name
+        # Strip google/ prefix if present
         if model_name.startswith("google/"):
             formatted_model_name = model_name.split("/", 1)[1]
-            
-        # Only add models/ prefix if needed by API but don't store with prefix
+        
+        # Add models/ prefix for the client API if not already present
         client_model_name = formatted_model_name
         if not client_model_name.startswith("models/"):
-            client_model_name = f"models/{client_model_name}"  # Used for API calls
-            
+            client_model_name = f"models/{client_model_name}"
+        
+        # Create the GeminiModel
         model = GeminiModel(model_name=formatted_model_name, provider=self)
-        model.full_model_name = formatted_model_name  # Make sure the full name matches the expected test value
-        model.client_model_name = client_model_name   # Use prefixed version for API calls
-        model.client = self.client  # Set the client from the provider
-        model.models = self.models  # Set the models from the provider
+        model.full_model_name = formatted_model_name
+        model.client_model_name = client_model_name
+        model.client = self.client
+        model.models = self.models
         
         return model
 

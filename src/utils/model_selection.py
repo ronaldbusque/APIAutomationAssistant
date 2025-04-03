@@ -95,13 +95,20 @@ class ModelSelectionStrategy:
         return self._format_model_name(model_name)
 
     def _format_model_name(self, model_name: str) -> str:
-        """Format model name to ensure it has the correct prefix."""
+        """Format model name to ensure it has the correct provider prefix."""
         if not model_name:
-            model_name = settings.get("MODEL_DEFAULT", "gemini-1.5-pro")
-        # Remove any existing prefixes
-        model_name = model_name.replace("google/", "").replace("models/", "")
-        # Add models/ prefix
-        return f"models/{model_name}"
+            model_name = settings.get("MODEL_DEFAULT", "google/gemini-1.5-pro")
+            
+        # If model_name already has a provider prefix (like "google/"), keep it
+        if "/" in model_name:
+            provider, model = model_name.split("/", 1)
+            # Remove any "models/" prefix from the model part, but keep the provider
+            model = model.replace("models/", "")
+            return f"{provider}/{model}"
+        
+        # If there's no provider prefix, add the default "google/" prefix
+        model_name = model_name.replace("models/", "")
+        return f"google/{model_name}"
 
     def update_tool_choice(self, agent_config: Dict[str, Any], complexity: float) -> Dict[str, Any]:
         """

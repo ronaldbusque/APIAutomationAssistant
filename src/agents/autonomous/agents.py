@@ -10,101 +10,27 @@ import json
 import traceback
 from typing import Callable, Dict, Any, Type, Optional, Tuple, List, Union
 
-# Import with robust error handling for different SDK versions
+# Import Agent directly from agents package
 from agents import Agent, function_tool, trace, gen_trace_id
 from agents.items import RunItem
 
-# Robust imports for different OpenAI agents SDK versions
-try:
-    # Try the 0.0.7 path first
-    from agents.models.providers.openai import OpenAIProvider
-    OPENAI_PROVIDER_IMPORTED = True
-    logger = logging.getLogger(__name__)
-    logger.info("Successfully imported OpenAIProvider from agents.models.providers.openai")
-except ImportError:
-    try:
-        # Try alternative path (0.0.6 or different structure)
-        from agents.models.providers import OpenAIProvider
-        OPENAI_PROVIDER_IMPORTED = True
-        logger = logging.getLogger(__name__)
-        logger.info("Successfully imported OpenAIProvider from agents.models.providers")
-    except ImportError as e:
-        # If both fail, set a flag and log the error
-        OPENAI_PROVIDER_IMPORTED = False
-        logger = logging.getLogger(__name__)
-        logger.error(f"Failed to import OpenAIProvider: {e}")
-        logger.error("OpenAI provider functionality will be disabled")
+# Import provider-related code from our new agent_setup module
+from src.agent_setup import (
+    provider_map, 
+    get_default_provider_instance,
+    OPENAI_PROVIDER_IMPORTED,
+    GEMINI_PROVIDER_IMPORTED
+)
 
 from src.config.settings import settings, BASE_CONFIG
 from src.utils.model_selection import ModelSelectionStrategy
 from src.utils.openai_setup import parse_model_identifier
 
-# Import GeminiProvider conditionally
-try:
-    from src.providers.google import GeminiProvider
-    GEMINI_PROVIDER_IMPORTED = True
-    logger.info("Successfully imported GeminiProvider")
-except ImportError as e:
-    GEMINI_PROVIDER_IMPORTED = False
-    logger.error(f"Failed to import GeminiProvider: {e}")
-    logger.error("Gemini provider functionality will be disabled")
-
+# Set up the model strategy
 model_strategy = ModelSelectionStrategy()
 
-# Initialize provider instances with robust error handling
-provider_map = {}
-
-if OPENAI_PROVIDER_IMPORTED:
-    try:
-        openai_provider = OpenAIProvider()  # SDK default provider
-        provider_map["openai"] = openai_provider
-        logger.info("Successfully initialized OpenAIProvider")
-    except Exception as e:
-        logger.error(f"Failed to initialize OpenAIProvider: {e}")
-
-if GEMINI_PROVIDER_IMPORTED:
-    try:
-        gemini_provider = GeminiProvider(api_key=settings.get("API_KEYS", {}).get("google"))
-        provider_map["google"] = gemini_provider
-        logger.info("Successfully initialized GeminiProvider")
-    except Exception as e:
-        logger.error(f"Failed to initialize GeminiProvider: {e}")
-
-# Check if API keys exist
-OPENAI_API_KEY = settings.get("API_KEYS", {}).get("openai")
-if not OPENAI_API_KEY:
-    logger.warning("OpenAI API key not found in settings")
-else:
-    logger.info("OpenAI API key found in settings")
-
-GOOGLE_API_KEY = settings.get("API_KEYS", {}).get("google")
-if not GOOGLE_API_KEY:
-    logger.warning("Google API key not found in settings")
-else:
-    logger.info("Google API key found in settings")
-
-# --- Define a helper to get the default provider instance ---
-def get_default_provider_instance():
-    """Gets the provider instance configured as the default."""
-    try:
-        default_model_full = BASE_CONFIG.get('MODEL_DEFAULT', 'google/gemini-1.5-pro') # Use a reasonable fallback default
-        provider_name, _ = parse_model_identifier(default_model_full)
-        default_provider = provider_map.get(provider_name)
-        if default_provider:
-            logger.info(f"Using configured default provider: {provider_name}")
-            return default_provider
-        else:
-            # This case means the default provider itself failed to initialize
-            logger.error(f"Default provider '{provider_name}' not found in initialized providers ({list(provider_map.keys())}). Cannot fall back.")
-            # As a last resort, try to return *any* initialized provider, or None
-            if provider_map:
-                fallback_provider_name = next(iter(provider_map))
-                logger.warning(f"Falling back to the first available provider: {fallback_provider_name}")
-                return provider_map[fallback_provider_name]
-            return None
-    except Exception as e:
-        logger.exception(f"Error determining default provider: {e}")
-        return None
+# Create logger
+logger = logging.getLogger(__name__)
 
 def setup_blueprint_author_agent() -> Agent:
     """
