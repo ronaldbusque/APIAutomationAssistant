@@ -71,7 +71,14 @@ if GEMINI_PROVIDER_IMPORTED:
             logger.error("Cannot initialize GeminiProvider: API key is missing")
             logger.error("Check the .env file and make sure GOOGLE_API_KEY is properly set")
         else:
-            gemini_provider = GeminiProvider(api_key=google_api_key)
+            # Get the default model name for Google/Gemini from settings
+            default_model_name = settings.get('MODEL_DEFAULT', 'gemini-2.0-flash-thinking-exp-01-21')
+            # Strip provider prefix if present
+            if '/' in default_model_name:
+                _, default_model_name = default_model_name.split('/', 1)
+            
+            logger.info(f"Initializing GeminiProvider with model: {default_model_name}")
+            gemini_provider = GeminiProvider(api_key=google_api_key, model_name=default_model_name)
             provider_map["google"] = gemini_provider
             logger.info("Successfully initialized GeminiProvider with API key")
     except Exception as e:
@@ -83,7 +90,7 @@ def get_default_provider_instance():
     """Gets the provider instance configured as the default."""
     try:
         # Get the default provider name from settings
-        default_model_full = settings.get('MODEL_DEFAULT', BASE_CONFIG.get('MODEL_DEFAULT', 'google/gemini-1.5-pro'))
+        default_model_full = settings.get('MODEL_DEFAULT', BASE_CONFIG.get('MODEL_DEFAULT', 'google/gemini-2.0-flash-thinking-exp-01-21'))
         default_provider_name, _ = parse_model_identifier(default_model_full)
         
         logger.info(f"Provider map contents: {list(provider_map.keys())}")

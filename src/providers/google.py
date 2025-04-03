@@ -6,24 +6,18 @@ import time
 import logging
 import json
 import os
+import uuid
 from enum import Enum
 from typing import List, Dict, Any, Optional, Union, Tuple, Callable, Literal, TypeVar, AsyncIterator
+import inspect
 
 # Create logger before imports
 logger = logging.getLogger(__name__)
 
 # Import Google GenAI library
 import google.genai as genai
-
-# Define GenerationConfig as a simple class if it doesn't exist
-class GenerationConfig:
-    """Simple class to mimic GenerationConfig functionality"""
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-
-# Import Client directly
 from google.genai.client import Client
+from google.genai.types import GenerationConfig, ToolConfig  # Import specific types
 
 # Import from openai_provider (version 0.0.7)
 try:
@@ -35,6 +29,10 @@ try:
     from agents.tool import Tool, FunctionTool
     from agents.exceptions import ModelBehaviorError
     from agents.usage import Usage
+    
+    # Define the type we need - these aren't in the 0.0.7 version but match the expected shape
+    TRequestHistoryItem = TResponseInputItem
+    TResponseToolDefinition = Tool
     
     logger.info("Successfully imported OpenAI agents SDK modules using version 0.0.7 paths")
     OPENAI_AGENTS_IMPORTED = True
@@ -49,6 +47,16 @@ except ImportError as e:
     except Exception as pkg_e:
         logger.error(f"Failed to list packages: {pkg_e}")
     OPENAI_AGENTS_IMPORTED = False
+    
+    # Define stub types for error handling
+    class TRequestHistoryItem:
+        role: str
+        content: Any
+        tool_calls: list = []
+        tool_call_id: str = ""
+        
+    class TResponseToolDefinition:
+        pass
 
 # OpenAI types imports with error handling
 try:
@@ -90,100 +98,122 @@ class GeminiModel(Model):
 
     # --- Translation Methods (Crucial and Complex) ---
 
-    def _translate_sdk_history_to_gemini(self, history: List[TResponseInputItem]) -> List[dict]:
-        """Converts SDK message history to Gemini's Content list format."""
+    def _translate_sdk_history_to_gemini(self, history: List[TRequestHistoryItem]):
+        """
+        Translate the SDK history format to Gemini's format.
+        This includes extracting system prompt and handling tool responses.
+        """
+        logger.info(f"Translating SDK history to Gemini format, {len(history)} items")
         gemini_history = []
         system_prompt = None
-
-        # Extract system prompt first if present
-        if history and history[0].get("role") == "system":
-            system_prompt = str(history[0].get("content", ""))
-            history = history[1:]  # Remove system prompt from main history
-
-        for item in history:
-            role = item.get("role")
-            content = item.get("content")
-
-            if role == "user":
-                # Prepend system prompt to the *first* user message
-                text_content = str(content)
-                if system_prompt and not any(c["role"] == 'user' for c in gemini_history):
-                    text_content = f"{system_prompt}\n\n{text_content}"
-                    system_prompt = None  # Only add once
-
-                gemini_history.append({"role": "user", "parts": [{"text": text_content}]})
-
-            elif role == "assistant":
-                parts = []
-                if isinstance(content, list):  # OpenAI format for tool calls
-                    for part_item in content:
-                        if part_item.get("type") == "text":
-                            parts.append({"text": part_item.get("text", "")})
-                        elif part_item.get("type") == "tool_calls":
-                            for tool_call in part_item.get("tool_calls", []):
-                                # Map OpenAI tool call back to Gemini FunctionCall Part
-                                # This assumes we have the necessary info. Gemini expects FunctionCall object.
-                                # We need 'name' and 'args' (as dict).
-                                func_name = tool_call.get("function", {}).get("name")
-                                try:
-                                    func_args = json.loads(tool_call.get("function", {}).get("arguments", "{}"))
-                                except json.JSONDecodeError:
-                                    logger.warning(f"Could not parse arguments for tool call: {func_name}")
-                                    func_args = {}
-
-                                if func_name:
-                                    parts.append({"function_call": {"name": func_name, "args": func_args}})
-                                else:
-                                    logger.warning(f"Skipping tool call part due to missing name: {tool_call}")
-                        else:
-                            parts.append({"text": str(part_item)})  # Fallback
-                elif isinstance(content, str):  # Simple text response
-                    parts.append({"text": content})
-
-                if parts:
+        tool_call_map = {}  # Maps tool_call_id to function_name
+        
+        # First pass to extract system prompt and create tool call mapping
+        for i, item in enumerate(history):
+            if item.role == "system" and i == 0:
+                system_prompt = item.content
+                continue
+                
+            # If assistant message has tool_calls, store the mapping
+            if item.role == "assistant" and hasattr(item, "tool_calls") and item.tool_calls:
+                for tool_call in item.tool_calls:
+                    if hasattr(tool_call, "id") and hasattr(tool_call, "function"):
+                        tool_call_map[tool_call.id] = tool_call.function.name
+                        logger.info(f"Mapped tool call ID {tool_call.id} to function {tool_call.function.name}")
+        
+        # Second pass to build the conversation
+        for i, item in enumerate(history):
+            # Skip system message as it's handled separately
+            if item.role == "system" and i == 0:
+                continue
+                
+            # Handle user messages
+            if item.role == "user":
+                content = self._extract_content_text(item.content)
+                gemini_history.append({"role": "user", "parts": [{"text": content}]})
+                logger.info(f"Added user message: {content[:50]}...")
+                
+            # Handle assistant messages
+            elif item.role == "assistant":
+                # If message has tool calls
+                if hasattr(item, "tool_calls") and item.tool_calls:
+                    parts = []
+                    
+                    # Add text content if any
+                    if item.content:
+                        text_content = self._extract_content_text(item.content)
+                        if text_content:
+                            parts.append({"text": text_content})
+                    
+                    # Add function calls
+                    for tool_call in item.tool_calls:
+                        if hasattr(tool_call, "function"):
+                            function_part = {
+                                "function_call": {
+                                    "name": tool_call.function.name,
+                                    "args": json.loads(tool_call.function.arguments)
+                                }
+                            }
+                            parts.append(function_part)
+                            logger.info(f"Added function call: {tool_call.function.name}")
+                    
                     gemini_history.append({"role": "model", "parts": parts})
-
-            elif role == "tool":
-                # Map SDK tool result back to Gemini FunctionResponse Part
-                tool_call_id = item.get("tool_call_id")  # This ID comes from the *assistant's* tool_call message
-                tool_content_str = str(item.get("content", ""))
-                # We need the *function name* associated with the tool_call_id.
-                # This requires looking back in the history, which is complex and error-prone.
-                # A better approach is needed, perhaps storing mapping in context, but that violates SDK principles.
-                # Simplification: Assume the tool_call_id *is* the function name for Gemini's FunctionResponse.
-                # This is likely incorrect but necessary without a better mapping mechanism.
-                if tool_call_id:
-                    # Gemini expects the response content nested under 'response': {'content': ...}
-                    gemini_history.append({
-                        "role": "user",  # Gemini uses 'user' role for function responses
-                        "parts": [{"function_response": {"name": tool_call_id, "response": {"content": tool_content_str}}}]
-                    })
+                
+                # Simple text message
                 else:
-                    logger.warning(f"Tool message missing tool_call_id, cannot translate to Gemini: {item}")
-
-        # Gemini API requires alternating user/model roles. Merge or handle violations.
-        # This simplified merge might lose information or context.
-        merged_history = []
-        if gemini_history:
-            current_content = gemini_history[0]
-            for i in range(1, len(gemini_history)):
-                next_content = gemini_history[i]
-                # Basic merge: If same role, combine parts (may not be semantically correct)
-                if next_content["role"] == current_content["role"]:
-                    current_content["parts"].extend(next_content["parts"])
-                    logger.debug(f"Merging consecutive roles: {current_content['role']}")
+                    content = self._extract_content_text(item.content)
+                    gemini_history.append({"role": "model", "parts": [{"text": content}]})
+                    logger.info(f"Added assistant message: {content[:50]}...")
+            
+            # Handle tool messages (function responses)
+            elif item.role == "tool":
+                # Get the parent function name from the tool_call_id if available
+                parent_function = None
+                if hasattr(item, "tool_call_id") and item.tool_call_id in tool_call_map:
+                    parent_function = tool_call_map[item.tool_call_id]
+                    
+                # If we know which function this response belongs to
+                if parent_function:
+                    content = self._extract_content_text(item.content)
+                    function_response = {
+                        "role": "function",
+                        "parts": [{
+                            "function_response": {
+                                "name": parent_function,
+                                "response": {"content": content}
+                            }
+                        }]
+                    }
+                    gemini_history.append(function_response)
+                    logger.info(f"Added function response for {parent_function}")
                 else:
-                    merged_history.append(current_content)
-                    current_content = next_content
-            merged_history.append(current_content)
-
-        # Ensure history doesn't start with 'model' if possible (Gemini API constraint)
-        if merged_history and merged_history[0]["role"] == "model":
-            logger.warning("Gemini history starts with 'model' role. This might cause issues.")
-            # Prepending an empty user message might be needed depending on API strictness
-            # merged_history.insert(0, {"role": "user", "parts": [{"text": ""}]})
-
-        return merged_history
+                    # Fall back to treating it as a user message if we can't associate with a function
+                    content = self._extract_content_text(item.content)
+                    gemini_history.append({"role": "user", "parts": [{"text": f"Tool response: {content}"}]})
+                    logger.warning(f"Added tool response as user message (no tool_call_id mapping found)")
+        
+        logger.info(f"Translated to {len(gemini_history)} Gemini history items")
+        return gemini_history, system_prompt
+    
+    def _extract_content_text(self, content):
+        """Extract text from content which may be in different formats."""
+        if isinstance(content, str):
+            return content
+        
+        if isinstance(content, list):
+            text = ""
+            for item in content:
+                if isinstance(item, str):
+                    text += item
+                elif isinstance(item, dict):
+                    if "text" in item:
+                        text += item["text"]
+                    elif "content" in item and isinstance(item["content"], str):
+                        text += item["content"]
+            return text
+            
+        logger.warning(f"Unknown content format: {type(content)}")
+        return str(content)
 
     def _translate_schema_to_gemini(self, param_schema: Dict[str, Any]) -> Dict[str, Any]:
         """Translates an OpenAPI-like JSON schema dict to Gemini parameter format."""
@@ -248,292 +278,119 @@ class GeminiModel(Model):
 
         return [{"function_declarations": gemini_declarations}] if gemini_declarations else None
 
-    def _translate_gemini_response_to_sdk(self, response) -> List[TResponseOutputItem]:
-        """Converts Gemini response object to the SDK's output item list."""
-        sdk_output: List[TResponseOutputItem] = []
-
-        # Check for blocked response first
-        if not response.candidates and response.prompt_feedback and response.prompt_feedback.block_reason:
-            block_reason = response.prompt_feedback.block_reason.name
-            block_message = f"Prompt blocked by API. Reason: {block_reason}"
-            logger.warning(block_message)
-            sdk_output.append(ResponseOutputRefusal(type="refusal", refusal=block_message))
-            return sdk_output
-
-        if not response.candidates:
-            # No candidates and no explicit block reason - unusual state
-            logger.warning("Gemini response has no candidates and no block reason.")
-            sdk_output.append(ResponseOutputRefusal(type="refusal", refusal="Model response was empty or incomplete."))
-            return sdk_output
-
-        # Process the first candidate (assuming candidate_count=1 for now)
-        candidate = response.candidates[0]
-
-        # Check finish reason for safety/recitation issues
-        finish_reason = candidate.finish_reason.name
-        if finish_reason == "SAFETY":
-            safety_ratings = {rating.category.name: rating.probability.name for rating in candidate.safety_ratings}
-            safety_message = f"Content flagged for safety: {safety_ratings}"
-            logger.warning(safety_message)
-            sdk_output.append(ResponseOutputRefusal(type="refusal", refusal=safety_message))
-            return sdk_output  # Stop processing if blocked by safety
-        elif finish_reason == "RECITATION":
-            recitation_message = "Content flagged for recitation."
-            logger.warning(recitation_message)
-            sdk_output.append(ResponseOutputRefusal(type="refusal", refusal=recitation_message))
-            return sdk_output  # Stop processing if blocked by recitation
-        elif finish_reason not in ["STOP", "MAX_TOKENS", "TOOL_CALL"]:
-            logger.warning(f"Gemini response finished with potentially problematic reason: {finish_reason}")
-            # Continue processing but be aware
-
-        # Process content parts
+    def _translate_gemini_response_to_sdk(self, response):
+        """
+        Convert a Gemini response to SDK format.
+        """
+        logger.info(f"Translating Gemini response to SDK: {type(response)}")
+        
+        if hasattr(response, 'prompt_feedback'):
+            prompt_feedback = response.prompt_feedback
+            logger.info(f"Prompt feedback: {prompt_feedback}")
+            if prompt_feedback and hasattr(prompt_feedback, 'block_reason'):
+                logger.warning(f"Response was blocked. Reason: {prompt_feedback.block_reason}")
+                return ResponseOutputMessage(
+                    id=str(uuid.uuid4()),
+                    role="assistant",
+                    content=[{"text": "I'm unable to respond to that request."}],
+                    status="completed",
+                    type="message"
+                )
+        
+        # Check if the response has candidates
+        candidates = getattr(response, 'candidates', None)
+        if not candidates:
+            logger.warning("Response has no candidates")
+            return ResponseOutputMessage(
+                id=str(uuid.uuid4()),
+                role="assistant",
+                content=[{"text": "No response generated."}],
+                status="completed",
+                type="message"
+            )
+        
+        # Get the first candidate
+        candidate = candidates[0]
+        content = getattr(candidate, 'content', None)
+        
+        if not content:
+            logger.warning("Candidate has no content")
+            return ResponseOutputMessage(
+                id=str(uuid.uuid4()),
+                role="assistant",
+                content=[{"text": "Empty response received."}],
+                status="completed",
+                type="message"
+            )
+        
+        # Extract parts from the content
+        parts = getattr(content, 'parts', [])
+        logger.info(f"Content parts: {parts}")
+        
+        # Check for function calls if using tools
+        function_calls = []
         text_content = ""
-        tool_calls = []
-        if candidate.content and candidate.content.parts:
-            for part in candidate.content.parts:
-                if hasattr(part, 'text') and part.text:
-                    text_content += part.text
-                elif hasattr(part, 'function_call') and part.function_call:
-                    fc = part.function_call
-                    # Map Gemini FunctionCall to SDK ResponseFunctionToolCall
-                    tool_call_id = f"call_{fc.name}_{len(tool_calls)}"  # Generate simple ID
-                    try:
-                        # Gemini args are dict, SDK expects JSON string
-                        args_json = json.dumps(fc.args)
-                    except TypeError:
-                        logger.warning(f"Could not serialize args for tool call {fc.name}: {fc.args}")
-                        args_json = "{}"
-
-                    tool_calls.append(ResponseFunctionToolCall(
-                        id=tool_call_id,
-                        name=fc.name,
-                        arguments=args_json
-                    ))
-
-        # Construct the SDK output message(s)
-        if tool_calls:
-            # If there are tool calls, the SDK expects them in a specific format,
-            # often within the 'content' list of an assistant message.
-            # Let's mimic the OpenAI structure.
-            content_list = []
-            if text_content:  # Include preceding text if any
-                content_list.append({"type": "text", "text": text_content})
-            content_list.append({"type": "tool_calls", "tool_calls": tool_calls})
-            sdk_output.append(ResponseOutputMessage(content=content_list))
-        elif text_content:
-            # Simple text response
-            sdk_output.append(ResponseOutputMessage(content=text_content))
-        # If neither text nor tool calls, might be an empty response or only safety related finish reason
-        elif not sdk_output:  # Avoid adding empty message if refusal already added
-            logger.warning("Gemini candidate finished without text or tool calls.")
-            # Optionally add an empty message or handle as needed
-            # sdk_output.append(ResponseOutputMessage(content=""))
-
-        return sdk_output
-
-    # --- get_response Implementation ---
-    async def get_response(
-        self,
-        system_instructions: Optional[str] = None,
-        input: Union[str, List[TResponseInputItem]] = None,
-        model_settings: Optional[ModelSettings] = None,
-        tools: Optional[List[Tool]] = None,
-        output_schema = None,  # AgentOutputSchema
-        handoffs = None,       # list[Handoff]
-        tracing = None,        # ModelTracing
-    ) -> ModelResponse:
-        """Gets a non-streaming response from the Gemini model."""
-        if model_settings is None:
-            model_settings = ModelSettings()
         
-        if isinstance(input, str):
-            # Convert string input to TResponseInputItem format
-            input = [{"role": "user", "content": input}]
+        # Generate a unique ID for this response
+        response_id = str(uuid.uuid4())
         
-        if system_instructions and input:
-            # Prepend system instructions as a system message
-            input = [{"role": "system", "content": system_instructions}] + input
-            
-        if not self.client or not self.models: # Check if client/models were set by provider
-            raise ConnectionError("Gemini client/models not initialized by provider.")
-
-        # 1. Translate SDK history and tools to Gemini format
-        try:
-            gemini_history = self._translate_sdk_history_to_gemini(input)
-            gemini_tools = self._translate_sdk_tools_to_gemini(tools)
-        except Exception as e:
-            logger.exception(f"Error translating SDK input/tools to Gemini format: {e}")
-            raise ModelBehaviorError(f"Input/Tool Translation Error: {e}") from e
-
-        # 2. Translate ModelSettings to generation parameters
-        generation_params = {
-            "candidate_count": 1,  # Assuming we only want one candidate
-            "temperature": model_settings.temperature,
-            "top_p": model_settings.top_p,
-            # top_k not supported in current version
-            "max_output_tokens": model_settings.max_tokens,
-        }
-        
-        # Add stop sequences if available
-        if hasattr(model_settings, 'stop') and model_settings.stop:
-            generation_params["stop_sequences"] = model_settings.stop
-
-        tool_params = None
-        if gemini_tools:
-            # Map tool_choice logic (Simplified: AUTO/ANY/NONE)
-            # Gemini's 'FUNCTION' mode requires specifying *which* function, which differs from OpenAI's 'required'.
-            # 'ANY' seems closest to OpenAI's 'required'. 'AUTO' is default. 'NONE' disables.
-            mode = "AUTO"
-            allowed_function_names = None
-            if isinstance(model_settings.tool_choice, str):
-                if model_settings.tool_choice == "required":
-                    mode = "ANY"
-                elif model_settings.tool_choice == "none":
-                    mode = "NONE"
-                elif model_settings.tool_choice != "auto":
-                    # Specific function name - Gemini uses allowed_function_names with ANY/AUTO
-                    mode = "ANY"  # Or AUTO? Check Gemini docs. Let's try ANY.
-                    allowed_function_names = [model_settings.tool_choice]
-            elif isinstance(model_settings.tool_choice, dict) and model_settings.tool_choice.get("type") == "function":
-                # OpenAI specific format
-                func_name = model_settings.tool_choice.get("function", {}).get("name")
-                if func_name:
-                    mode = "ANY"  # Or AUTO?
-                    allowed_function_names = [func_name]
-
-            tool_params = {
-                "function_calling_config": {
-                    "mode": mode,
-                    "allowed_function_names": allowed_function_names
-                }
-            }
-
-        # 3. Make the API call
-        logger.debug(f"Calling Gemini model '{self.full_model_name}' (History: {len(gemini_history)}, Tools: {len(gemini_tools[0]['function_declarations']) if gemini_tools else 0})")
-        try:
-            # Use the API format - synchronous call inside async method
-            # The Model interface requires async but google-genai might not have
-            # async methods, so we call the synchronous version here.
-            if gemini_tools:
-                # Log that tools are being ignored for this version
-                logger.warning("Tools parameter is being ignored because it's not supported in this version of Google GenAI")
-                logger.warning("Agent functionality that requires tools will not work with this model")
-            
-            # Check which parameters are supported in the current version
-            import inspect
-            generate_content_signature = inspect.signature(self.models.generate_content)
-            supported_params = generate_content_signature.parameters.keys()
-            logger.debug(f"Supported parameters for generate_content: {supported_params}")
-            
-            # Build parameters dict based on what's supported
-            call_params = {
-                "model": self.client_model_name,
-                "contents": gemini_history,
-            }
-            
-            # Handle older API versions (prior to 0.3.0) that need a GenerationConfig object
-            try:
-                import google.generativeai as genai_module
-                # Check if GenerationConfig exists in the module
-                if hasattr(genai_module, 'GenerationConfig'):
-                    logger.debug("Using GenAI-provided GenerationConfig")
-                    # Create a GenerationConfig object
-                    config = genai_module.GenerationConfig(**generation_params)
-                    if "generation_config" in supported_params:
-                        call_params["generation_config"] = config
-                    else:
-                        logger.debug("Generation config object created but parameter not supported")
-                        # Fallback to adding individual parameters
-                        for param_name, param_value in generation_params.items():
-                            if param_name in supported_params:
-                                call_params[param_name] = param_value
-                                logger.debug(f"Added individual param {param_name}={param_value}")
-                else:
-                    # Handle generation parameters: either pass as generation_config object or as direct parameters
-                    if "generation_config" in supported_params:
-                        logger.debug("Adding generation_config parameter to generate_content call")
-                        call_params["generation_config"] = generation_params
-                    else:
-                        # Add individual generation parameters directly
-                        logger.debug("Adding generation parameters directly to generate_content call")
-                        # Map each generation parameter if the parameter name exists in the function signature
-                        for param_name, param_value in generation_params.items():
-                            if param_name in supported_params:
-                                call_params[param_name] = param_value
-                                logger.debug(f"Added generation parameter {param_name}={param_value}")
-                            else:
-                                logger.debug(f"Skipping unsupported parameter: {param_name}")
-            except ImportError:
-                logger.warning("Could not import google.generativeai directly, using fallback approach")
-                # Fallback to direct parameter passing
-                for param_name, param_value in generation_params.items():
-                    if param_name in supported_params:
-                        call_params[param_name] = param_value
-                        logger.debug(f"Fallback: Added parameter {param_name}={param_value}")
-            
-            # Only add tool-related params if supported
-            if "tools" in supported_params and gemini_tools:
-                logger.debug("Adding tools parameter to generate_content call")
-                call_params["tools"] = gemini_tools
-            
-            if "tool_config" in supported_params and tool_params:
-                logger.debug("Adding tool_config parameter to generate_content call")
-                call_params["tool_config"] = tool_params
-            
-            # Make the API call with only supported parameters
-            logger.debug(f"Calling generate_content with parameters: {call_params.keys()}")
-            response = self.models.generate_content(**call_params)
-            logger.info("Successfully received response from Gemini API")
+        for part in parts:
+            # Check if part is a dict with a function_call
+            if isinstance(part, dict) and 'function_call' in part:
+                function_call = part['function_call']
+                tool_call_id = str(uuid.uuid4())
                 
-        except Exception as e:
-            logger.exception(f"Error calling Google GenAI API: {e}")
-            # Return a structured refusal message
-            from agents.usage import Usage
-            return ModelResponse(
-                output=[ResponseOutputRefusal(type="refusal", refusal=f"Gemini API Error: {e}")],
-                usage=Usage(requests=1, input_tokens=0, output_tokens=0, total_tokens=0),
-                referenceable_id=None
+                function_calls.append({
+                    "id": tool_call_id,
+                    "type": "function",
+                    "function": {
+                        "name": function_call.get('name', ''),
+                        "arguments": function_call.get('arguments', '{}')
+                    }
+                })
+                logger.info(f"Found function call: {function_call.get('name', '')}")
+            # Text content
+            elif isinstance(part, str):
+                text_content += part
+            # Object with text
+            elif hasattr(part, 'text'):
+                text_content += part.text
+            # If it's an unknown type, log it
+            else:
+                logger.warning(f"Unknown part type: {type(part)}")
+        
+        # If we have function calls, format as tool calls
+        if function_calls:
+            logger.info(f"Returning response with {len(function_calls)} function calls")
+            return ResponseOutputMessage(
+                id=response_id,
+                role="assistant",
+                content=[],
+                tool_calls=function_calls,
+                status="completed",
+                type="message"
+            )
+        # Otherwise return the text content
+        else:
+            logger.info("Returning response with text content")
+            return ResponseOutputMessage(
+                id=response_id,
+                role="assistant",
+                content=[{"text": text_content}],
+                status="completed",
+                type="message"
             )
 
-        # 4. Translate Gemini response back to SDK format
-        try:
-            sdk_output_items = self._translate_gemini_response_to_sdk(response)
-        except Exception as e:
-            logger.exception(f"Error translating Gemini response to SDK format: {e}")
-            raise ModelBehaviorError(f"Response Translation Error: {e}") from e
-
-        # 5. Extract Usage
-        usage_dict = {
-            "requests": 1,
-            "input_tokens": 0,
-            "output_tokens": 0,
-            "total_tokens": 0
-        }
-        try:
-            if response.usage_metadata:
-                usage = response.usage_metadata
-                usage_dict = {
-                    "requests": 1,
-                    "input_tokens": usage.prompt_token_count, 
-                    "output_tokens": usage.candidates_token_count,
-                    "total_tokens": usage.total_token_count,
-                }
-                logger.debug(f"Gemini response usage: {usage_dict}")
-        except Exception as e:
-            logger.warning(f"Could not extract usage metadata from Gemini response: {e}")
-
-        from agents.usage import Usage
-        return ModelResponse(
-            output=sdk_output_items,
-            usage=Usage(**usage_dict),
-            referenceable_id=None
-        )
+    # --- get_response Implementation ---
+    
+    # This implementation has been replaced by a newer version below
+    # The new version handles system prompts correctly and has better error handling
 
     # --- stream_response (Deferred) ---
     async def stream_response(
         self,
         system_instructions: Optional[str] = None,
-        input: Union[str, List[TResponseInputItem]] = None,
+        input: Union[str, List[TRequestHistoryItem]] = None,
         model_settings: Optional[ModelSettings] = None,
         tools: Optional[List[Tool]] = None,
         output_schema = None,  # AgentOutputSchema
@@ -549,10 +406,14 @@ class GeminiModel(Model):
 class GeminiProvider(ModelProvider):
     """Provides GeminiModel instances using google-genai."""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, model_name: str = "gemini-1.5-pro"):
         if not api_key:
             logger.error("Cannot initialize GeminiProvider: API key is None or empty")
             raise ValueError("GeminiProvider requires a valid API key")
+        
+        # Store the model name for use in get_model
+        self.model_name = model_name
+        logger.info(f"Initializing GeminiProvider with model: {model_name}")
         
         # Log details about the API key for debugging (securely)
         api_key_length = len(api_key) if api_key else 0
@@ -569,13 +430,20 @@ class GeminiProvider(ModelProvider):
             
             # Check Google GenAI version
             try:
-                import google.generativeai as genai_module
-                logger.info(f"GenAI module path: {genai_module.__file__}")
-                logger.info(f"GenAI module version: {getattr(genai_module, '__version__', 'unknown')}")
+                logger.info(f"GenAI module path: {genai.__file__}")
+                logger.info(f"GenAI module version: {getattr(genai, '__version__', 'unknown')}")
                 
                 # Print all available attributes in the module
-                module_attrs = [attr for attr in dir(genai_module) if not attr.startswith('__')]
+                module_attrs = [attr for attr in dir(genai) if not attr.startswith('__')]
                 logger.info(f"Available GenAI module attributes: {module_attrs}")
+                
+                # Test if GenerationConfig is available
+                if hasattr(genai, 'GenerationConfig'):
+                    logger.info("GenerationConfig is available in this version")
+                elif hasattr(genai.types, 'GenerationConfig'):
+                    logger.info("GenerationConfig is available in genai.types")
+                else:
+                    logger.warning("GenerationConfig not found in genai module structure")
             except Exception as ve:
                 logger.error(f"Failed to get genai module version: {ve}")
             
@@ -596,7 +464,6 @@ class GeminiProvider(ModelProvider):
             logger.info(f"Models object methods: {[m for m in dir(self.models) if not m.startswith('_')]}")
             
             # Test method signature of generate_content
-            import inspect
             try:
                 sig = inspect.signature(self.models.generate_content)
                 logger.info(f"generate_content signature: {sig}")
@@ -619,31 +486,135 @@ class GeminiProvider(ModelProvider):
             logger.exception(f"Failed to initialize Google GenerativeAI Client: {e}")
             raise RuntimeError(f"Failed to initialize Google GenerativeAI Client: {e}") from e
 
-    def get_model(self, model_name: str) -> Model:
-        """Returns a GeminiModel instance for the given model name."""
-        logger.info(f"Getting Gemini model instance for: {model_name}")
+    def get_model(self, model_name: Optional[str] = None) -> Any:
+        """
+        Get a Gemini model from the client.
         
-        # Handle Google model name format
-        formatted_model_name = model_name
+        Args:
+            model_name: Optional model name override. If not provided, the default is used.
+            
+        Returns:
+            A GenAI model instance that can be used for inference.
+        """
+        if not model_name:
+            model_name = self.model_name
+            
+        logger.info(f"Getting Gemini model: {model_name}")
         
         # Strip google/ prefix if present
         if model_name.startswith("google/"):
-            formatted_model_name = model_name.split("/", 1)[1]
+            model_name = model_name.replace("google/", "", 1)
+            logger.debug(f"Stripped 'google/' prefix from model name: {model_name}")
         
-        # Add models/ prefix for the client API if not already present
-        client_model_name = formatted_model_name
-        if not client_model_name.startswith("models/"):
-            client_model_name = f"models/{client_model_name}"
-        
-        # Create the GeminiModel
-        model = GeminiModel(model_name=formatted_model_name, provider=self)
-        model.full_model_name = formatted_model_name
-        model.client_model_name = client_model_name
-        model.client = self.client
-        model.models = self.models
-        
-        return model
+        # Ensure model name has "models/" prefix for the Google API
+        if not model_name.startswith("models/"):
+            model_name = f"models/{model_name}"
+            logger.debug(f"Added 'models/' prefix to model name: {model_name}")
+            
+        try:
+            logger.info(f"Retrieving model: {model_name}")
+            model = self.client.models.get(model_name)
+            logger.info(f"Successfully retrieved model: {model_name}")
+            return model
+        except Exception as e:
+            logger.exception(f"Failed to get model {model_name}: {e}")
+            # Fallback to gemini-1.5-pro if available
+            try:
+                fallback_model = "models/gemini-1.5-pro"
+                logger.warning(f"Attempting fallback to {fallback_model}")
+                return self.client.models.get(fallback_model)
+            except Exception as fallback_err:
+                logger.error(f"Fallback to {fallback_model} also failed: {fallback_err}")
+                raise ValueError(f"Could not initialize model {model_name} or fallback model: {str(e)}")
 
     def is_chat_completions_model(self, model_name: str) -> bool:
         # Gemini API is conceptually closer to Chat Completions
         return True 
+
+    async def get_response(self, input: List[TRequestHistoryItem], tools: Optional[List[TResponseToolDefinition]] = None) -> Union[TResponseOutputItem, List[TResponseOutputItem]]:
+        """
+        Process a request and return a response. This is the main entry point for the provider.
+        """
+        logger.info(f"Processing request with {len(input)} history items and {len(tools) if tools else 0} tools")
+        model = self.get_model()
+        
+        try:
+            # 1. Translate SDK history and tools to Gemini format
+            gemini_history, system_prompt = self._translate_sdk_history_to_gemini(input)
+            gemini_tools = self._translate_sdk_tools_to_gemini(tools)
+            
+            # Log what we're sending to Gemini
+            logger.info(f"Sending {len(gemini_history)} history items to Gemini")
+            logger.info(f"System prompt: {system_prompt[:50]}..." if system_prompt else "No system prompt")
+            logger.info(f"Tools: {len(gemini_tools) if gemini_tools else 0}")
+            
+            # 2. Setup generation config and safety settings
+            try:
+                generation_config = genai.GenerationConfig(
+                    temperature=0.7,
+                    top_p=0.95,
+                    top_k=40,
+                    max_output_tokens=4096,
+                    response_mime_type="application/json",
+                )
+                logger.info("Created generation config")
+            except Exception as config_err:
+                logger.warning(f"Failed to create generation config: {config_err}, using default")
+                generation_config = None
+                
+            # 3. Make the API call with proper error handling
+            try:
+                # If we have system prompt, add it to the first user message
+                if system_prompt and gemini_history and gemini_history[0]["role"] == "user":
+                    prompt_text = gemini_history[0]["parts"][0]["text"]
+                    gemini_history[0]["parts"][0]["text"] = f"{system_prompt}\n\n{prompt_text}"
+                    logger.info("Added system prompt to first user message")
+                
+                # Ensure we have at least one conversation turn
+                if not gemini_history:
+                    logger.warning("No history items to send, creating empty user message")
+                    gemini_history.append({"role": "user", "parts": [{"text": "Hello"}]})
+                
+                # Check that history starts with user message (Gemini requirement)
+                if gemini_history[0]["role"] != "user":
+                    logger.warning(f"First message role is {gemini_history[0]['role']}, not user. Adding empty user message.")
+                    gemini_history.insert(0, {"role": "user", "parts": [{"text": "Hello"}]})
+                
+                logger.info(f"Making API call to Gemini with {len(gemini_history)} items")
+                
+                # Synchronous call to the Gemini API
+                response = model.generate_content(
+                    contents=gemini_history,
+                    generation_config=generation_config,
+                    tools=gemini_tools,
+                    safety_settings=None  # Use defaults
+                )
+                logger.info(f"Received response from Gemini: {type(response)}")
+                
+                # 4. Translate the response back to SDK format
+                sdk_response = self._translate_gemini_response_to_sdk(response)
+                return sdk_response
+                
+            except Exception as api_err:
+                logger.exception(f"Error making API call to Gemini: {api_err}")
+                # Return refusal message with the error details
+                error_msg = f"The AI model encountered an error: {str(api_err)}"
+                return ResponseOutputMessage(
+                    id=str(uuid.uuid4()),
+                    role="assistant",
+                    content=[{"text": error_msg}],
+                    status="completed",
+                    type="message"
+                )
+                
+        except Exception as e:
+            logger.exception(f"Error in GeminiProvider.get_response: {e}")
+            # Return a generic error message
+            error_msg = "I encountered an error processing your request."
+            return ResponseOutputMessage(
+                id=str(uuid.uuid4()),
+                role="assistant",
+                content=[{"text": error_msg}],
+                status="completed",
+                type="message"
+            ) 

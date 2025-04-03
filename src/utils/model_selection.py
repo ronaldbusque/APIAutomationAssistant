@@ -43,7 +43,7 @@ class ModelSelectionStrategy:
         from src.config.settings import settings as fresh_settings
         
         # Use settings from the centralized settings module
-        self.default_model = default_model or fresh_settings.get("MODEL_DEFAULT", "gemini-1.5-pro")
+        self.default_model = default_model or fresh_settings.get("MODEL_DEFAULT", "gemini-2.0-flash-thinking-exp-01-21")
         self.env_prefix = env_prefix
         
         # Load model configuration from settings
@@ -74,41 +74,115 @@ class ModelSelectionStrategy:
         logger.debug(f"Initialized ModelSelectionStrategy with config: {self.model_config}")
         logger.info(f"Using models: planning={self.model_config['planning']}, coding={self.model_config['coding']}, triage={self.model_config['triage']}")
     
-    def select_model(self, task_type: str, temperature: float = 0.7) -> str:
-        """Select a model based on task type and temperature."""
+    def select_model(self, task_type: str, task_complexity: float = 0.5) -> str:
+        """
+        Select a model based on task type and complexity.
+        
+        Args:
+            task_type: Type of task (planning, coding, triage, etc.)
+            task_complexity: Complexity score from 0-1
+            
+        Returns:
+            Model name with provider prefix
+        """
+        logger.info(f"Selecting model for task type: {task_type}, complexity: {task_complexity:.2f}")
         model_name = None
-
+        
+        # Handle blueprint and script task types
         if task_type == "blueprint_authoring":
-            model_name = settings.get("MODEL_BP_AUTHOR")
+            model_name = self.model_config.get("blueprint_authoring")
+            logger.info(f"Selected model for blueprint authoring: {model_name}")
+        elif task_type == "blueprint_reviewing":
+            model_name = self.model_config.get("blueprint_reviewing")
+            logger.info(f"Selected model for blueprint reviewing: {model_name}")
+        elif task_type == "script_coding":
+            model_name = self.model_config.get("script_coding")
+            logger.info(f"Selected model for script coding: {model_name}")
+        elif task_type == "script_reviewing":
+            model_name = self.model_config.get("script_reviewing")
+            logger.info(f"Selected model for script reviewing: {model_name}")
+        # Handle classic task types
+        elif task_type == "planning":
+            model_name = self.model_config.get("planning")
+            logger.info(f"Selected model for planning: {model_name}")
+        elif task_type == "coding":
+            model_name = self.model_config.get("coding")
+            logger.info(f"Selected model for coding: {model_name}")
+        elif task_type == "triage":
+            model_name = self.model_config.get("triage")
+            logger.info(f"Selected model for triage: {model_name}")
+        # Handle specialized task types
         elif task_type == "code_generation":
-            model_name = settings.get("MODEL_SCRIPT_CODER")
+            model_name = self.model_config.get("coding")
+            logger.info(f"Selected model for code generation: {model_name}")
         elif task_type == "code_review":
-            model_name = settings.get("MODEL_CODE_REVIEWER")
+            model_name = self.model_config.get("coding")
+            logger.info(f"Selected model for code review: {model_name}")
         elif task_type == "documentation":
-            model_name = settings.get("MODEL_DOC_WRITER")
+            model_name = self.model_config.get("planning")
+            logger.info(f"Selected model for documentation: {model_name}")
         elif task_type == "testing":
-            model_name = settings.get("MODEL_TEST_WRITER")
+            model_name = self.model_config.get("coding")
+            logger.info(f"Selected model for testing: {model_name}")
+        # Default case
         else:
-            logging.warning(f"Unknown task type: {task_type}, falling back to default model")
-            model_name = settings.get("MODEL_DEFAULT")
-
-        return self._format_model_name(model_name)
+            logger.warning(f"Unknown task type: {task_type}, falling back to default model")
+            model_name = self.model_config.get("default")
+            
+        # If no model selected or model is None, use default
+        if not model_name:
+            logger.warning(f"No model configured for task type: {task_type}, using default")
+            model_name = self.model_config.get("default", "google/gemini-2.0-flash-thinking-exp-01-21")
+            
+        # Apply provider formatting and return
+        formatted_model = self._format_model_name(model_name)
+        logger.info(f"Final selected model: {formatted_model}")
+        return formatted_model
 
     def _format_model_name(self, model_name: str) -> str:
-        """Format model name to ensure it has the correct provider prefix."""
-        if not model_name:
-            model_name = settings.get("MODEL_DEFAULT", "google/gemini-1.5-pro")
+        """
+        Format model name to ensure it has the correct provider prefix.
+        
+        Args:
+            model_name: The model name, which may or may not include a provider prefix
             
-        # If model_name already has a provider prefix (like "google/"), keep it
+        Returns:
+            Properly formatted model name with provider prefix
+        """
+        if not model_name:
+            logger.warning("Model name is None or empty, using default model")
+            model_name = self.model_config.get("default", "google/gemini-2.0-flash-thinking-exp-01-21")
+            
+        logger.debug(f"Formatting model name: {model_name}")
+        
+        # If model_name already has a provider prefix (like "openai/" or "google/"), keep it
         if "/" in model_name:
             provider, model = model_name.split("/", 1)
-            # Remove any "models/" prefix from the model part, but keep the provider
+            
+            # Handle the case where the model name starts with "models/"
             model = model.replace("models/", "")
-            return f"{provider}/{model}"
+            formatted_name = f"{provider}/{model}"
+            logger.debug(f"Model name already has provider '{provider}', formatted to: {formatted_name}")
+            return formatted_name
         
         # If there's no provider prefix, add the default "google/" prefix
         model_name = model_name.replace("models/", "")
-        return f"google/{model_name}"
+        default_provider = "google"
+        
+        # Special case: OpenAI models should get the openai/ prefix if not already included
+        if model_name.startswith(("gpt-3", "gpt-4")):
+            logger.debug(f"Model {model_name} appears to be an OpenAI model, adding 'openai/' prefix")
+            return f"openai/{model_name}"
+            
+        # Special case: Anthropic models
+        if model_name.startswith("claude-"):
+            logger.debug(f"Model {model_name} appears to be an Anthropic model, adding 'anthropic/' prefix")
+            return f"anthropic/{model_name}"
+            
+        # Default case: add google/ prefix for all other models
+        formatted_name = f"{default_provider}/{model_name}"
+        logger.debug(f"Added default provider '{default_provider}' to model name: {formatted_name}")
+        return formatted_name
 
     def update_tool_choice(self, agent_config: Dict[str, Any], complexity: float) -> Dict[str, Any]:
         """
