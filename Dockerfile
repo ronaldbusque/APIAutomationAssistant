@@ -25,7 +25,10 @@ ENV PYTHONUNBUFFERED=1 \
     # Set PORT for Uvicorn (Fly.io requires 8080)
     PORT=8080 \
     # Add HOST variable to make sure we bind to all interfaces
-    HOST=0.0.0.0
+    HOST=0.0.0.0 \
+    # Default to empty tokens for safety
+    ACCESS_TOKENS='{"example_user": "example_token"}' \
+    ADMIN_TOKEN='example_admin_token'
 
 # Set working directory
 WORKDIR /app
@@ -34,6 +37,7 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
+    dos2unix \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -41,12 +45,24 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy environment file (if exists, otherwise use example)
+COPY .env* ./
+# Ensure .env exists (copy from example if needed)
+RUN if [ ! -f .env ]; then \
+    if [ -f .env.local ]; then \
+      cp .env.local .env; \
+    elif [ -f .env.example ]; then \
+      cp .env.example .env; \
+    fi \
+  fi
+
 # Copy backend source code
 COPY src/ ./src/
 
-# Copy entrypoint script
+# Copy entrypoint script and fix line endings
 COPY entrypoint.sh ./
-RUN chmod +x /app/entrypoint.sh
+# Fix line endings (converts CRLF to LF)
+RUN dos2unix /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # Create logs directory and ensure permissions
 RUN mkdir -p /app/logs && chmod 777 /app/logs

@@ -43,6 +43,7 @@ Thumbs.db
 
 # Application specific
 .env
+.env.docker
 
 # Node.js
 node_modules/

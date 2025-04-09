@@ -9,6 +9,7 @@ A powerful tool for automating API testing with AI. This application analyzes yo
 - **Multi-Framework Support**: Generate test scripts for Postman and Playwright
 - **Interactive UI**: View, edit, and manage test blueprints and scripts
 - **Detailed Progress Tracking**: Monitor the generation process in real-time
+- **Secure Access Control**: Multi-token authentication and audit logging for secure API access
 
 ## Setup
 
@@ -80,6 +81,31 @@ You can customize the application's behavior by modifying the `.env` file:
 - `MODEL_SCRIPT_CODING`: The model used for generating test scripts (default: gpt-4o)
 - `AUTONOMOUS_MAX_ITERATIONS`: Maximum number of iterations for autonomous mode (default: 3)
 - `LOG_LEVEL`: Sets the logging verbosity (default: INFO)
+
+### Access Control Configuration
+
+The application supports secure authentication with multiple access tokens:
+
+- `ACCESS_TOKENS`: A JSON string mapping identifiers to bearer tokens. Example: 
+  ```
+  ACCESS_TOKENS='{"user_alpha": "token_abc123", "project_beta": "token_xyz456"}'
+  ```
+  This creates two valid tokens with identifiers "user_alpha" and "project_beta"
+
+- `ADMIN_TOKEN`: A strong, unpredictable string for accessing admin endpoints. Example:
+  ```
+  ADMIN_TOKEN='your_strong_admin_token'
+  ```
+
+### Audit Logging
+
+All API access is tracked in the audit log (`logs/audit.log`), including the identifier associated with each request. This provides traceability for all operations performed through the API.
+
+### Admin Endpoints
+
+With a valid admin token, you can access the admin endpoints:
+
+- `GET /api/v1/admin/audit-log`: View the audit log entries with pagination support
 
 ## License
 

@@ -62,6 +62,9 @@ export interface AppState {
   // Add any other state properties here
   openApiSpec: string;
   blueprintIsValid: boolean;
+  
+  // Authentication
+  accessToken: string | null;
 }
 
 export interface GenerateBlueprintRequest {

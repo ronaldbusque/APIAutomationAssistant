@@ -5,6 +5,7 @@ import SpecInput from './SpecInput';
 import ModeSelection from './ModeSelection';
 import BlueprintView from './BlueprintView';
 import ScriptOutput from './ScriptOutput';
+import AuthInput from './AuthInput';
 import { 
   CheckIcon, 
   DocumentTextIcon, 
@@ -103,8 +104,13 @@ const Layout: React.FC<Props> = ({ children }) => {
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">API Automation Assistant</h1>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row sm:items-center">
+          <div className="flex justify-between items-center">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">API Automation Assistant</h1>
+          </div>
+          <div className="mt-3 sm:mt-0 sm:ml-auto flex-grow max-w-md">
+            <AuthInput />
+          </div>
         </div>
       </header>
       

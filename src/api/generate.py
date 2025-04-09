@@ -10,7 +10,7 @@ import uuid
 import logging
 from typing import Dict, List, Any, Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Depends, Request
+from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Depends, Request, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -23,9 +23,12 @@ from ..agents.autonomous import (
     analyze_initial_spec, run_autonomous_blueprint_pipeline,
     run_autonomous_script_pipeline
 )
+from .auth import get_current_identifier, AUTH_EXCEPTION
 
 # Create the logger
 logger = logging.getLogger(__name__)
+# Create audit logger
+audit_logger = logging.getLogger("audit")
 
 # Define request and response models
 class GenerateBlueprintRequest(BaseModel):
@@ -463,222 +466,226 @@ async def generate_scripts_background(
 
 def create_api_router(app: FastAPI = None):
     """
-    Create API router and add all routes.
+    Create and return API router with all endpoints.
     
     Args:
-        app: FastAPI application
-        
+        app: Optional FastAPI app to configure
+    
     Returns:
-        Created API router
+        FastAPI router
     """
     from fastapi import APIRouter
+    
     # Create router with prefix
-    router = APIRouter(prefix="/api/v1", tags=["Generation"])
-    
+    router = APIRouter(
+        prefix="/api/v1",
+        tags=["Generation"]
+    )
+
     @router.post("/generate-blueprint", response_model=Dict[str, str])
-    async def generate_blueprint(request: GenerateBlueprintRequest, background_tasks: BackgroundTasks):
+    async def generate_blueprint(
+        request: GenerateBlueprintRequest, 
+        background_tasks: BackgroundTasks,
+        identifier: str = Depends(get_current_identifier)  # Add authentication dependency
+    ):
         """
-        Generate a test blueprint from an OpenAPI spec.
+        Generate a test blueprint from an OpenAPI specification.
         
-        Args:
-            request: Blueprint generation request
-            background_tasks: FastAPI background tasks
+        This endpoint accepts an OpenAPI spec and additional parameters to
+        generate a comprehensive test blueprint. The generation process
+        runs asynchronously and returns a job ID for status tracking.
+        """
+        try:
+            job_id = str(uuid.uuid4())
+            active_jobs[job_id] = "queued"
             
-        Returns:
-            Dictionary with job ID
-        """
-        job_id = str(uuid.uuid4())
-        active_jobs[job_id] = "queued"
-        
-        # Start background task
-        background_tasks.add_task(
-            generate_blueprint_background,
-            job_id=job_id,
-            request=request,
-            max_blueprint_iterations=request.max_iterations,
-            business_rules=request.business_rules,
-            test_data=request.test_data,
-            test_flow=request.test_flow
-        )
-        
-        return {"job_id": job_id}
-    
+            # Log the audit event BEFORE starting the task
+            log_details = {"job_id": job_id, "type": "blueprint"}
+            audit_logger.info(
+                f"Action='generate_start' Details={json.dumps(log_details)}",
+                extra={'identifier': identifier}
+            )
+            
+            # Add job to background tasks
+            background_tasks.add_task(
+                generate_blueprint_background,
+                job_id=job_id,
+                request=request,
+                max_blueprint_iterations=request.max_iterations,
+                business_rules=request.business_rules,
+                test_data=request.test_data,
+                test_flow=request.test_flow
+            )
+            
+            logger.info(f"Blueprint generation job queued with ID: {job_id}")
+            return {"job_id": job_id}
+            
+        except Exception as e:
+            logger.error(f"Failed to queue blueprint generation job: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to queue job: {str(e)}")
+
     @router.post("/generate-scripts", response_model=Dict[str, str])
-    async def generate_scripts(request: GenerateScriptsRequest, background_tasks: BackgroundTasks):
+    async def generate_scripts(
+        request: GenerateScriptsRequest, 
+        background_tasks: BackgroundTasks,
+        identifier: str = Depends(get_current_identifier)  # Add authentication dependency
+    ):
         """
-        Generate test scripts from a blueprint.
+        Generate test scripts from a test blueprint.
         
-        Args:
-            request: Script generation request
-            background_tasks: FastAPI background tasks
+        This endpoint accepts a test blueprint and generates executable test scripts
+        in the specified target frameworks. The generation process runs asynchronously
+        and returns a job ID for status tracking.
+        """
+        try:
+            job_id = str(uuid.uuid4())
+            active_jobs[job_id] = "queued"
             
-        Returns:
-            Dictionary with job ID
-        """
-        job_id = str(uuid.uuid4())
-        active_jobs[job_id] = "queued"
-        
-        # Start background task
-        background_tasks.add_task(
-            generate_scripts_background,
-            job_id=job_id,
-            request=request,
-            max_script_iterations=request.max_iterations
-        )
-        
-        return {"job_id": job_id}
-    
+            # Log the audit event
+            log_details = {"job_id": job_id, "type": "scripts", "targets": request.targets}
+            audit_logger.info(
+                f"Action='generate_start' Details={json.dumps(log_details)}",
+                extra={'identifier': identifier}
+            )
+            
+            # Add job to background tasks
+            background_tasks.add_task(
+                generate_scripts_background,
+                job_id=job_id,
+                request=request,
+                max_script_iterations=request.max_iterations
+            )
+            
+            logger.info(f"Script generation job queued with ID: {job_id}")
+            return {"job_id": job_id}
+            
+        except Exception as e:
+            logger.error(f"Failed to queue script generation job: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to queue job: {str(e)}")
+
     @router.get("/status/{job_id}", response_model=JobStatusResponse)
-    async def get_job_status(job_id: str):
-        """Get the status of a job."""
-        # This endpoint is polled frequently, so we need to make it efficient
-        # If job not found, return 404
-        if job_id not in active_jobs:
+    async def get_job_status(job_id: str, identifier: str = Depends(get_current_identifier)):
+        """
+        Get the status of a generation job.
+        
+        This endpoint returns the current status of a job, including progress
+        information and results if the job is completed.
+        """
+        if job_id not in active_jobs and job_id not in job_results:
             raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
-        
-        # Return job status
-        status = active_jobs.get(job_id, "not_found")
-        progress = job_progress.get(job_id, {})
-        result = job_results.get(job_id, {})
-        error = result.get("error") if status == "failed" else None
-        
-        return {
-            "job_id": job_id,
-            "status": status,
-            "progress": progress,
-            "result": result if status == "completed" else None,
-            "error": error,
-        }
-    
+            
+        if job_id in job_results:
+            result = job_results[job_id]
+            status_response = JobStatusResponse(
+                job_id=job_id, 
+                status="completed" if "error" not in result else "failed",
+                result=result if "error" not in result else None,
+                error=result.get("error") if "error" in result else None
+            )
+        else:
+            status = active_jobs.get(job_id, "unknown")
+            status_response = JobStatusResponse(
+                job_id=job_id,
+                status=status,
+                progress=job_progress.get(job_id)
+            )
+            
+        return status_response
+
     @router.websocket("/ws/job/{job_id}")
-    async def websocket_job_status(websocket: WebSocket, job_id: str):
+    async def websocket_job_status(
+        websocket: WebSocket, 
+        job_id: str,
+        token: Optional[str] = Query(None)
+    ):
         """
         WebSocket endpoint for real-time job status updates.
         
-        Args:
-            websocket: WebSocket connection
-            job_id: Job ID
+        This endpoint allows clients to receive real-time updates on job progress.
         """
+        # Try to get identifier from token parameter
+        identifier = None
+        from ..config.settings import settings
+        access_token_map = settings.get('ACCESS_TOKENS_DICT', {})
+
+        if token:
+            for id, valid_token in access_token_map.items():
+                if token == valid_token:
+                    identifier = id
+                    break
+
+        if not identifier:
+            logger.warning(f"WebSocket connection denied for job {job_id}: Invalid or missing token.")
+            # Close the connection BEFORE accepting if auth fails
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return # Important to stop processing
+            
+        logger.info(f"WebSocket connection established for job {job_id} by identifier: {identifier}")
         await websocket.accept()
         
-        if job_id not in active_jobs:
-            await websocket.send_json({"error": f"Job {job_id} not found"})
-            await websocket.close()
-            return
-        
-        # Store WebSocket connection
+        # Store websocket connection for sending updates
         websocket_connections[job_id] = websocket
         
         try:
-            # Send initial status
-            status = active_jobs[job_id]
-            progress = job_progress.get(job_id)
-            
-            await websocket.send_json({
-                "type": "status",
-                "job_id": job_id,
-                "status": status,
-                "progress": progress
-            })
-            
-            # If job is already completed or failed, send result or error
-            if status == "completed":
+            # Send initial status if available
+            if job_id in job_progress:
                 await websocket.send_json({
-                    "type": "completed",
+                    "type": "progress",
                     "job_id": job_id,
-                    "result": job_results.get(job_id)
+                    "progress": job_progress[job_id]
                 })
-            elif status == "failed":
+            elif job_id in job_results:
                 await websocket.send_json({
-                    "type": "error",
+                    "type": "result",
                     "job_id": job_id,
-                    "error": job_results.get(job_id, {}).get("error")
+                    "result": job_results[job_id]
                 })
-            
-            # Keep connection open
+                
+            # Keep connection alive and handle client messages if needed
             while True:
-                # Ping to keep connection alive
-                await websocket.receive_text()
+                data = await websocket.receive_text()
+                # Handle any client commands if needed
+                await asyncio.sleep(0.1) # Small delay to prevent tight loop
                 
         except WebSocketDisconnect:
-            logger.info(f"WebSocket disconnected for job {job_id}")
+            logger.info(f"WebSocket client disconnected from job {job_id}")
+        except Exception as e:
+            logger.error(f"WebSocket error: {str(e)}")
         finally:
-            # Remove WebSocket connection
             if job_id in websocket_connections:
                 del websocket_connections[job_id]
-    
+
     @router.get("/file-content/{job_id}/{target}/{filename:path}")
-    async def get_file_content(job_id: str, target: str, filename: str):
+    async def get_file_content(job_id: str, target: str, filename: str, identifier: str = Depends(get_current_identifier)):
         """
-        Get the content of a specific generated file.
+        Get the content of a generated file.
         
-        Args:
-            job_id: Job ID
-            target: Target framework
-            filename: File name/path
-            
-        Returns:
-            File content as text
+        This endpoint returns the content of a generated file for a specific job,
+        target, and filename.
         """
-        # Check if job exists
-        if job_id not in active_jobs:
-            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
-        
-        # Check if job is completed
-        if active_jobs[job_id] != "completed":
-            raise HTTPException(status_code=400, detail=f"Job {job_id} is not completed")
-        
-        # Get job result
-        result = job_results.get(job_id)
-        if not result:
-            raise HTTPException(status_code=404, detail=f"No results found for job {job_id}")
-        
-        # Extract scripts
-        scripts = result.get("scripts", {})
-        if not scripts:
-            raise HTTPException(status_code=404, detail=f"No scripts found in job {job_id}")
-        
-        # Check if target exists
-        if target not in scripts:
-            raise HTTPException(status_code=404, detail=f"Target {target} not found in job {job_id}")
-        
-        # Get target scripts
-        target_scripts = scripts[target]
-        
-        # Handle both array and object formats
-        if isinstance(target_scripts, list):
-            # If it's a list of filenames, check if the file exists in the list
-            if filename not in target_scripts:
-                raise HTTPException(status_code=404, detail=f"File {filename} not found in target {target}")
+        if job_id not in job_results:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found or not completed")
             
-            # We need to look up the actual content from somewhere
-            # This might mean we need to read from disk if files were saved
-            try:
-                # Try to read from the output directory
-                import os
-                from pathlib import Path
-                
-                # Define the output directory pattern
-                output_dir = f"output_{job_id}/{target}"
-                file_path = Path(output_dir) / filename
-                
-                if not file_path.exists():
-                    raise FileNotFoundError(f"File {file_path} does not exist on disk")
-                
-                # Read the file content
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                
-                return content
-            except Exception as e:
-                logger.error(f"Error reading file {filename} for job {job_id}: {str(e)}")
-                raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
-        else:
-            # If it's a dictionary, check if the file exists
-            if filename not in target_scripts:
-                raise HTTPException(status_code=404, detail=f"File {filename} not found in target {target}")
+        job_result = job_results[job_id]
+        if "error" in job_result:
+            raise HTTPException(status_code=400, detail=f"Job {job_id} failed: {job_result['error']}")
             
-            # Return the file content
-            return target_scripts[filename]
-    
+        if "files" not in job_result:
+            raise HTTPException(status_code=404, detail=f"No files found for job {job_id}")
+            
+        target_files = job_result["files"].get(target)
+        if not target_files:
+            raise HTTPException(status_code=404, detail=f"No files found for target {target} in job {job_id}")
+            
+        file_content = None
+        for file_info in target_files:
+            if file_info["path"] == filename or file_info["path"].endswith(f"/{filename}"):
+                file_content = file_info["content"]
+                break
+                
+        if file_content is None:
+            raise HTTPException(status_code=404, detail=f"File {filename} not found for target {target} in job {job_id}")
+            
+        return {"content": file_content}
+        
     return router 

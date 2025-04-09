@@ -39,6 +39,7 @@ const initialState: AppState = {
   scripts: {},
   openApiSpec: '',
   blueprintIsValid: false,
+  accessToken: localStorage.getItem('accessToken') || null,
 };
 
 // Context type
@@ -62,6 +63,7 @@ interface AppContextType {
   setScripts: (scripts: Record<string, Record<string, string>>) => void;
   setOpenApiSpec: (spec: string) => void;
   setBlueprintIsValid: (isValid: boolean) => void;
+  setAccessToken: (token: string | null) => void;
 }
 
 // Create context
@@ -147,6 +149,17 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setState(prev => ({ ...prev, blueprintIsValid: isValid }));
   };
 
+  const setAccessToken = (token: string | null) => {
+    setState(prev => ({ ...prev, accessToken: token }));
+    if (token) {
+      localStorage.setItem('accessToken', token);
+      console.log("Access token saved to localStorage.");
+    } else {
+      localStorage.removeItem('accessToken');
+      console.log("Access token removed from localStorage.");
+    }
+  };
+
   const value = {
     state,
     setCurrentStep,
@@ -167,6 +180,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setScripts,
     setOpenApiSpec,
     setBlueprintIsValid,
+    setAccessToken,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

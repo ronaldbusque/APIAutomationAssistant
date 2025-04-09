@@ -24,6 +24,7 @@ import sys
 import json
 import asyncio
 import logging.config
+import logging.handlers
 from typing import List, Optional, Dict, Any, Union
 from pathlib import Path
 from uuid import UUID
@@ -41,6 +42,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # Import application-specific modules
 from src.config.settings import settings, BASE_CONFIG
 from src.api import generate
+from src.api import admin
 from src.errors.exceptions import APITestGenerationError
 from .utils.model_selection import ModelSelectionStrategy
 from .utils.openai_setup import setup_openai_client
@@ -93,11 +95,43 @@ def configure_logging():
     logging.getLogger("uvicorn").setLevel(logging.INFO)
     logging.getLogger("uvicorn.access").setLevel(logging.INFO)
     
+    # Set up audit logging
+    logs_dir = Path.cwd() / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    audit_log_path = logs_dir / "audit.log"
+    
+    # Configure the audit logger
+    audit_logger = logging.getLogger("audit")
+    audit_logger.setLevel(logging.INFO)
+    audit_logger.propagate = False  # Prevent audit logs from going to main logger/console
+    
+    # Create a formatter for audit logs
+    audit_formatter = logging.Formatter(
+        "%(asctime)s - ID=%(identifier)s - %(message)s"
+    )
+    
+    # Create a rotating file handler for audit logs
+    audit_handler = logging.handlers.RotatingFileHandler(
+        audit_log_path, maxBytes=10*1024*1024, backupCount=5, encoding='utf-8'
+    )
+    audit_handler.setFormatter(audit_formatter)
+    audit_logger.addHandler(audit_handler)
+    
+    # Log startup message using audit logger
+    audit_logger.info(
+        f"Audit logging initialized", 
+        extra={'identifier': 'SYSTEM'}
+    )
+    
     logger.info(f"Logging configured with level {log_level}")
     return logger
 
 # Initialize logger
 logger = configure_logging()
+
+# Debug print the ACCESS_TOKENS_DICT
+logger.info(f"ACCESS_TOKENS_DICT loaded with {len(settings.get('ACCESS_TOKENS_DICT', {}))} tokens")
+logger.debug(f"Available tokens: {list(settings.get('ACCESS_TOKENS_DICT', {}).keys())}")
 
 # Initialize OpenAI client
 try:
@@ -143,6 +177,10 @@ async def test_generation_exception_handler(request: Request, exc: APITestGenera
 router = generate.create_api_router()
 app.include_router(router)
 logger.info("Included API router with prefix /api/v1")
+
+# Include admin router
+app.include_router(admin.router)
+logger.info("Included Admin router with prefix /api/v1/admin")
 
 # Health check endpoint
 @app.get("/health", tags=["Monitoring"])

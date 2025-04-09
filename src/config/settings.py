@@ -7,6 +7,7 @@ and provides default values when needed.
 
 import os
 import logging
+import json
 from typing import Dict, Any
 
 # Set up logger
@@ -38,7 +39,11 @@ BASE_CONFIG = {
     "MAX_RETRIES": "3",
     "BASE_TIMEOUT": "300",
     "MAX_JITTER": "1.0",
-    "AUTONOMOUS_MAX_ITERATIONS": "3"
+    "AUTONOMOUS_MAX_ITERATIONS": "3",
+
+    # Access control
+    "ACCESS_TOKENS": '{}',
+    "ADMIN_TOKEN": None,
 }
 
 def load_settings() -> Dict[str, Any]:
@@ -88,6 +93,33 @@ def load_settings() -> Dict[str, Any]:
     for key in bool_settings:
         if key in settings:
             settings[key] = settings[key].lower() in ("true", "yes", "1", "t", "y")
+    
+    # Parse ACCESS_TOKENS JSON string
+    access_tokens_str = settings.get("ACCESS_TOKENS", '{}')
+    logger.info(f"Raw ACCESS_TOKENS string (first 50 chars): {access_tokens_str[:50]}")
+    try:
+        # Remove outer quotes if present (handles both '{"key":"value"}' and {"key":"value"})
+        if access_tokens_str.startswith("'") and access_tokens_str.endswith("'"):
+            access_tokens_str = access_tokens_str[1:-1]
+        elif access_tokens_str.startswith('"') and access_tokens_str.endswith('"'):
+            access_tokens_str = access_tokens_str[1:-1]
+        
+        settings['ACCESS_TOKENS_DICT'] = json.loads(access_tokens_str)
+        logger.info(f"Loaded {len(settings['ACCESS_TOKENS_DICT'])} access tokens.")
+        logger.info(f"Available identifiers: {list(settings['ACCESS_TOKENS_DICT'].keys())}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse ACCESS_TOKENS JSON: {e}. Using empty token list.")
+        # Try to debug the string content
+        logger.error(f"Token string type: {type(access_tokens_str)}")
+        logger.error(f"Token string repr: {repr(access_tokens_str)}")
+        settings['ACCESS_TOKENS_DICT'] = {}
+
+    # Ensure ADMIN_TOKEN is loaded
+    settings['ADMIN_TOKEN'] = os.environ.get('ADMIN_TOKEN', BASE_CONFIG.get('ADMIN_TOKEN'))
+    if not settings.get('ADMIN_TOKEN'):
+        logger.warning("ADMIN_TOKEN is not set. Admin endpoints will be inaccessible.")
+    else:
+        logger.info("ADMIN_TOKEN loaded.")
     
     return settings
 
